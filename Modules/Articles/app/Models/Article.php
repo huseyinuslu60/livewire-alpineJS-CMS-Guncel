@@ -80,11 +80,13 @@ class Article extends Model
 
     /**
      * Article'ın kategorisi
+     * NOT: Articles tablosunda category_id kolonu yok, bu ilişki şu an kullanılmıyor
+     * İleride kategori desteği eklenecekse migration ile category_id kolonu eklenmeli
      */
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(\Modules\Categories\Models\Category::class, 'category_id');
-    }
+    // public function category(): BelongsTo
+    // {
+    //     return $this->belongsTo(\Modules\Categories\Models\Category::class, 'category_id');
+    // }
 
     /**
      * Article'ı oluşturan kullanıcı
@@ -97,7 +99,7 @@ class Article extends Model
     /**
      * Article'ı güncelleyen kullanıcı
      */
-    public function updater()
+    public function updater(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'updated_by');
     }
@@ -105,7 +107,7 @@ class Article extends Model
     /**
      * Article'ı silen kullanıcı
      */
-    public function deleter()
+    public function deleter(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'deleted_by');
     }

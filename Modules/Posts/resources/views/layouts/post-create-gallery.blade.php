@@ -3,5 +3,5 @@
 @section('title', 'Yeni Galeri Oluştur')
 
 @section('content')
-    @livewire('Modules\Posts\Livewire\PostCreateGallery')
+    @livewire('posts.post-create-gallery')
 @endsection

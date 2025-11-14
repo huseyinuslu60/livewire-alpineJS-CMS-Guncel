@@ -3,5 +3,5 @@
 @section('title', 'Yeni Video Oluştur')
 
 @section('content')
-    @livewire('Modules\Posts\Livewire\PostCreateVideo')
+    @livewire('posts.post-create-video')
 @endsection

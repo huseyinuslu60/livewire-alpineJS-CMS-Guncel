@@ -53,6 +53,10 @@ class FileUpload extends Component
 
     public function updatedFiles()
     {
+        if (empty($this->files)) {
+            return;
+        }
+
         $this->validate([
             'files.*' => 'required|file|max:10240',
         ]);
@@ -130,8 +134,9 @@ class FileUpload extends Component
 
         session()->flash('success', $this->createContextualSuccessMessage('uploaded', 'name', 'file'));
         $this->reset(['files', 'fileDescriptions', 'allFiles', 'allDescriptions']);
-        // Parent component'e modal'ı kapatmasını söyle
+        // Parent component'e modal'ı kapatmasını ve listeyi yenilemesini söyle
         $this->dispatch('closeUploadModal');
+        $this->dispatch('filesUploaded');
 
     }
 
@@ -147,6 +152,11 @@ class FileUpload extends Component
     {
         /** @var view-string $view */
         $view = 'files::livewire.file-upload';
+
+        // Eğer modal içinde render ediliyorsa layout kullanma
+        if (request()->has('modal') || str_contains(request()->url(), 'modal')) {
+            return view($view);
+        }
 
         return view($view)
             ->extends('layouts.admin')->section('content');

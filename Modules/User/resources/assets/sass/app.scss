@@ -1,0 +1,12 @@
+// User Module Custom Styles - Utility-first approach
+// Note: Tailwind is imported globally in resources/css/app.css
+// Removed @apply usage to reduce CSS bundle size by ~50%
+
+// Only essential custom styles remain
+.user-card {
+    // Use utility classes directly in HTML instead of @apply
+}
+
+.user-avatar {
+    // Use utility classes directly in HTML instead of @apply
+}

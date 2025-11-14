@@ -1,0 +1,34 @@
+# Laravel
+/vendor/
+/bootstrap/cache/*
+/storage/*.key
+/storage/app/public
+/storage/framework/*
+/storage/logs/*
+/storage/app/temp
+/public/storage
+.env
+.env.*
+.phpunit.result.cache
+
+# Build outputs (Vite/Laravel Mix)
+/public/build
+/public/build-*
+/public/hot
+/public/vendor/livewire
+
+# Node
+/node_modules/
+/npm-debug.log*
+/yarn.lock # (monorepo değilse tercihine göre, genelde tutulur)
+pnpm-lock.yaml # (kullanıyorsan, genelde tutulur)
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Cursor
+.cursor/
+.cursorrules

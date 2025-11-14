@@ -1,0 +1,11 @@
+{
+    "name": "AgencyNews",
+    "alias": "agencynews",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\AgencyNews\\Providers\\AgencyNewsServiceProvider"
+    ],
+    "files": []
+}

@@ -1,0 +1,11 @@
+{
+    "name": "Headline",
+    "alias": "headline",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Headline\\Providers\\HeadlineServiceProvider"
+    ],
+    "files": []
+}

@@ -52,6 +52,9 @@ class PostIndex extends Component
     /** @var array<string, bool> */
     public array $visibleColumns = [];
 
+    /** @var array<int> Mevcut sayfadaki görünen post ID'leri - performans için */
+    public array $visiblePostIds = [];
+
     protected $queryString = [
         'search' => ['except' => ''],
         'post_type' => ['except' => ''],
@@ -67,13 +70,48 @@ class PostIndex extends Component
 
     public function updatedSearch()
     {
+        $this->resetSelection();
         $this->resetPage();
     }
 
-    public function updatedSelectAll()
+    public function updatedPostType()
     {
-        if ($this->selectAll) {
-            $this->selectedPosts = $this->getPosts()->pluck('post_id')->toArray();
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    public function updatedStatus()
+    {
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    public function updatedEditorFilter()
+    {
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    public function updatedCategoryFilter()
+    {
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    /**
+     * Selection'ı sıfırla - filtre değişikliklerinde kullanılır
+     */
+    protected function resetSelection(): void
+    {
+        $this->selectedPosts = [];
+        $this->selectAll = false;
+    }
+
+    public function updatedSelectAll($value)
+    {
+        // DB query yok - sadece visiblePostIds kullan
+        if ($value) {
+            $this->selectedPosts = $this->visiblePostIds;
         } else {
             $this->selectedPosts = [];
         }
@@ -84,7 +122,9 @@ class PostIndex extends Component
         if (! is_array($this->selectedPosts)) {
             $this->selectedPosts = [];
         }
-        $this->selectAll = count($this->selectedPosts) === $this->getPosts()->count();
+        // DB query yok - sadece visiblePostIds kullan
+        $diff = array_diff($this->visiblePostIds, $this->selectedPosts);
+        $this->selectAll = empty($diff);
     }
 
     public function applyBulkAction()
@@ -225,11 +265,16 @@ class PostIndex extends Component
             ->limit(200) // Referans listesi için limit
             ->get();
 
+        $posts = $this->getPosts();
+
+        // Mevcut sayfadaki görünen post ID'lerini kaydet - performans için
+        $this->visiblePostIds = $posts->pluck('post_id')->all();
+
         /** @var view-string $view */
         $view = 'posts::livewire.post-index';
 
         return view($view, [
-            'posts' => $this->getPosts(),
+            'posts' => $posts,
             'postTypes' => Post::getTypeLabels(),
             'postStatuses' => Post::getStatusLabels(),
             'editors' => $editors,

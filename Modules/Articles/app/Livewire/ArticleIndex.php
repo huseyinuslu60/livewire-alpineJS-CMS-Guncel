@@ -90,6 +90,16 @@ class ArticleIndex extends Component
         $this->resetPage();
     }
 
+    public function updatedSortBy()
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSortDirection()
+    {
+        $this->resetPage();
+    }
+
     public function sortBy($field)
     {
         if ($this->sortBy === $field) {
@@ -202,6 +212,9 @@ class ArticleIndex extends Component
 
         $query = $this->articleService->getFilteredQuery($filters, $canViewAll);
         $articles = $query->paginate(Pagination::clamp($this->perPage));
+
+        // Mevcut sayfadaki görünen article ID'lerini kaydet - performans için (gelecekte selection özelliği eklendiğinde kullanılabilir)
+        // $this->visibleArticleIds = $articles->pluck('article_id')->all();
 
         // Sadece view all articles yetkisi olanlar yazar listesini görebilir
         $authors = Auth::user()->can('view all articles') ? User::select('id', 'name')->get() : collect();

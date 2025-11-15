@@ -47,6 +47,9 @@ class LogIndex extends Component
 
     public string $bulkAction = '';
 
+    /** @var array<int> Mevcut sayfadaki görünen log ID'leri - performans için */
+    public array $visibleLogIds = [];
+
     protected $queryString = [
         'search' => ['except' => ''],
         'action' => ['except' => ''],
@@ -68,18 +71,54 @@ class LogIndex extends Component
 
     public function updatedSearch()
     {
+        $this->resetSelection();
         $this->resetPage();
     }
 
     public function updatedPerPage()
     {
+        $this->resetSelection();
         $this->resetPage();
     }
 
-    public function updatedSelectAll()
+    public function updatedAction()
     {
-        if ($this->selectAll) {
-            $this->selectedLogs = $this->getLogs()->pluck('log_id')->toArray();
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    public function updatedUserId()
+    {
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    public function updatedDateFrom()
+    {
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    public function updatedDateTo()
+    {
+        $this->resetSelection();
+        $this->resetPage();
+    }
+
+    /**
+     * Selection'ı sıfırla - filtre değişikliklerinde kullanılır
+     */
+    protected function resetSelection(): void
+    {
+        $this->selectedLogs = [];
+        $this->selectAll = false;
+    }
+
+    public function updatedSelectAll($value)
+    {
+        // DB query yok - sadece visibleLogIds kullan
+        if ($value) {
+            $this->selectedLogs = $this->visibleLogIds;
         } else {
             $this->selectedLogs = [];
         }
@@ -90,7 +129,9 @@ class LogIndex extends Component
         if (! is_array($this->selectedLogs)) {
             $this->selectedLogs = [];
         }
-        $this->selectAll = count($this->selectedLogs) === $this->getLogs()->count();
+        // DB query yok - sadece visibleLogIds kullan
+        $diff = array_diff($this->visibleLogIds, $this->selectedLogs);
+        $this->selectAll = empty($diff);
     }
 
     public function applyBulkAction()
@@ -235,11 +276,16 @@ class LogIndex extends Component
             abort(404, 'Logs modülü aktif değil.');
         }
 
+        $logs = $this->getLogs();
+
+        // Mevcut sayfadaki görünen log ID'lerini kaydet - performans için
+        $this->visibleLogIds = $logs->pluck('log_id')->all();
+
         /** @var view-string $view */
         $view = 'logs::livewire.log-index';
 
         return view($view, [
-            'logs' => $this->getLogs(),
+            'logs' => $logs,
             'actions' => UserLog::ACTIONS,
             'users' => \App\Models\User::select('id', 'name')->orderBy('name')->get(),
         ])->extends('layouts.admin')->section('content');

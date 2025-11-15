@@ -2,57 +2,30 @@
 // ============================
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification } from '@/js/ui/notifications';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
     // Kategoriler Tablo Bileşeni
     Alpine.data('categoriesTable', () => ({
-        init() {
-            // Kategoriler Tablo: Alpine bileşeni başlatıldı
-        }
+        init() {}
     }));
 
     // Kategori Form Bileşeni
     Alpine.data('categoryForm', () => ({
-        init() {
-            // Kategori Form: Alpine bileşeni başlatıldı
-        }
+        init() {}
     }));
 }, { once: true });
 
 // Module initialization function
 function initCategoriesModule() {
-    // Module-specific initialization (non-Alpine code)
+    // Module-specific initialization
 }
 
 // Yardımcı Fonksiyonlar
 const CategoriesModule = {
-    // Bildirim göster
-    showNotification(message, type = 'success') {
-        // Bildirim elementi oluştur
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`;
-        notification.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // 5 saniye sonra otomatik kaldır
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 5000);
-    },
+    // Bildirim göster - uses shared notification utility
+    showNotification,
 
     // Silmeyi onayla
     confirmDelete(message = 'Bu işlemi gerçekleştirmek istediğinizden emin misiniz?') {
@@ -72,10 +45,10 @@ const CategoriesModule = {
     async copyToClipboard(text) {
         try {
             await navigator.clipboard.writeText(text);
-            this.showNotification('Panoya kopyalandı!', 'success');
+            showNotification('Panoya kopyalandı!', 'success');
         } catch (err) {
             console.error('Kopyalama hatası:', err);
-            this.showNotification('Kopyalama başarısız!', 'error');
+            showNotification('Kopyalama başarısız!', 'error');
         }
     }
 };

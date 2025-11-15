@@ -42,13 +42,70 @@ function initAllModules() {
 /**
  * Alpine.js global store'ları ve bileşenlerini başlat
  * alpine:init event'inde bir kez çağrılır
+ * Not: Alpine global component'ler (adminApp, loginApp, moduleManagement) app.js'de tanımlı
  */
 function initAlpineGlobals() {
-  // Alpine global store'lar ve bileşenler app.js'de zaten tanımlı
-  // Bu fonksiyon gerekirse ek Alpine kurulumu için kullanılabilir
   if (window.Alpine && !window.__alpineGlobalsInitialized) {
     window.__alpineGlobalsInitialized = true;
-    // Ek Alpine kurulumu buraya eklenebilir
+    // Gelecekte ek Alpine kurulumu buraya eklenebilir
+  }
+}
+
+/**
+ * Alpine root component'ini yeniden başlat
+ * Livewire navigasyonu sonrasında root x-data component'inin state'ini korur
+ */
+function reinitAlpineRoot() {
+  if (!window.Alpine || !document.documentElement || !window.adminApp) {
+    return;
+  }
+
+  try {
+    const rootData = document.documentElement.getAttribute('x-data');
+    const rootInit = document.documentElement.getAttribute('x-init');
+
+    // Sadece adminApp component'i için re-init yap
+    if (!rootData || (!rootData.includes('adminApp') && rootData !== 'adminApp()')) {
+      return;
+    }
+
+    // Mevcut component data'sını al
+    let componentData = null;
+    try {
+      if (window.Alpine.$data) {
+        componentData = window.Alpine.$data(document.documentElement);
+      }
+    } catch (e) {
+      // Component data yoksa devam et
+    }
+
+    // Component data varsa sadece init() metodunu çağır
+    if (componentData && typeof componentData.init === 'function') {
+      componentData.init();
+      return;
+    }
+
+    // Component data yoksa attribute'ları yeniden set ederek başlat
+    document.documentElement.removeAttribute('x-data');
+    if (rootInit) {
+      document.documentElement.removeAttribute('x-init');
+    }
+
+    document.documentElement.setAttribute('x-data', rootData);
+    if (rootInit) {
+      document.documentElement.setAttribute('x-init', rootInit);
+    }
+
+    // Alpine'in initTree metodunu kullanarak root'u yeniden işle
+    if (typeof window.Alpine.initTree === 'function') {
+      window.Alpine.initTree(document.documentElement);
+    } else if (typeof window.Alpine.init === 'function') {
+      window.Alpine.init(document.documentElement);
+    }
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.error('Alpine root component re-init error:', e);
+    }
   }
 }
 
@@ -57,67 +114,12 @@ function initAlpineGlobals() {
  * SPA navigasyonundan sonra UI bileşenlerini yeniden başlatır
  */
 function handleLivewireNavigated() {
-  // Alpine root component'ini yeniden başlat
-  // Livewire navigasyonu sırasında root x-data component'i yeniden değerlendirilmeli
-  // Bu, sidebarOpen ve darkMode gibi root-level state'lerin erişilebilir olmasını sağlar
-
   // Önce modülleri başlat
   initAllModules();
 
-  // Alpine root component'ini hemen yeniden başlat
-  // queueMicrotask kullanarak bu işlemi current call stack'in sonunda ama
-  // Livewire'ın expression evaluation'ından önce çalıştırıyoruz
-  queueMicrotask(() => {
-    if (window.Alpine && document.documentElement && window.adminApp) {
-      try {
-        const rootData = document.documentElement.getAttribute('x-data');
-        const rootInit = document.documentElement.getAttribute('x-init');
-
-        if (rootData === 'adminApp()' || rootData?.includes('adminApp')) {
-          // Mevcut component data'sını al
-          let componentData = null;
-          try {
-            if (window.Alpine.$data) {
-              componentData = window.Alpine.$data(document.documentElement);
-            }
-          } catch (e) {
-            // Component data yoksa devam et
-          }
-
-          // Eğer component data varsa ve init() metodunu çağırmadıysak, çağır
-          if (componentData && typeof componentData.init === 'function') {
-            // Component zaten var, sadece init() metodunu çağır
-            // Bu, state'i localStorage'dan yeniden yükler
-            componentData.init();
-          } else {
-            // Component data yoksa veya erişilemiyorsa, attribute'ları yeniden set ederek başlat
-            // Önce kaldır
-            document.documentElement.removeAttribute('x-data');
-            if (rootInit) {
-              document.documentElement.removeAttribute('x-init');
-            }
-
-            // Hemen tekrar ekle
-            document.documentElement.setAttribute('x-data', rootData);
-            if (rootInit) {
-              document.documentElement.setAttribute('x-init', rootInit);
-            }
-
-            // Alpine'in initTree metodunu kullanarak root'u yeniden işle
-            if (typeof window.Alpine.initTree === 'function') {
-              window.Alpine.initTree(document.documentElement);
-            } else if (typeof window.Alpine.init === 'function') {
-              window.Alpine.init(document.documentElement);
-            }
-          }
-        }
-      } catch (e) {
-        if (import.meta.env.DEV) {
-          console.error('Alpine root component re-init error:', e);
-        }
-      }
-    }
-  });
+  // Alpine root component'ini yeniden başlat
+  // queueMicrotask kullanarak Livewire'ın expression evaluation'ından önce çalıştırıyoruz
+  queueMicrotask(reinitAlpineRoot);
 }
 
 /**
@@ -172,11 +174,10 @@ export function mountLivewireAlpineLifecycle() {
     handleLivewireNavigated();
   }, { capture: true });
 
-  // Livewire navigasyon başladığında - root component'in state'ini koru
+  // Livewire navigasyon başladığında
+  // Not: Root component state'i korunur, sadece navigated'da yeniden başlatılır
   document.addEventListener('livewire:navigating', () => {
-    // Bu event'te root component'in state'ini korumak için hiçbir şey yapmıyoruz
-    // Çünkü Livewire DOM'u değiştirirken Alpine'in root component'ini korumamız gerekiyor
-    // Sadece navigated'da yeniden başlatacağız
+    // Bu event'te hiçbir şey yapmıyoruz - sadece navigated'da re-init yapılacak
   }, { capture: true });
 
   // Livewire bileşen güncellemeleri (debounced)

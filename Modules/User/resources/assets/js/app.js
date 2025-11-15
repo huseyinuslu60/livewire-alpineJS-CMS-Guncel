@@ -2,6 +2,7 @@
 // ===================================================
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification } from '@/js/ui/notifications';
 
 // Kullanıcı Modülü için Alpine.js Bileşenleri - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
@@ -129,22 +130,8 @@ registerModuleInit('user', initUserModule);
 
 // Yardımcı Fonksiyonlar
 const UserModule = {
-    // Bildirim göster
-    showNotification(message, type = 'success') {
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-            type === 'success' ? 'bg-green-500 text-white' : 
-            type === 'error' ? 'bg-red-500 text-white' : 
-            'bg-blue-500 text-white'
-        }`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
-    },
+    // Bildirim göster - uses shared notification utility
+    showNotification,
     
     // Onay iletişim kutusu
     confirm(message, callback) {

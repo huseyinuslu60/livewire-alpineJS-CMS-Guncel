@@ -274,3 +274,7 @@
     </div>
 </div>
 
+@push('scripts')
+    @vite('Modules/AgencyNews/resources/assets/js/app.js')
+@endpush
+

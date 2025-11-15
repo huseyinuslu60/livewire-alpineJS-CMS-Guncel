@@ -2,6 +2,7 @@
 // ========================
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification as sharedShowNotification } from '@/js/ui/notifications';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
@@ -142,24 +143,8 @@ registerModuleInit('authors', initAuthorsModule);
 
 // Utility Functions
 function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    notification.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-${type === 'success' ? 'check' : 'times'} mr-2"></i>
-            <span>${message}</span>
-            <button type="button" class="close ml-auto" data-dismiss="alert">
-                <span>&times;</span>
-            </button>
-        </div>
-    `;
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.remove();
-    }, 5000);
+    // Use shared Tailwind toast notification
+    sharedShowNotification(message, type);
 }
 
 function confirmAction(message, callback) {
@@ -167,9 +152,6 @@ function confirmAction(message, callback) {
         callback();
     }
 }
-
-
-
 
 // Export functions for global access
 const AuthorsModule = {

@@ -45,6 +45,11 @@ class LastminuteIndex extends Component
         $this->resetPage();
     }
 
+    public function updatedSortBy()
+    {
+        $this->resetPage();
+    }
+
     public function sortBy($field)
     {
         if ($this->sortBy === $field) {

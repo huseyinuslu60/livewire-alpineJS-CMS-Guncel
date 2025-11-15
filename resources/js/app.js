@@ -138,9 +138,6 @@ window.moduleManagement = () => ({
 
     init() {
         // Modül Yönetimi Alpine bileşeni başlatıldı
-        if (import.meta.env.DEV) {
-            console.log('Modül Yönetimi bileşeni yüklendi');
-        }
     },
 
     toggleModule(moduleId) {

@@ -2,6 +2,7 @@
 // ========================
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification as sharedShowNotification } from '@/js/ui/notifications';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
@@ -221,30 +222,8 @@ registerModuleInit('roles', initRolesModule);
 
 // Yardımcı Fonksiyonlar
 function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 bg-${type === 'success' ? 'green' : 'red'}-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
-    notification.innerHTML = `
-        <div class="flex items-center">
-            <i class="fas fa-${type === 'success' ? 'check' : 'times'} mr-2"></i>
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Animasyonla göster
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-    }, 100);
-    
-    // Otomatik kaldır
-    setTimeout(() => {
-        notification.classList.add('translate-x-full');
-        setTimeout(() => notification.remove(), 300);
-    }, 5000);
+    // Use shared Tailwind toast notification with animation
+    sharedShowNotification(message, type, { animated: true });
 }
 
 function confirmAction(message, callback) {

@@ -127,7 +127,7 @@ const initTrumbowyg = () => {
     const $el = jQuery(this);
     const el = this;
 
-    // Zaten mount edilmişse atla - guard ile çift mount'u önle
+    // Double-init guard: Zaten mount edilmişse atla
     if (el.getAttribute('data-editor-mounted') === '1') {
       return;
     }
@@ -168,9 +168,7 @@ const initTrumbowyg = () => {
       fullscreen: true,
       events: {
         'tbwinit': function() {
-          if (import.meta.env.DEV) {
-            console.log('Trumbowyg initialized for:', this.id || this.name);
-          }
+          // Trumbowyg initialized
         },
         'tbwchange': function() {
           const element = this;
@@ -194,9 +192,6 @@ const initTrumbowyg = () => {
           }
         },
         'tbwfullscreenenter': function() {
-          if (import.meta.env.DEV) {
-            console.log('Tam ekran moduna giriliyor');
-          }
           document.body.classList.add('trumbowyg-fullscreen');
           // Sidebar'ı gizle
           const sidebar = document.querySelector('aside');
@@ -205,9 +200,6 @@ const initTrumbowyg = () => {
           }
         },
         'tbwfullscreenexit': function() {
-          if (import.meta.env.DEV) {
-            console.log('Tam ekran modundan çıkılıyor');
-          }
           document.body.classList.remove('trumbowyg-fullscreen');
           // Sidebar'ı göster
           const sidebar = document.querySelector('aside');
@@ -243,7 +235,7 @@ const initTrix = () => {
       return;
     }
 
-    // Zaten mount edilmişse atla
+    // Double-init guard: Zaten mount edilmişse atla
     if (el.dataset.editorMounted === '1' || el.dataset.trixMounted === '1') {
       return;
     }
@@ -459,18 +451,16 @@ export function mountEditorsLifecycle() {
   // Debounce ile çoklu güncellemeleri önle
   let __livewireUpdateTimer = null;
   document.addEventListener('livewire:updated', () => {
-  // Sayfada editör var mı kontrol et
-  const pageHasEditor = document.querySelector('textarea[data-editor="trumbowyg"], textarea.trumbowyg, [data-editor="trix"], trix-editor');
-
+    // Sayfada editör var mı kontrol et
+    const pageHasEditor = document.querySelector('textarea[data-editor="trumbowyg"], textarea.trumbowyg, [data-editor="trix"], trix-editor');
     if (!pageHasEditor) {
-      return; // Editör yoksa işlem yapma
+      return;
     }
 
+    // Debounce: 150ms içinde birden fazla güncelleme gelirse sadece sonuncusunu çalıştır
     if (__livewireUpdateTimer) {
       clearTimeout(__livewireUpdateTimer);
     }
-    // Kısa bir gecikme ile çalıştır (DOM'un tamamen güncellenmesini bekle)
-    // Debounce: 150ms içinde birden fazla güncelleme gelirse sadece sonuncusunu çalıştır
     __livewireUpdateTimer = setTimeout(() => {
       edRebind(true); // shouldTeardown = true
       __livewireUpdateTimer = null;

@@ -9,29 +9,41 @@ import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
 document.addEventListener('alpine:init', () => {
   Alpine.store('posts', { trixDebounce: 300 });
 
-  Alpine.data('postsTable', () => ({
-    selected: new Set(),
-        selectAll: false,
-        bulkAction: '',
+  // postsTable - Factory pattern ile her instance kendi state'ine sahip
+  function postsTableData() {
+    return {
+      selected: new Set(),
+      selectAll: false,
+      bulkAction: '',
 
-    init() {},
+      init() {},
 
-        toggleSelectAll() {
-            this.selectAll = !this.selectAll;
-      this.selected = this.selectAll ? new Set(this.getAllIds()) : new Set();
-            this.$wire.set('selectAll', this.selectAll);
-        },
+      toggleSelectAll() {
+        this.selectAll = !this.selectAll;
+        this.selected = this.selectAll ? new Set(this.getAllIds()) : new Set();
+        this.$wire.set('selectAll', this.selectAll);
+      },
 
-    getAllIds() {
-      return Array.from(document.querySelectorAll('[data-post-id]')).map(el => el.dataset.postId);
-    },
+      getAllIds() {
+        return Array.from(document.querySelectorAll('[data-post-id]')).map(el => el.dataset.postId);
+      },
 
-    applyBulk() {
-      if (this.bulkAction && this.selected.size > 0) {
-        this.$wire.call('applyBulkAction', this.bulkAction, Array.from(this.selected));
-            }
+      applyBulk() {
+        if (this.bulkAction && this.selected.size > 0) {
+          this.$wire.call('applyBulkAction', this.bulkAction, Array.from(this.selected));
         }
-    }));
+      }
+    };
+  }
+
+  Alpine.data('postsTable', postsTableData);
+
+  // Global fonksiyon wrapper - x-data="postsTable" ve x-data="postsTable()" için uyumluluk
+  if (typeof window !== 'undefined' && !window.postsTable) {
+    window.postsTable = function() {
+      return postsTableData();
+    };
+  }
 
   Alpine.data('tagsInput', (initial = '') => ({
         tags: [],

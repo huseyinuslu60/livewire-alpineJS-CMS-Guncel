@@ -67,6 +67,17 @@ export default defineConfig({
                 // Settings Module
                 'Modules/Settings/resources/assets/sass/app.scss',
                 'Modules/Settings/resources/assets/js/app.js',
+                // AgencyNews Module
+                'Modules/AgencyNews/resources/assets/sass/app.scss',
+                'Modules/AgencyNews/resources/assets/js/app.js',
+                // Banks Module
+                'Modules/Banks/resources/assets/sass/app.scss',
+                'Modules/Banks/resources/assets/js/app.js',
+                // Newsletters Module
+                'Modules/Newsletters/resources/assets/sass/app.scss',
+                'Modules/Newsletters/resources/assets/js/app.js',
+                // Lastminutes Module
+                'Modules/Lastminutes/resources/assets/js/app.js',
             ],
             refresh: true,
         }),
@@ -105,6 +116,10 @@ export default defineConfig({
                     if (id.includes('Modules/Logs')) return 'logs';
                     if (id.includes('Modules/Headline')) return 'headlines';
                     if (id.includes('Modules/Settings')) return 'settings';
+                    if (id.includes('Modules/AgencyNews')) return 'agencynews';
+                    if (id.includes('Modules/Banks')) return 'banks';
+                    if (id.includes('Modules/Newsletters')) return 'newsletters';
+                    if (id.includes('Modules/Lastminutes')) return 'lastminutes';
                 },
                 // Ensure jQuery is available globally in the bundle
                 globals: {

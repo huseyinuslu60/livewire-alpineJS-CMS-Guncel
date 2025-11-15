@@ -2,6 +2,7 @@
 // Alpine.js + Livewire + Tailwind CSS uyumlu
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification as sharedShowNotification } from '@/js/ui/notifications';
 
 // Loglar modülü için Alpine.js bileşenleri - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
@@ -9,17 +10,17 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('logsTable', () => ({
         init() {}
     }));
-    
+
     // Loglar yönetim bileşeni
     Alpine.data('logs.management', () => ({
             // Durum
             isLoading: false,
         selectedLogs: [],
             showBulkActions: false,
-        
+
             // Metodlar
         init() {},
-        
+
             // Toplu işlemler
         toggleSelectAll() {
                 if (this.selectedLogs.length === this.getTotalLogs()) {
@@ -70,30 +71,30 @@ document.addEventListener('alpine:init', () => {
                 return text.length > length ? text.substring(0, length) + '...' : text;
         }
     }));
-    
+
         // Flash message component
         Alpine.data('logs.flashMessage', () => ({
             show: true,
-        
+
         init() {
                 setTimeout(() => {
                     this.close();
                 }, 5000);
             },
-            
+
             close() {
                 this.show = false;
         }
     }));
-    
+
         // Loading spinner component
         Alpine.data('logs.loadingSpinner', () => ({
             isLoading: false,
-            
+
             start() {
                 this.isLoading = true;
             },
-            
+
             stop() {
                 this.isLoading = false;
             }
@@ -161,33 +162,9 @@ const logsModule = {
         document.body.classList.remove('loading');
     },
 
-    // Bildirim göster - XSS güvenli
+    // Bildirim göster - shared helper kullanıyor
     showNotification(message, type = 'success') {
-        const wrapper = document.createElement('div');
-        wrapper.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-            type === 'success' ? 'bg-green-500 text-white' :
-            type === 'error' ? 'bg-red-500 text-white' :
-            'bg-blue-500 text-white'
-        }`;
-
-        const box = document.createElement('div');
-        box.className = 'flex items-center space-x-2';
-
-        const text = document.createElement('span');
-        text.textContent = message; // güvenli
-
-        const btn = document.createElement('button');
-        btn.className = 'ml-2 text-white hover:text-gray-200';
-        btn.setAttribute('aria-label', 'Kapat');
-        btn.addEventListener('click', () => wrapper.remove());
-        btn.textContent = '×';
-
-        box.appendChild(text);
-        box.appendChild(btn);
-        wrapper.appendChild(box);
-        document.body.appendChild(wrapper);
-
-        setTimeout(() => wrapper.remove(), 5000);
+        sharedShowNotification(message, type);
     },
 
     // Tarihi formatla

@@ -190,7 +190,7 @@ const initOnce = () => {
             alpineData.reinitialize();
         }
     } catch (error) {
-        if (console && console.debug) {
+        if (import.meta.env.DEV) {
             console.debug('livewire:navigated - Headline Sortable restore error:', error);
         }
     }

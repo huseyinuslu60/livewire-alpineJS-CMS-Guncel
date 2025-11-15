@@ -1,7 +1,7 @@
 <div x-data="categoriesTable()">
     <!-- Flash Messages -->
     @if (session()->has('success'))
-        <div x-show="showSuccess" 
+        <div x-show="showSuccess"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -26,8 +26,8 @@
     @endif
 
     @if (session()->has('error'))
-        <div x-data="{ showError: true }" 
-             x-show="showError" 
+        <div x-data="{ showError: true }"
+             x-show="showError"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -66,7 +66,7 @@
                 </div>
                 <div class="flex items-center space-x-3">
                     @can('create categories')
-                    <a href="{{ route('categories.create') }}" 
+                    <a href="{{ route('categories.create') }}"
                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200">
                         <i class="fas fa-plus mr-2"></i>
                         Yeni Kategori
@@ -87,9 +87,9 @@
                         <i class="fas fa-search mr-1 text-indigo-500"></i>
                         Arama
                     </label>
-                    <input type="text" 
-                           wire:model.live="search" 
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" 
+                    <input type="text"
+                           wire:model.live="search"
+                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                            placeholder="Kategori ara...">
                 </div>
 
@@ -99,7 +99,7 @@
                         <i class="fas fa-filter mr-1 text-indigo-500"></i>
                         Durum
                     </label>
-                    <select wire:model.live="status" 
+                    <select wire:model.live="statusFilter"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                         <option value="">Tümü</option>
                         <option value="active">Aktif</option>
@@ -113,7 +113,7 @@
                         <i class="fas fa-tag mr-1 text-indigo-500"></i>
                         Tür
                     </label>
-                    <select wire:model.live="typeFilter" 
+                    <select wire:model.live="typeFilter"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                         <option value="">Tüm Türler</option>
                         <option value="news">📰 Haber</option>
@@ -128,7 +128,7 @@
                         <i class="fas fa-sort mr-1 text-indigo-500"></i>
                         Sırala
                     </label>
-                    <select wire:model.live="sortBy" 
+                    <select wire:model.live="sortField"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                         <option value="name">İsim</option>
                         <option value="weight">Ağırlık</option>
@@ -143,7 +143,7 @@
                         <i class="fas fa-list mr-1 text-indigo-500"></i>
                         Sayfa Başına
                     </label>
-                    <select wire:model.live="perPage" 
+                    <select wire:model.live="perPage"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                         <option value="10">10 / sayfa</option>
                         <option value="20">20 / sayfa</option>
@@ -320,14 +320,14 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end space-x-2">
                                     @can('edit categories')
-                                    <a href="{{ route('categories.edit', $category->category_id) }}" 
+                                    <a href="{{ route('categories.edit', $category->category_id) }}"
                                        class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors duration-150">
                                         <i class="fas fa-edit mr-1"></i>
                                         Düzenle
                                     </a>
                                     @endcan
                                     @can('delete categories')
-                                    <button onclick="if(confirm('Bu kategoriyi silmek istediğinizden emin misiniz?')) { $wire.deleteCategory({{ $category->category_id }}) }" 
+                                    <button onclick="if(confirm('Bu kategoriyi silmek istediğinizden emin misiniz?')) { $wire.deleteCategory({{ $category->category_id }}) }"
                                             class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 transition-colors duration-150">
                                         <i class="fas fa-trash mr-1"></i>
                                         Sil
@@ -345,7 +345,7 @@
                                     </div>
                                     <h3 class="text-lg font-medium text-gray-900 mb-2">Kategori Bulunamadı</h3>
                                     <p class="text-gray-600 mb-6">Henüz hiç kategori oluşturulmamış.</p>
-                                    <a href="{{ route('categories.create') }}" 
+                                    <a href="{{ route('categories.create') }}"
                                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200">
                                         <i class="fas fa-plus mr-2"></i>
                                         İlk Kategoriyi Oluştur
@@ -367,7 +367,7 @@
                 <div class="flex items-center text-sm text-gray-700 mb-4 sm:mb-0">
                     <i class="fas fa-info-circle mr-2 text-indigo-500"></i>
                     <span>
-                        <strong>{{ $categories->firstItem() }}</strong> - <strong>{{ $categories->lastItem() }}</strong> 
+                        <strong>{{ $categories->firstItem() }}</strong> - <strong>{{ $categories->lastItem() }}</strong>
                         arası gösteriliyor, toplam <strong>{{ $categories->total() }}</strong> kategori
                     </span>
                 </div>

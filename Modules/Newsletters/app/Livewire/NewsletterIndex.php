@@ -57,6 +57,11 @@ class NewsletterIndex extends Component
         $this->resetPage();
     }
 
+    public function updatedSortBy()
+    {
+        $this->resetPage();
+    }
+
     public function updatedSelectAll()
     {
         if ($this->selectAll) {

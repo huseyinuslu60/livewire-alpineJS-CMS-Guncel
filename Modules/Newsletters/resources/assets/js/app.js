@@ -1,6 +1,7 @@
 // Bülten Modülü JavaScript - Alpine.js Uyumlu
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification } from '@/js/ui/notifications';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
@@ -265,29 +266,9 @@ document.addEventListener('livewire:init', () => {
 });
 
 // Başarı mesajları için yardımcı fonksiyon
+// Now uses shared Tailwind toast notification instead of container-based message
 function showSuccessMessage(message) {
-    const successMessage = document.createElement('div');
-    successMessage.className = 'bg-green-50 border border-green-200 rounded-xl p-4 mb-6 shadow-sm';
-    successMessage.innerHTML = `
-        <div class="flex items-center">
-            <div class="flex-shrink-0">
-                <i class="fas fa-check-circle text-green-500 text-lg"></i>
-            </div>
-            <div class="ml-3 flex-1">
-                <p class="text-sm font-medium text-green-800">${message}</p>
-            </div>
-        </div>
-    `;
-    
-    const container = document.querySelector('.newsletter-module');
-    if (container) {
-        container.insertBefore(successMessage, container.firstChild);
-        
-        // 5 saniye sonra başarı mesajını kaldır
-        setTimeout(() => {
-            successMessage.remove();
-        }, 5000);
-    }
+    showNotification(message, 'success');
 }
 
 

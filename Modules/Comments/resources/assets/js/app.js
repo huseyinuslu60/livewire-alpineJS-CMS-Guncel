@@ -2,6 +2,7 @@
 // Livewire, Alpine.js ve Tailwind CSS uyumlu
 
 import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
+import { showNotification } from '@/js/ui/notifications';
 
 // Yorumlar modülü için Alpine.js bileşenleri - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
@@ -178,34 +179,8 @@ const commentsModule = {
         document.body.classList.remove('loading');
     },
 
-    // Bildirim göster
-    showNotification(message, type = 'success') {
-        // Bildirim elementi oluştur
-        const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-            type === 'success' ? 'bg-green-500 text-white' : 
-            type === 'error' ? 'bg-red-500 text-white' : 
-            'bg-blue-500 text-white'
-        }`;
-        notification.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i>
-                <span>${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        // 5 saniye sonra otomatik kaldır
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 5000);
-    },
+    // Bildirim göster - uses shared notification utility
+    showNotification,
 
     // Tarihi formatla
     formatDate(dateString) {

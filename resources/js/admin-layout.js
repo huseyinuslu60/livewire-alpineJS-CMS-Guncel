@@ -8,7 +8,6 @@ import { registerModuleInit } from './livewire-alpine-lifecycle';
  * İdempotent - birden fazla kez çağrılabilir
  */
 function initAdminLayout() {
-  // CSRF token ayarı bootstrap.js'de zaten yapılıyor, burada sadece güncelleme yapılabilir
   // Tam ekran açma/kapama fonksiyonu (tek seferlik, korumalı)
   if (typeof window.toggleFullScreen === 'undefined') {
     window.toggleFullScreen = () => {

@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ModuleController;
-use App\Services\AIContentSuggestionService;
+use App\Services\ContentSuggestionService;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,26 +39,28 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/modules/{module}', [ModuleController::class, 'update'])->name('modules.update');
     });
 
-    // AI Test Route (geçici) - Sadece admin ve super_admin erişebilir
+    // İçerik Önerileri Test Route - Sadece admin ve super_admin erişebilir
     Route::middleware(['permission:view articles'])->group(function () {
-        Route::get('/test-ai', function () {
-            $aiService = new AIContentSuggestionService;
-            $suggestions = $aiService->getContentSuggestions(5);
+        Route::get('/test-content-suggestions', function () {
+            $suggestionService = app(ContentSuggestionService::class);
+            $suggestions = $suggestionService->getContentSuggestions(5);
 
             return response()->json([
                 'success' => true,
                 'suggestions' => $suggestions,
                 'count' => count($suggestions),
             ]);
-        })->name('test.ai');
+        })->name('test.content.suggestions');
 
-        // AI Önerilerini Yenile
-        Route::post('/refresh-ai-suggestions', function () {
+        // İçerik Önerilerini Yenile
+        Route::post('/refresh-content-suggestions', function () {
             // Cache'i temizle
-            \Illuminate\Support\Facades\Cache::forget('ai_content_suggestions_'.date('Y-m-d-H-i'));
+            $minuteBlock = (int) (floor(now()->minute / 30) * 30);
+            $cacheKey = 'content_suggestions_'.now()->format('Y-m-d-H').'-'.str_pad((string) $minuteBlock, 2, '0', STR_PAD_LEFT);
+            \Illuminate\Support\Facades\Cache::forget($cacheKey);
 
-            $aiService = new AIContentSuggestionService;
-            $suggestions = $aiService->getContentSuggestions(5);
+            $suggestionService = app(ContentSuggestionService::class);
+            $suggestions = $suggestionService->getContentSuggestions(5);
 
             return response()->json([
                 'success' => true,
@@ -66,7 +68,7 @@ Route::middleware(['auth'])->group(function () {
                 'count' => count($suggestions),
                 'refreshed_at' => now()->format('d.m.Y H:i'),
             ]);
-        })->name('refresh.ai.suggestions');
+        })->name('refresh.content.suggestions');
     });
 });
 

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\AIContentSuggestionService;
+use App\Services\ContentSuggestionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Articles\Models\Article;
@@ -126,11 +126,11 @@ class DashboardController extends Controller
             }
         }
 
-        // AI İçerik Önerileri (İçerik yönetimi yetkisi olanlar için)
+        // İçerik Önerileri (İçerik yönetimi yetkisi olanlar için)
         if ($user->can('view posts') || $user->can('view articles')) {
             try {
-                $aiService = new AIContentSuggestionService;
-                $suggestions = $aiService->getContentSuggestions(5);
+                $suggestionService = app(ContentSuggestionService::class);
+                $suggestions = $suggestionService->getContentSuggestions(5);
 
                 // Eğer boş dönerse bile array olarak set et
                 if (! empty($suggestions) && is_array($suggestions) && count($suggestions) > 0) {
@@ -139,7 +139,7 @@ class DashboardController extends Controller
                     $data['aiSuggestions'] = [];
                 }
             } catch (\Exception $e) {
-                \Log::error('AI Suggestions Error for user '.$user->email.': '.$e->getMessage());
+                \Log::error('Content Suggestions Error for user '.$user->email.': '.$e->getMessage());
                 // Hata durumunda boş array set et ki blade'de kontrol edilebilsin
                 $data['aiSuggestions'] = [];
             }

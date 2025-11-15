@@ -573,7 +573,7 @@
                 <i class="fas fa-robot text-indigo-500 mr-2"></i>
                 🤖 AI Finans & Borsa Haber Önerileri
             </h3>
-            <button onclick="refreshAISuggestions()" class="text-indigo-500 hover:text-indigo-700 transition-colors duration-200">
+            <button onclick="refreshContentSuggestions()" class="text-indigo-500 hover:text-indigo-700 transition-colors duration-200">
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
@@ -631,7 +631,7 @@
 </div>
 
 <script>
-function refreshAISuggestions() {
+function refreshContentSuggestions() {
     const button = event.target.closest('button');
     const icon = button.querySelector('i');
     const originalText = button.innerHTML;
@@ -642,7 +642,7 @@ function refreshAISuggestions() {
     icon.classList.add('fa-spin');
 
     // AJAX request
-    fetch('{{ route("refresh.ai.suggestions") }}', {
+    fetch('{{ route("refresh.content.suggestions") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

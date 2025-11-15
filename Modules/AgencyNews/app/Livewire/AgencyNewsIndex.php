@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\AgencyNews\Models\AgencyNews;
+use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
 {
     use WithPagination;
+
+    protected AgencyNewsService $agencyNewsService;
 
     public string $search = '';
 
@@ -35,6 +38,11 @@ class AgencyNewsIndex extends Component
         'sortBy' => ['except' => 'created_at'],
         'sortDirection' => ['except' => 'desc'],
     ];
+
+    public function boot(AgencyNewsService $agencyNewsService)
+    {
+        $this->agencyNewsService = $agencyNewsService;
+    }
 
     public function updatedSearch()
     {
@@ -92,7 +100,7 @@ class AgencyNewsIndex extends Component
 
         try {
             $agencyNews = AgencyNews::findOrFail($agencyNewsId);
-            $agencyNews->delete();
+            $this->agencyNewsService->delete($agencyNews);
 
             session()->flash('success', 'Agency news başarıyla silindi.');
         } catch (\Exception $e) {
@@ -141,41 +149,20 @@ class AgencyNewsIndex extends Component
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
         }
 
-        $query = AgencyNews::query()
-            ->search($this->search ?? null)
-            ->ofAgency($this->agencyFilter ?? null)
-            ->ofCategory($this->categoryFilter ?? null);
+        $filters = [
+            'search' => $this->search,
+            'agencyFilter' => $this->agencyFilter,
+            'categoryFilter' => $this->categoryFilter,
+            'imageFilter' => $this->imageFilter,
+            'sortBy' => $this->sortBy,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        // Resim filtresi - 0-yutmayan kontrol
-        if ($this->imageFilter !== '') {
-            if ($this->imageFilter === 'yes') {
-                $query->where('has_image', true);
-            } elseif ($this->imageFilter === 'no') {
-                $query->where('has_image', false);
-            }
-        }
-
-        // Sıralama
-        if ($this->sortBy === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
-        }
-
+        $query = $this->agencyNewsService->getFilteredQuery($filters);
         $agencyNews = $query->paginate(Pagination::clamp($this->perPage ?? null));
 
-        $agencies = AgencyNews::select('agency_id')
-            ->whereNotNull('agency_id')
-            ->distinct()
-            ->pluck('agency_id')
-            ->map(function ($id) {
-                return ['id' => $id, 'name' => 'Agency '.$id];
-            });
-
-        $categories = AgencyNews::select('category')
-            ->whereNotNull('category')
-            ->distinct()
-            ->pluck('category');
+        $agencies = $this->agencyNewsService->getAgenciesList();
+        $categories = $this->agencyNewsService->getCategoriesList();
 
         /** @var view-string $view */
         $view = 'agencynews::livewire.agency-news-index';

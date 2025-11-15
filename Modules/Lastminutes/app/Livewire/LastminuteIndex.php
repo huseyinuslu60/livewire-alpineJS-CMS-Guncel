@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Lastminutes\Models\Lastminute;
+use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteIndex extends Component
 {
     use ValidationMessages, WithPagination;
+
+    protected LastminuteService $lastminuteService;
 
     public string $search = '';
 
@@ -24,6 +27,11 @@ class LastminuteIndex extends Component
     public string $sortDirection = 'desc';
 
     protected $listeners = ['refreshComponent' => '$refresh'];
+
+    public function boot(LastminuteService $lastminuteService)
+    {
+        $this->lastminuteService = $lastminuteService;
+    }
 
     public function mount()
     {
@@ -66,7 +74,7 @@ class LastminuteIndex extends Component
         Gate::authorize('delete lastminutes');
 
         $lastminute = Lastminute::findOrFail($id);
-        $lastminute->delete();
+        $this->lastminuteService->delete($lastminute);
 
         $this->dispatch('lastminute-deleted');
         session()->flash('success', 'Son dakika başarıyla silindi.');
@@ -77,17 +85,10 @@ class LastminuteIndex extends Component
         Gate::authorize('edit lastminutes');
 
         $lastminute = Lastminute::findOrFail($id);
-
-        if ($lastminute->status === 'active') {
-            $lastminute->deactivate();
-            $message = 'Son dakika pasif yapıldı.';
-        } else {
-            $lastminute->activate();
-            $message = 'Son dakika aktif yapıldı.';
-        }
+        $this->lastminuteService->toggleStatus($lastminute);
 
         $this->dispatch('lastminute-status-changed');
-        session()->flash('success', $message);
+        session()->flash('success', 'Son dakika durumu güncellendi.');
     }
 
     public function markAsExpired($id)
@@ -95,7 +96,7 @@ class LastminuteIndex extends Component
         Gate::authorize('edit lastminutes');
 
         $lastminute = Lastminute::findOrFail($id);
-        $lastminute->markAsExpired();
+        $this->lastminuteService->markAsExpired($lastminute);
 
         $this->dispatch('lastminute-expired');
         session()->flash('success', 'Son dakika süresi dolmuş olarak işaretlendi.');
@@ -103,17 +104,14 @@ class LastminuteIndex extends Component
 
     public function render()
     {
-        $query = Lastminute::query()
-            ->search($this->search ?? null)
-            ->ofStatus($this->status ?? null);
+        $filters = [
+            'search' => $this->search,
+            'status' => $this->status,
+            'sortBy' => $this->sortBy,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        // Sorting: Referans modül kalıbına göre
-        if ($this->sortBy === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
-        }
-
+        $query = $this->lastminuteService->getFilteredQuery($filters);
         $lastminutes = $query->paginate(Pagination::clamp($this->perPage ?? null));
 
         $statusOptions = [

@@ -6,10 +6,13 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Settings\Models\SiteSetting;
+use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component
 {
     use WithFileUploads;
+
+    protected SettingsService $settingsService;
 
     /** @var array<string, array<int, array{id: int, key: string, value: mixed, type: string, label: string, description: string, options: mixed, is_required: bool}>> */
     public array $settings = [];
@@ -23,6 +26,11 @@ class SiteSettings extends Component
         'settings.*.value.*' => 'nullable|image|max:2048', // 2MB max for images
     ];
 
+    public function boot(SettingsService $settingsService)
+    {
+        $this->settingsService = $settingsService;
+    }
+
     public function mount()
     {
         Gate::authorize('view settings');
@@ -32,27 +40,7 @@ class SiteSettings extends Component
 
     public function loadSettings(): void
     {
-        /** @var \Illuminate\Support\Collection<int, \Modules\Settings\Models\SiteSetting> $settings */
-        $settings = SiteSetting::active()->ordered()->get();
-
-        /** @var \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, \Modules\Settings\Models\SiteSetting>> $grouped */
-        $grouped = $settings->groupBy('group');
-
-        $this->settings = $grouped->map(function ($group): array {
-            /** @var \Illuminate\Support\Collection<int, \Modules\Settings\Models\SiteSetting> $group */
-            return $group->map(function ($setting): array {
-                return [
-                    'id' => $setting->id,
-                    'key' => $setting->key,
-                    'value' => $setting->value,
-                    'type' => $setting->type,
-                    'label' => $setting->label,
-                    'description' => $setting->description,
-                    'options' => $setting->options,
-                    'is_required' => $setting->is_required,
-                ];
-            })->toArray();
-        })->toArray();
+        $this->settings = $this->settingsService->getAllGrouped();
     }
 
     public function setActiveTab($tab)
@@ -62,25 +50,22 @@ class SiteSettings extends Component
 
     public function updateSetting($settingId, $value)
     {
-        $setting = SiteSetting::find($settingId);
+        try {
+            $file = null;
+            if (is_object($value)) {
+                $file = $value;
+                $value = null; // Service içinde handle edilecek
+            }
 
-        if (! $setting) {
-            $this->addError('settings', 'Ayar bulunamadı.');
+            $setting = $this->settingsService->updateSetting($settingId, $value, $file);
 
-            return;
+            $this->dispatch('setting-updated', [
+                'key' => $setting->key,
+                'value' => $setting->value,
+            ]);
+        } catch (\Exception $e) {
+            $this->addError('settings', 'Ayar güncellenirken bir hata oluştu: '.$e->getMessage());
         }
-
-        // File upload handling
-        if ($setting->type === 'image' && is_object($value)) {
-            $value = $value->store('settings', 'public');
-        }
-
-        $setting->update(['value' => $value]);
-
-        $this->dispatch('setting-updated', [
-            'key' => $setting->key,
-            'value' => $value,
-        ]);
     }
 
     public function saveSettings()
@@ -88,41 +73,17 @@ class SiteSettings extends Component
         $this->isLoading = true;
 
         try {
-            \Log::info('Settings save başladı', ['settings' => $this->settings]);
-
-            foreach ($this->settings as $group => $groupSettings) {
-                foreach ($groupSettings as $setting) {
-                    if (isset($setting['value'])) {
-                        $siteSetting = SiteSetting::find($setting['id']);
-                        if ($siteSetting) {
-                            $value = $setting['value'];
-
-                            // File upload handling
-                            if ($siteSetting->type === 'image' && is_object($value)) {
-                                // Dosyayı storage'a kaydet
-                                $value = $value->store('settings', 'public');
-                                \Log::info('Logo yüklendi', ['path' => $value]);
-                            }
-
-                            $siteSetting->update(['value' => $value]);
-                            \Log::info('Setting güncellendi', ['id' => $setting['id'], 'value' => $value]);
-                        }
-                    }
-                }
-            }
+            $this->settingsService->updateMultiple($this->settings);
 
             session()->flash('success', 'Ayarlar başarıyla kaydedildi.');
             $this->dispatch('settings-saved');
-            \Log::info('Settings save tamamlandı');
 
             // Ayarları yeniden yükle ki güncel değerler görünsün
             $this->loadSettings();
         } catch (\Exception $e) {
-            \Log::error('Settings save hatası: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
             session()->flash('error', 'Ayarlar kaydedilirken bir hata oluştu: '.$e->getMessage());
         } finally {
             $this->isLoading = false;
-            \Log::info('isLoading false yapıldı');
         }
     }
 

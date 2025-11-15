@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Authors\Models\Author;
+use Modules\Authors\Services\AuthorService;
 
 class AuthorEdit extends Component
 {
     use ValidationMessages, WithFileUploads;
+
+    protected AuthorService $authorService;
 
     public Author $author;
 
@@ -58,6 +61,11 @@ class AuthorEdit extends Component
         return $this->getContextualValidationMessages()['author'] ?? $this->getValidationMessages();
     }
 
+    public function boot(AuthorService $authorService)
+    {
+        $this->authorService = $authorService;
+    }
+
     public function mount($author)
     {
         Gate::authorize('edit authors');
@@ -102,7 +110,7 @@ class AuthorEdit extends Component
             $data['image'] = 'authors/'.$imageName;
         }
 
-        $this->author->update($data);
+        $this->authorService->update($this->author, $data);
 
         $this->dispatch('author-updated');
 

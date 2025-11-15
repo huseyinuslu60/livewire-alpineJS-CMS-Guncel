@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Comments\Models\Comment;
+use Modules\Comments\Services\CommentService;
 
 /**
  * @property string|null $search
@@ -20,6 +21,8 @@ use Modules\Comments\Models\Comment;
 class CommentsIndex extends Component
 {
     use WithPagination;
+
+    protected CommentService $commentService;
 
     public ?string $search = null;
 
@@ -45,6 +48,11 @@ class CommentsIndex extends Component
         'sortBy' => ['except' => 'created_at'],
         'sortDirection' => ['except' => 'desc'],
     ];
+
+    public function boot(CommentService $commentService)
+    {
+        $this->commentService = $commentService;
+    }
 
     public function mount()
     {
@@ -89,7 +97,7 @@ class CommentsIndex extends Component
 
         try {
             $comment = Comment::findOrFail($commentId);
-            $comment->update(['status' => 'approved']);
+            $this->commentService->approve($comment);
 
             // Sayfa yeniden render'ını engelle
             $this->skipRender = true;
@@ -110,7 +118,7 @@ class CommentsIndex extends Component
 
         try {
             $comment = Comment::findOrFail($commentId);
-            $comment->update(['status' => 'rejected']);
+            $this->commentService->reject($comment);
 
             // Sayfa yeniden render'ını engelle
             $this->skipRender = true;
@@ -131,7 +139,7 @@ class CommentsIndex extends Component
 
         try {
             $comment = Comment::findOrFail($commentId);
-            $comment->delete();
+            $this->commentService->delete($comment);
             session()->flash('success', 'Yorum silindi.');
         } catch (\Exception $e) {
             session()->flash('error', 'Yorum silinirken bir hata oluştu: '.$e->getMessage());
@@ -153,10 +161,7 @@ class CommentsIndex extends Component
                 return;
             }
 
-            $comment->update([
-                'comment_text' => $newText,
-                'status' => 'approved',
-            ]);
+            $this->commentService->updateAndApprove($comment, $newText);
 
             unset($this->editedCommentTexts[$commentId]);
             session()->flash('success', 'Yorum düzenlendi ve onaylandı.');
@@ -183,9 +188,7 @@ class CommentsIndex extends Component
                 return;
             }
 
-            $comment->update([
-                'comment_text' => $newText,
-            ]);
+            $this->commentService->update($comment, $newText);
 
             unset($this->editedCommentTexts[$commentId]);
             session()->flash('success', 'Yorum başarıyla güncellendi.');
@@ -199,23 +202,14 @@ class CommentsIndex extends Component
 
     public function render()
     {
-        $query = Comment::query();
+        $filters = [
+            'search' => $this->search,
+            'statusFilter' => $this->statusFilter,
+            'sortBy' => $this->sortBy,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->statusFilter !== null) {
-            $query->ofStatus($this->statusFilter);
-        }
-
-        // Sorting: Referans modül kalıbına göre
-        if ($this->sortBy === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
-        }
-
+        $query = $this->commentService->getFilteredQuery($filters);
         $comments = $query->paginate(Pagination::clamp($this->perPage));
 
         $stats = [

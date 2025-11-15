@@ -6,13 +6,15 @@ use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
+use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
 class UserCreate extends Component
 {
     use ValidationMessages;
+
+    protected UserService $userService;
 
     public string $name = '';
 
@@ -42,6 +44,11 @@ class UserCreate extends Component
         return $this->getContextualValidationMessages()['user'] ?? $this->getValidationMessages();
     }
 
+    public function boot(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
+
     public function mount()
     {
         Gate::authorize('create users');
@@ -55,29 +62,14 @@ class UserCreate extends Component
             $this->isLoading = true;
             $this->validate();
 
-            // Güvenlik: Super admin değilse, super_admin rolünü atayamaz
-            $currentUser = Auth::user();
-            $superAdminRole = Role::where('name', 'super_admin')->first();
-
-            if (! $currentUser->hasRole('super_admin')) {
-                // Super admin rolünü role_ids'den çıkar
-                if ($superAdminRole && in_array($superAdminRole->id, $this->role_ids)) {
-                    $this->role_ids = array_values(array_diff($this->role_ids, [$superAdminRole->id]));
-                    session()->flash('warning', 'Super admin rolü atayamazsınız.');
-                }
-            }
-
-            $user = User::create([
+            $data = [
                 'name' => $this->name,
                 'email' => $this->email,
-                'password' => Hash::make($this->password),
-            ]);
+                'password' => $this->password,
+            ];
 
-            // Spatie ile roller ata
-            $roles = Role::whereIn('id', $this->role_ids)->get();
-            if ($roles->count() > 0) {
-                $user->assignRole($roles);
-            }
+            $currentUser = Auth::user();
+            $this->userService->create($data, $this->role_ids, $currentUser);
 
             $this->isLoading = false;
             $this->dispatch('user-created');

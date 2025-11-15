@@ -6,10 +6,13 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Newsletters\Models\Newsletter;
+use Modules\Newsletters\Services\NewsletterService;
 
 class NewsletterEdit extends Component
 {
     use ValidationMessages;
+
+    protected NewsletterService $newsletterService;
 
     public ?\Modules\Newsletters\Models\Newsletter $newsletter = null;
 
@@ -41,6 +44,11 @@ class NewsletterEdit extends Component
         return $this->getContextualValidationMessages()['newsletter'] ?? $this->getValidationMessages();
     }
 
+    public function boot(NewsletterService $newsletterService)
+    {
+        $this->newsletterService = $newsletterService;
+    }
+
     public function mount($newsletter)
     {
         if (! Auth::user()->can('edit newsletters')) {
@@ -69,15 +77,16 @@ class NewsletterEdit extends Component
 
         $this->validate();
 
-        $this->newsletter->update([
+        $data = [
             'name' => $this->name,
             'mail_subject' => $this->mail_subject,
             'mail_body' => $this->mail_body,
             'mail_body_raw' => $this->mail_body_raw,
             'status' => $this->status,
             'reklam' => $this->reklam,
-            // Audit fields (updated_by) are handled by AuditFields trait
-        ]);
+        ];
+
+        $this->newsletterService->update($this->newsletter, $data);
 
         $this->dispatch('newsletter-updated');
 

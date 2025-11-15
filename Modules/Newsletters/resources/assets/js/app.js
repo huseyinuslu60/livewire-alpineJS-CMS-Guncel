@@ -96,7 +96,8 @@ document.addEventListener('alpine:init', () => {
         initializeFormFeatures() {
             // Otomatik taslak kaydetme işlevselliği
             this.autoSaveInterval = setInterval(() => {
-                const nameInput = document.querySelector('input[name="name"]');
+                const root = this.$root || document;
+                const nameInput = root.querySelector('input[name="name"]');
                 if (nameInput && nameInput.value.trim() !== '') {
                     this.$wire.call('autoSaveDraft');
                 }
@@ -125,7 +126,8 @@ document.addEventListener('alpine:init', () => {
 
         setupDragAndDrop() {
             // Yazıları sürüklenebilir yap
-            const draggableItems = document.querySelectorAll('[draggable="true"]');
+            const root = this.$root || document;
+            const draggableItems = root.querySelectorAll('[draggable="true"]');
             
             draggableItems.forEach(item => {
                 item.addEventListener('dragstart', (e) => {
@@ -145,7 +147,7 @@ document.addEventListener('alpine:init', () => {
             });
 
             // Make template droppable
-            const dropZone = document.getElementById('newsletter-template');
+            const dropZone = root.querySelector('#newsletter-template');
             if (dropZone) {
                 dropZone.addEventListener('dragover', (e) => {
                     e.preventDefault();
@@ -176,7 +178,8 @@ document.addEventListener('alpine:init', () => {
 
         initializeSortable() {
             setTimeout(() => {
-                const sortableContainer = document.getElementById('sortable-posts');
+                const root = this.$root || document;
+                const sortableContainer = root.querySelector('#sortable-posts');
                 
                 if (sortableContainer && typeof Sortable !== 'undefined') {
                     // Destroy existing sortable if it exists
@@ -214,7 +217,8 @@ document.addEventListener('alpine:init', () => {
         openPreview() {
             this.showPreview = true;
             // Modal'ı göster
-            const modal = document.getElementById('preview-modal');
+            const root = this.$root || document;
+            const modal = root.querySelector('#preview-modal');
             if (modal) {
                 modal.classList.remove('hidden');
             }
@@ -223,7 +227,8 @@ document.addEventListener('alpine:init', () => {
         closePreview() {
             this.showPreview = false;
             // Modal'ı gizle
-            const modal = document.getElementById('preview-modal');
+            const root = this.$root || document;
+            const modal = root.querySelector('#preview-modal');
             if (modal) {
                 modal.classList.add('hidden');
             }

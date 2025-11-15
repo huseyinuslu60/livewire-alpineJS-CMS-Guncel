@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Authors\Models\Author;
+use Modules\Authors\Services\AuthorService;
 
 class AuthorCreate extends Component
 {
     use ValidationMessages, WithFileUploads;
+
+    protected AuthorService $authorService;
 
     public ?int $user_id = null;
 
@@ -59,6 +62,11 @@ class AuthorCreate extends Component
         return $this->getContextualValidationMessages()['author'] ?? $this->getValidationMessages();
     }
 
+    public function boot(AuthorService $authorService)
+    {
+        $this->authorService = $authorService;
+    }
+
     public function mount()
     {
         Gate::authorize('create authors');
@@ -81,7 +89,7 @@ class AuthorCreate extends Component
             $data['image'] = 'authors/'.$imageName;
         }
 
-        Author::create($data);
+        $this->authorService->create($data);
 
         $this->dispatch('author-created');
 

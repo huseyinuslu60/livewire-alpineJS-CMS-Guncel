@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
 
 /**
  * @property string|null $search
@@ -19,6 +20,8 @@ use Modules\Categories\Models\Category;
 class CategoryIndex extends Component
 {
     use WithPagination;
+
+    protected CategoryService $categoryService;
 
     public ?string $search = null;
 
@@ -40,6 +43,11 @@ class CategoryIndex extends Component
         'sortField' => ['except' => 'weight'],
         'sortDirection' => ['except' => 'asc'],
     ];
+
+    public function boot(CategoryService $categoryService)
+    {
+        $this->categoryService = $categoryService;
+    }
 
     public function mount()
     {
@@ -89,42 +97,27 @@ class CategoryIndex extends Component
     {
         Gate::authorize('delete categories');
 
-        $category = Category::findOrFail($categoryId);
+        try {
+            $category = Category::findOrFail($categoryId);
+            $this->categoryService->delete($category);
 
-        // Alt kategorileri kontrol et
-        if ($category->children()->count() > 0) {
-            session()->flash('error', 'Bu kategorinin alt kategorileri bulunuyor. Önce alt kategorileri silin.');
-
-            return;
+            session()->flash('success', 'Kategori başarıyla silindi.');
+        } catch (\Exception $e) {
+            session()->flash('error', $e->getMessage());
         }
-
-        $category->delete();
-        session()->flash('success', 'Kategori başarıyla silindi.');
     }
 
     public function render()
     {
-        $query = Category::with(['parent', 'children']);
+        $filters = [
+            'search' => $this->search,
+            'statusFilter' => $this->statusFilter,
+            'typeFilter' => $this->typeFilter,
+            'sortField' => $this->sortField,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->statusFilter !== null) {
-            $query->ofStatus($this->statusFilter);
-        }
-
-        if ($this->typeFilter !== null) {
-            $query->ofType($this->typeFilter);
-        }
-
-        // Sorting: Referans modül kalıbına göre
-        if ($this->sortField === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortField, $this->sortDirection);
-        }
-
+        $query = $this->categoryService->getFilteredQuery($filters);
         $categories = $query->paginate(Pagination::clamp($this->perPage));
 
         /** @var view-string $view */

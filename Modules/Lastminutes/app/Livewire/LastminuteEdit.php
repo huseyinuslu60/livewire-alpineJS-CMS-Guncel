@@ -6,10 +6,13 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Modules\Lastminutes\Models\Lastminute;
+use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteEdit extends Component
 {
     use ValidationMessages;
+
+    protected LastminuteService $lastminuteService;
 
     public Lastminute $lastminute;
 
@@ -53,6 +56,11 @@ class LastminuteEdit extends Component
         return $this->getContextualValidationMessages()['lastminute'] ?? $this->getValidationMessages();
     }
 
+    public function boot(LastminuteService $lastminuteService)
+    {
+        $this->lastminuteService = $lastminuteService;
+    }
+
     public function setQuickTime($minutes)
     {
         $this->end_at = now()->addMinutes($minutes)->format('Y-m-d\TH:i');
@@ -62,14 +70,15 @@ class LastminuteEdit extends Component
     {
         $this->validate();
 
-        // Audit fields (updated_by) are handled by AuditFields trait
-        $this->lastminute->update([
+        $data = [
             'title' => $this->title,
             'redirect' => $this->redirect,
             'end_at' => $this->end_at ?: null,
             'status' => $this->status,
             'weight' => $this->weight,
-        ]);
+        ];
+
+        $this->lastminuteService->update($this->lastminute, $data);
 
         $this->dispatch('lastminute-updated');
 
@@ -83,8 +92,7 @@ class LastminuteEdit extends Component
     {
         Gate::authorize('delete lastminutes');
 
-        // Soft delete (deleted_by is handled by AuditFields trait)
-        $this->lastminute->delete();
+        $this->lastminuteService->delete($this->lastminute);
 
         $this->dispatch('lastminute-deleted');
 

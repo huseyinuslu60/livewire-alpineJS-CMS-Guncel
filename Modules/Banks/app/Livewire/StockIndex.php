@@ -7,10 +7,13 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Banks\Models\Stock;
+use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
 {
     use WithPagination;
+
+    protected StockService $stockService;
 
     public ?string $search = null;
 
@@ -32,6 +35,11 @@ class StockIndex extends Component
         'search' => ['except' => ''],
         'status' => ['except' => ''],
     ];
+
+    public function boot(StockService $stockService)
+    {
+        $this->stockService = $stockService;
+    }
 
     public function updatedSearch()
     {
@@ -63,25 +71,7 @@ class StockIndex extends Component
         }
 
         try {
-            $stocks = Stock::whereIn('stock_id', $this->selectedStocks);
-            $selectedCount = count($this->selectedStocks);
-
-            switch ($this->bulkAction) {
-                case 'delete':
-                    $stocks->delete();
-                    $message = $selectedCount.' hisse senedi başarıyla silindi.';
-                    break;
-                case 'activate':
-                    $stocks->update(['last_status' => 'active']);
-                    $message = $selectedCount.' hisse senedi aktif yapıldı.';
-                    break;
-                case 'deactivate':
-                    $stocks->update(['last_status' => 'inactive']);
-                    $message = $selectedCount.' hisse senedi pasif yapıldı.';
-                    break;
-                default:
-                    return;
-            }
+            $message = $this->stockService->applyBulkAction($this->bulkAction, $this->selectedStocks);
 
             $this->selectedStocks = [];
             $this->selectAll = false;
@@ -101,7 +91,7 @@ class StockIndex extends Component
 
         try {
             $stock = Stock::findOrFail($id);
-            $stock->delete();
+            $this->stockService->delete($stock);
 
             session()->flash('success', 'Hisse senedi başarıyla silindi.');
         } catch (\Exception $e) {
@@ -111,12 +101,13 @@ class StockIndex extends Component
 
     public function getStocks()
     {
-        return Stock::query()
-            ->with(['creator', 'updater'])
-            ->search($this->search ?? null)
-            ->ofStatus($this->status ?? null)
-            ->sortedLatest('created_at')
-            ->paginate(Pagination::clamp($this->perPage));
+        $filters = [
+            'search' => $this->search,
+            'status' => $this->status,
+        ];
+
+        $query = $this->stockService->getFilteredQuery($filters);
+        return $query->with(['creator', 'updater'])->paginate(Pagination::clamp($this->perPage));
     }
 
     public function mount()

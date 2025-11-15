@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Posts\Models\Post;
+use Modules\Posts\Services\PostsService;
 
 /**
  * @property string|null $search
@@ -24,6 +25,8 @@ use Modules\Posts\Models\Post;
 class PostIndex extends Component
 {
     use WithPagination;
+
+    protected PostsService $postsService;
 
     public ?string $search = null;
 
@@ -54,6 +57,11 @@ class PostIndex extends Component
         'editorFilter' => ['except' => ''],
         'categoryFilter' => ['except' => ''],
     ];
+
+    public function boot()
+    {
+        $this->postsService = app(PostsService::class);
+    }
 
     public function updatedSearch()
     {
@@ -86,33 +94,7 @@ class PostIndex extends Component
         }
 
         try {
-            $posts = Post::whereIn('post_id', $this->selectedPosts);
-            $selectedCount = count($this->selectedPosts);
-
-            switch ($this->bulkAction) {
-                case 'delete':
-                    $posts->delete();
-                    $message = $selectedCount.' haber başarıyla silindi.';
-                    break;
-                case 'activate':
-                    $posts->update(['status' => 'published']);
-                    $message = $selectedCount.' haber aktif yapıldı.';
-                    break;
-                case 'deactivate':
-                    $posts->update(['status' => 'draft']);
-                    $message = $selectedCount.' haber pasif yapıldı.';
-                    break;
-                case 'newsletter_add':
-                    $posts->update(['in_newsletter' => true]);
-                    $message = $selectedCount.' haber bültene eklendi.';
-                    break;
-                case 'newsletter_remove':
-                    $posts->update(['in_newsletter' => false]);
-                    $message = $selectedCount.' haber bültenden çıkarıldı.';
-                    break;
-                default:
-                    return;
-            }
+            $message = $this->postsService->applyBulkAction($this->bulkAction, $this->selectedPosts);
 
             $this->selectedPosts = [];
             $this->selectAll = false;
@@ -130,9 +112,7 @@ class PostIndex extends Component
 
         try {
             $post = Post::findOrFail($id);
-
-            // Soft delete (deleted_by is handled by AuditFields trait)
-            $post->delete();
+            $this->postsService->delete($post);
 
             session()->flash('success', 'Haber başarıyla silindi.');
         } catch (\Exception $e) {
@@ -146,9 +126,9 @@ class PostIndex extends Component
 
         try {
             $post = Post::findOrFail($id);
-            $post->update(['is_mainpage' => ! $post->is_mainpage]);
+            $newValue = $this->postsService->toggleMainPage($post);
 
-            $visibility = $post->is_mainpage ? 'gösterilecek' : 'gizlenecek';
+            $visibility = $newValue ? 'gösterilecek' : 'gizlenecek';
 
             session()->flash('success', "Yazı ana sayfada {$visibility}.");
         } catch (\Exception $e) {
@@ -158,30 +138,19 @@ class PostIndex extends Component
 
     public function getPosts()
     {
-        $query = Post::query()
-            ->with(['author', 'primaryFile', 'categories', 'tags', 'creator', 'updater']);
+        $filters = [
+            'search' => $this->search,
+            'post_type' => $this->post_type,
+            'status' => $this->status,
+            'editorFilter' => $this->editorFilter,
+            'categoryFilter' => $this->categoryFilter,
+            'sortBy' => 'post_id',
+            'sortDirection' => 'desc',
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
+        $query = $this->postsService->getFilteredQuery($filters);
 
-        if ($this->post_type !== null) {
-            $query->ofType($this->post_type);
-        }
-
-        if ($this->status !== null) {
-            $query->ofStatus($this->status);
-        }
-
-        if ($this->editorFilter !== null) {
-            $query->ofEditor($this->editorFilter);
-        }
-
-        if ($this->categoryFilter !== null) {
-            $query->inCategory($this->categoryFilter);
-        }
-
-        return $query->latest('post_id')->paginate(Pagination::clamp($this->perPage));
+        return $query->paginate(Pagination::clamp($this->perPage));
     }
 
     public function mount()

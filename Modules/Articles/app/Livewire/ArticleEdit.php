@@ -7,10 +7,13 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Modules\Articles\Models\Article;
+use Modules\Articles\Services\ArticleService;
 
 class ArticleEdit extends Component
 {
     use ValidationMessages;
+
+    protected ArticleService $articleService;
 
     public $article;
 
@@ -51,6 +54,11 @@ class ArticleEdit extends Component
         return $this->getContextualValidationMessages()['article'] ?? $this->getValidationMessages();
     }
 
+    public function boot(ArticleService $articleService)
+    {
+        $this->articleService = $articleService;
+    }
+
     public function mount($article)
     {
         Gate::authorize('edit articles');
@@ -78,12 +86,7 @@ class ArticleEdit extends Component
 
         $this->validate();
 
-        // Eğer durum published ise ve published_at boşsa, şu anki zamanı ata
-        if ($this->status === 'published' && empty($this->published_at)) {
-            $this->published_at = now();
-        }
-
-        $this->article->update([
+        $data = [
             'title' => $this->title,
             'summary' => $this->summary,
             'article_text' => $this->article_text,
@@ -93,8 +96,9 @@ class ArticleEdit extends Component
             'is_commentable' => $this->is_commentable,
             'published_at' => $this->published_at ?: null,
             'site_id' => $this->site_id,
-            // Audit fields (updated_by) are handled by AuditFields trait
-        ]);
+        ];
+
+        $this->articleService->update($this->article, $data);
 
         $this->dispatch('article-updated');
 

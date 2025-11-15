@@ -59,15 +59,17 @@ document.addEventListener('alpine:init', () => {
         },
         
         showFieldError(fieldName, message) {
-            const field = document.getElementById(fieldName);
+            const root = this.$root || document;
+            const field = root.querySelector(`#${fieldName}`);
             if (field) {
                 field.classList.add('border-red-500');
                 this.showErrorMessage(field, message);
             }
         },
-        
+
         clearFieldError(fieldName) {
-            const field = document.getElementById(fieldName);
+            const root = this.$root || document;
+            const field = root.querySelector(`#${fieldName}`);
             if (field) {
                 field.classList.remove('border-red-500');
                 this.hideErrorMessage(field);
@@ -90,7 +92,8 @@ document.addEventListener('alpine:init', () => {
         },
         
         togglePermissionGroup(groupName) {
-            const groupCheckboxes = document.querySelectorAll(`[data-group="${groupName}"]`);
+            const root = this.$root || document;
+            const groupCheckboxes = root.querySelectorAll(`[data-group="${groupName}"]`);
             const allChecked = Array.from(groupCheckboxes).every(cb => cb.checked);
             
             groupCheckboxes.forEach(checkbox => {
@@ -106,12 +109,13 @@ document.addEventListener('alpine:init', () => {
         
         updatePermissionGroups() {
             // Bireysel izinlere göre grup toggle durumlarını güncelle
+            const root = this.$root || document;
             const groups = ['users', 'articles', 'categories', 'posts', 'roles', 'authors'];
             
             groups.forEach(groupName => {
-                const groupCheckboxes = document.querySelectorAll(`[data-group="${groupName}"]`);
+                const groupCheckboxes = root.querySelectorAll(`[data-group="${groupName}"]`);
                 const checkedCount = Array.from(groupCheckboxes).filter(cb => cb.checked).length;
-                const groupToggle = document.querySelector(`[data-group-toggle="${groupName}"]`);
+                const groupToggle = root.querySelector(`[data-group-toggle="${groupName}"]`);
                 
                 if (groupToggle) {
                     groupToggle.checked = checkedCount === groupCheckboxes.length;
@@ -138,17 +142,19 @@ document.addEventListener('alpine:init', () => {
         
         selectAllPermissions() {
             // Tüm permission checkbox'larını seç
-            const checkboxes = document.querySelectorAll('input[type="checkbox"][wire\\:model\\.live="selectedPermissions"]');
+            const root = this.$root || document;
+            const checkboxes = root.querySelectorAll('input[type="checkbox"][wire\\:model\\.live="selectedPermissions"]');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = true;
                 // Livewire model'ini güncelle
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));
             });
         },
-        
+
         clearAllPermissions() {
             // Tüm permission checkbox'larını temizle
-            const checkboxes = document.querySelectorAll('input[type="checkbox"][wire\\:model\\.live="selectedPermissions"]');
+            const root = this.$root || document;
+            const checkboxes = root.querySelectorAll('input[type="checkbox"][wire\\:model\\.live="selectedPermissions"]');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = false;
                 // Livewire model'ini güncelle
@@ -158,16 +164,18 @@ document.addEventListener('alpine:init', () => {
         
         selectGroupPermissions(groupName) {
             // Belirli bir grubun tüm permission'larını seç
-            const groupCheckboxes = document.querySelectorAll(`[data-group="${groupName}"] input[type="checkbox"]`);
+            const root = this.$root || document;
+            const groupCheckboxes = root.querySelectorAll(`[data-group="${groupName}"] input[type="checkbox"]`);
             groupCheckboxes.forEach(checkbox => {
                 checkbox.checked = true;
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));
             });
         },
-        
+
         clearGroupPermissions(groupName) {
             // Belirli bir grubun tüm permission'larını temizle
-            const groupCheckboxes = document.querySelectorAll(`[data-group="${groupName}"] input[type="checkbox"]`);
+            const root = this.$root || document;
+            const groupCheckboxes = root.querySelectorAll(`[data-group="${groupName}"] input[type="checkbox"]`);
             groupCheckboxes.forEach(checkbox => {
                 checkbox.checked = false;
                 checkbox.dispatchEvent(new Event('change', { bubbles: true }));

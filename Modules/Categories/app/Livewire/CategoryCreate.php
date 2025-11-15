@@ -7,10 +7,13 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
 
 class CategoryCreate extends Component
 {
     use ValidationMessages;
+
+    protected CategoryService $categoryService;
 
     public string $name = '';
 
@@ -61,6 +64,11 @@ class CategoryCreate extends Component
         return $this->getAttributeNames();
     }
 
+    public function boot(CategoryService $categoryService)
+    {
+        $this->categoryService = $categoryService;
+    }
+
     public function mount()
     {
         Gate::authorize('create categories');
@@ -85,9 +93,9 @@ class CategoryCreate extends Component
         try {
             $this->validate();
 
-            Category::create([
+            $data = [
                 'name' => $this->name,
-                'slug' => $this->slug ?: Str::slug($this->name),
+                'slug' => $this->slug,
                 'meta_title' => $this->meta_title,
                 'meta_description' => $this->meta_description,
                 'meta_keywords' => $this->meta_keywords,
@@ -96,7 +104,9 @@ class CategoryCreate extends Component
                 'show_in_menu' => $this->show_in_menu,
                 'weight' => $this->weight,
                 'parent_id' => $this->parent_id,
-            ]);
+            ];
+
+            $this->categoryService->create($data);
 
             // Toast mesajı göster
             $this->isLoading = false;

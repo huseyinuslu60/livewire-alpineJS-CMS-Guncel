@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Logs\Models\UserLog;
+use Modules\Logs\Services\LogService;
 
 /**
  * @property string|null $search
@@ -23,6 +24,8 @@ use Modules\Logs\Models\UserLog;
 class LogIndex extends Component
 {
     use WithPagination;
+
+    protected LogService $logService;
 
     public ?string $search = null;
 
@@ -51,6 +54,11 @@ class LogIndex extends Component
         'date_to' => ['except' => ''],
         'perPage' => ['except' => 15],
     ];
+
+    public function boot(LogService $logService)
+    {
+        $this->logService = $logService;
+    }
 
     public function mount()
     {
@@ -93,17 +101,7 @@ class LogIndex extends Component
         }
 
         try {
-            $logs = UserLog::whereIn('log_id', $this->selectedLogs);
-            $selectedCount = count($this->selectedLogs);
-
-            switch ($this->bulkAction) {
-                case 'delete':
-                    $logs->delete();
-                    $message = $selectedCount.' log kaydı başarıyla silindi.';
-                    break;
-                default:
-                    return;
-            }
+            $message = $this->logService->applyBulkAction($this->bulkAction, $this->selectedLogs);
 
             $this->selectedLogs = [];
             $this->selectAll = false;
@@ -121,7 +119,7 @@ class LogIndex extends Component
 
         try {
             $log = UserLog::findOrFail($id);
-            $log->delete();
+            $this->logService->delete($log);
 
             session()->flash('success', 'Log kaydı başarıyla silindi.');
         } catch (\Exception $e) {
@@ -134,7 +132,7 @@ class LogIndex extends Component
         Gate::authorize('delete logs');
 
         try {
-            UserLog::truncate();
+            $this->logService->clearAll();
             session()->flash('success', 'Tüm log kayıtları başarıyla silindi.');
         } catch (\Exception $e) {
             session()->flash('error', 'Log kayıtları silinirken bir hata oluştu: '.$e->getMessage());
@@ -217,30 +215,15 @@ class LogIndex extends Component
 
     public function getLogs()
     {
-        $query = UserLog::query()->with(['user']);
+        $filters = [
+            'search' => $this->search,
+            'action' => $this->action,
+            'user_id' => $this->user_id,
+            'date_from' => $this->date_from,
+            'date_to' => $this->date_to,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->action !== null) {
-            $query->ofAction($this->action);
-        }
-
-        if ($this->user_id !== null) {
-            $query->ofUser($this->user_id);
-        }
-
-        if ($this->date_from !== null) {
-            $query->whereDate('created_at', '>=', $this->date_from);
-        }
-
-        if ($this->date_to !== null) {
-            $query->whereDate('created_at', '<=', $this->date_to);
-        }
-
-        return $query
-            ->sortedLatest('created_at')
+        return $this->logService->getFilteredQuery($filters)
             ->paginate(Pagination::clamp($this->perPage));
     }
 

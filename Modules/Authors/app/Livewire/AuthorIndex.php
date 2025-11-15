@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Authors\Models\Author;
+use Modules\Authors\Services\AuthorService;
 
 /**
  * @property string|null $search
@@ -16,6 +17,8 @@ use Modules\Authors\Models\Author;
 class AuthorIndex extends Component
 {
     use WithPagination;
+
+    protected AuthorService $authorService;
 
     public ?string $search = null;
 
@@ -29,6 +32,11 @@ class AuthorIndex extends Component
         'mainpageFilter' => ['except' => ''],
     ];
 
+    public function boot(AuthorService $authorService)
+    {
+        $this->authorService = $authorService;
+    }
+
     public function mount()
     {
         Gate::authorize('view authors');
@@ -40,7 +48,7 @@ class AuthorIndex extends Component
 
         try {
             $author = Author::findOrFail($authorId);
-            $author->update(['show_on_mainpage' => ! $author->show_on_mainpage]);
+            $this->authorService->toggleMainPage($author);
 
             $visibility = $author->show_on_mainpage ? 'gösterilecek' : 'gizlenecek';
             session()->flash('success', "Yazar ana sayfada {$visibility}.");
@@ -55,7 +63,7 @@ class AuthorIndex extends Component
 
         try {
             $author = Author::findOrFail($authorId);
-            $author->update(['status' => ! $author->status]);
+            $this->authorService->toggleStatus($author);
 
             $status = $author->status ? 'aktif' : 'pasif';
             session()->flash('success', "Yazar durumu {$status} olarak güncellendi.");
@@ -93,7 +101,7 @@ class AuthorIndex extends Component
 
         try {
             $author = Author::findOrFail($authorId);
-            $author->delete();
+            $this->authorService->delete($author);
 
             session()->flash('success', 'Yazar başarıyla silindi.');
         } catch (\Exception $e) {
@@ -103,24 +111,14 @@ class AuthorIndex extends Component
 
     public function render()
     {
-        $query = Author::with('user');
+        $filters = [
+            'search' => $this->search,
+            'statusFilter' => $this->statusFilter,
+            'mainpageFilter' => $this->mainpageFilter,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->statusFilter !== null) {
-            $query->ofStatus($this->statusFilter);
-        }
-
-        if ($this->mainpageFilter !== null) {
-            $query->where('show_on_mainpage', $this->mainpageFilter);
-        }
-
-        $authors = $query
-            ->orderBy('weight', 'asc')
-            ->latest('created_at')
-            ->paginate(Pagination::clamp(null, 5, 100, 10));
+        $query = $this->authorService->getFilteredQuery($filters);
+        $authors = $query->paginate(Pagination::clamp(null, 5, 100, 10));
 
         /** @var view-string $view */
         $view = 'authors::livewire.author-index';

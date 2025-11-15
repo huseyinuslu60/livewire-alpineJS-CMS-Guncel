@@ -6,13 +6,15 @@ use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
+use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
 class UserEdit extends Component
 {
     use ValidationMessages;
+
+    protected UserService $userService;
 
     public ?\App\Models\User $user = null;
 
@@ -40,6 +42,11 @@ class UserEdit extends Component
     protected function messages()
     {
         return $this->getContextualValidationMessages()['user'] ?? $this->getValidationMessages();
+    }
+
+    public function boot(UserService $userService)
+    {
+        $this->userService = $userService;
     }
 
     public function mount($user)
@@ -76,47 +83,18 @@ class UserEdit extends Component
 
             $this->validate();
 
-            // Güvenlik: Super admin rolü kontrolü
-            $currentUser = Auth::user();
-            $superAdminRole = Role::where('name', 'super_admin')->first();
-
-            // Eğer mevcut kullanıcı super_admin değilse
-            if (! $currentUser->hasRole('super_admin')) {
-                // Super admin rolünü role_ids'den çıkar
-                if ($superAdminRole && in_array($superAdminRole->id, $this->role_ids)) {
-                    $this->role_ids = array_values(array_diff($this->role_ids, [$superAdminRole->id]));
-                    session()->flash('warning', 'Super admin rolü atayamazsınız.');
-                }
-
-                // Eğer düzenlenen kullanıcı super_admin ise, rolünü değiştiremez
-                if ($this->user->hasRole('super_admin')) {
-                    abort(403, 'Super admin kullanıcısının rolünü değiştiremezsiniz.');
-                }
-
-                // Eğer kullanıcı kendini düzenliyorsa, super_admin rolünü atayamaz
-                if ($currentUser->id === $this->user->id && $superAdminRole && in_array($superAdminRole->id, $this->role_ids)) {
-                    $this->role_ids = array_values(array_diff($this->role_ids, [$superAdminRole->id]));
-                    session()->flash('warning', 'Kendinize super admin rolü atayamazsınız.');
-                }
-            }
-
-            $updateData = [
+            $data = [
                 'name' => $this->name,
                 'email' => $this->email,
             ];
 
-            // Şifre varsa güncelle
+            // Şifre varsa ekle
             if (! empty($this->password)) {
-                $updateData['password'] = Hash::make($this->password);
+                $data['password'] = $this->password;
             }
 
-            $this->user->update($updateData);
-
-            // Rolleri güncelle
-            $roles = Role::whereIn('id', $this->role_ids)->get();
-            if ($roles->count() > 0) {
-                $this->user->syncRoles($roles);
-            }
+            $currentUser = Auth::user();
+            $this->userService->update($this->user, $data, $this->role_ids, $currentUser);
 
             $this->isLoading = false;
             $this->dispatch('user-updated');

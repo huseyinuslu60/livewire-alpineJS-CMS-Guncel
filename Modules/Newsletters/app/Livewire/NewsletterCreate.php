@@ -8,11 +8,14 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Models\NewsletterTemplate;
+use Modules\Newsletters\Services\NewsletterService;
 use Modules\Posts\Models\Post;
 
 class NewsletterCreate extends Component
 {
     use ValidationMessages, WithPagination;
+
+    protected NewsletterService $newsletterService;
 
     public string $name = '';
 
@@ -54,6 +57,11 @@ class NewsletterCreate extends Component
     protected function messages()
     {
         return $this->getContextualValidationMessages()['newsletter'] ?? $this->getValidationMessages();
+    }
+
+    public function boot(NewsletterService $newsletterService)
+    {
+        $this->newsletterService = $newsletterService;
     }
 
     public function mount()
@@ -290,14 +298,15 @@ class NewsletterCreate extends Component
     {
         $this->validate();
 
-        $newsletter = Newsletter::create([
+        $data = [
             'name' => $this->name,
             'mail_subject' => $this->mail_subject,
             'mail_body' => $this->mail_body,
             'status' => $this->status,
             'reklam' => $this->reklam,
-            // Audit fields (created_by, updated_by) are handled by AuditFields trait
-        ]);
+        ];
+
+        $this->newsletterService->create($data);
 
         session()->flash('success', 'Newsletter başarıyla oluşturuldu!');
 

@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -604,5 +605,126 @@ class PostsService
                 'total_count' => count($updatedContentData ?? $galleryData),
             ]);
         }
+    }
+
+    // ============================================
+    // QUERY & FILTER İŞLEMLERİ
+    // ============================================
+
+    /**
+     * Filtreli sorgu oluştur
+     *
+     * @param  array<string, mixed>  $filters  Filtre parametreleri
+     * @return Builder
+     */
+    public function getFilteredQuery(array $filters = []): Builder
+    {
+        $query = Post::query()
+            ->with(['author', 'primaryFile', 'categories', 'tags', 'creator', 'updater']);
+
+        // Arama filtresi
+        if (! empty($filters['search'])) {
+            $query->search($filters['search']);
+        }
+
+        // Post tipi filtresi
+        if (! empty($filters['post_type'])) {
+            $query->ofType($filters['post_type']);
+        }
+
+        // Durum filtresi
+        if (! empty($filters['status'])) {
+            $query->ofStatus($filters['status']);
+        }
+
+        // Editör filtresi
+        if (! empty($filters['editorFilter'])) {
+            $query->ofEditor($filters['editorFilter']);
+        }
+
+        // Kategori filtresi
+        if (! empty($filters['categoryFilter'])) {
+            $query->inCategory($filters['categoryFilter']);
+        }
+
+        // Sıralama (varsayılan: en yeni)
+        $sortBy = $filters['sortBy'] ?? 'post_id';
+        $sortDirection = $filters['sortDirection'] ?? 'desc';
+
+        if ($sortBy === 'post_id' && $sortDirection === 'desc') {
+            $query->latest('post_id');
+        } else {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
+        return $query;
+    }
+
+    // ============================================
+    // BULK ACTION İŞLEMLERİ
+    // ============================================
+
+    /**
+     * Toplu işlem uygula
+     *
+     * @param  string  $action  İşlem tipi (delete, activate, deactivate, newsletter_add, newsletter_remove)
+     * @param  array<int>  $ids  Post ID'leri
+     * @return string Başarı mesajı
+     * @throws \InvalidArgumentException
+     */
+    public function applyBulkAction(string $action, array $ids): string
+    {
+        if (empty($ids)) {
+            throw new \InvalidArgumentException('Post ID\'leri boş olamaz.');
+        }
+
+        $selectedCount = count($ids);
+
+        return DB::transaction(function () use ($action, $ids, $selectedCount) {
+            $posts = Post::whereIn('post_id', $ids);
+
+            switch ($action) {
+                case 'delete':
+                    $posts->delete();
+                    return $selectedCount.' haber başarıyla silindi.';
+
+                case 'activate':
+                    $posts->update(['status' => 'published']);
+                    return $selectedCount.' haber aktif yapıldı.';
+
+                case 'deactivate':
+                    $posts->update(['status' => 'draft']);
+                    return $selectedCount.' haber pasif yapıldı.';
+
+                case 'newsletter_add':
+                    $posts->update(['in_newsletter' => true]);
+                    return $selectedCount.' haber bültene eklendi.';
+
+                case 'newsletter_remove':
+                    $posts->update(['in_newsletter' => false]);
+                    return $selectedCount.' haber bültenden çıkarıldı.';
+
+                default:
+                    throw new \InvalidArgumentException("Geçersiz bulk action: {$action}");
+            }
+        });
+    }
+
+    // ============================================
+    // POST DURUM İŞLEMLERİ
+    // ============================================
+
+    /**
+     * Ana sayfa durumunu toggle et
+     *
+     * @param  Post  $post  Post modeli
+     * @return bool Yeni durum (true = gösterilecek, false = gizlenecek)
+     */
+    public function toggleMainPage(Post $post): bool
+    {
+        $newValue = ! $post->is_mainpage;
+        $post->update(['is_mainpage' => $newValue]);
+
+        return $newValue;
     }
 }

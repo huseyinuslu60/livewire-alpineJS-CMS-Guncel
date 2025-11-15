@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\Newsletter;
+use Modules\Newsletters\Services\NewsletterService;
 
 /**
  * @property string|null $search
@@ -22,6 +23,8 @@ use Modules\Newsletters\Models\Newsletter;
 class NewsletterIndex extends Component
 {
     use WithPagination;
+
+    protected NewsletterService $newsletterService;
 
     public ?string $search = null;
 
@@ -46,6 +49,11 @@ class NewsletterIndex extends Component
         'sortBy' => ['except' => 'created_at'],
         'sortDirection' => ['except' => 'desc'],
     ];
+
+    public function boot(NewsletterService $newsletterService)
+    {
+        $this->newsletterService = $newsletterService;
+    }
 
     public function updatedSearch()
     {
@@ -110,7 +118,7 @@ class NewsletterIndex extends Component
 
         try {
             $newsletter = Newsletter::findOrFail($newsletterId);
-            $newsletter->delete();
+            $this->newsletterService->delete($newsletter);
 
             session()->flash('success', 'Newsletter başarıyla silindi.');
         } catch (\Exception $e) {
@@ -126,16 +134,7 @@ class NewsletterIndex extends Component
 
         try {
             $newsletter = Newsletter::findOrFail($newsletterId);
-
-            $newStatus = match ($newsletter->status) {
-                'draft' => 'sending',
-                'sending' => 'sent',
-                'sent' => 'draft',
-                'failed' => 'draft',
-                default => 'draft'
-            };
-
-            $newsletter->update(['status' => $newStatus]);
+            $this->newsletterService->toggleStatus($newsletter);
 
             session()->flash('success', 'Newsletter durumu güncellendi.');
         } catch (\Exception $e) {
@@ -145,24 +144,14 @@ class NewsletterIndex extends Component
 
     public function getNewsletters()
     {
-        $query = Newsletter::with(['creator', 'updater']);
+        $filters = [
+            'search' => $this->search,
+            'statusFilter' => $this->statusFilter,
+            'sortBy' => $this->sortBy,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->statusFilter !== null) {
-            $query->ofStatus($this->statusFilter);
-        }
-
-        // Sorting: Referans modül kalıbına göre
-        if ($this->sortBy === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
-        }
-
-        return $query;
+        return $this->newsletterService->getFilteredQuery($filters);
     }
 
     public function render()

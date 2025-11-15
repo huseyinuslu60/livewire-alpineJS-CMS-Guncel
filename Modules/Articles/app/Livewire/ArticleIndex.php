@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Articles\Models\Article;
+use Modules\Articles\Services\ArticleService;
 
 /**
  * @property string|null $search
@@ -23,6 +24,8 @@ use Modules\Articles\Models\Article;
 class ArticleIndex extends Component
 {
     use WithPagination;
+
+    protected ArticleService $articleService;
 
     public ?string $search = null;
 
@@ -45,6 +48,11 @@ class ArticleIndex extends Component
         'sortBy' => ['except' => 'created_at'],
         'sortDirection' => ['except' => 'desc'],
     ];
+
+    public function boot(ArticleService $articleService)
+    {
+        $this->articleService = $articleService;
+    }
 
     public function mount()
     {
@@ -125,7 +133,7 @@ class ArticleIndex extends Component
         }
 
         try {
-            $article->delete();
+            $this->articleService->delete($article);
 
             session()->flash('success', 'Makale başarıyla silindi.');
         } catch (\Exception $e) {
@@ -141,15 +149,7 @@ class ArticleIndex extends Component
 
         try {
             $article = Article::findOrFail($articleId);
-
-            $newStatus = match ($article->status) {
-                'draft' => 'published',
-                'published' => 'draft',
-                'pending' => 'published',
-                default => 'draft'
-            };
-
-            $article->update(['status' => $newStatus]);
+            $this->articleService->toggleStatus($article);
 
             session()->flash('success', 'Makale durumu güncellendi.');
         } catch (\Exception $e) {
@@ -165,7 +165,7 @@ class ArticleIndex extends Component
 
         try {
             $article = Article::findOrFail($articleId);
-            $article->update(['show_on_mainpage' => ! $article->show_on_mainpage]);
+            $this->articleService->toggleMainPage($article);
 
             session()->flash('success', 'Ana sayfa durumu güncellendi.');
         } catch (\Exception $e) {
@@ -175,33 +175,17 @@ class ArticleIndex extends Component
 
     public function render()
     {
-        $query = Article::with(['author', 'creator']);
+        $canViewAll = Auth::user()->can('view all articles');
 
-        // Yetki bazlı kontrol: view all articles yetkisi yoksa sadece kendi makalelerini göster
-        if (! Auth::user()->can('view all articles')) {
-            $query->where('author_id', Auth::id());
-        }
+        $filters = [
+            'search' => $this->search,
+            'statusFilter' => $this->statusFilter,
+            'authorFilter' => $this->authorFilter,
+            'sortBy' => $this->sortBy,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->statusFilter !== null) {
-            $query->ofStatus($this->statusFilter);
-        }
-
-        // 0-yutmayan filtre: authorFilter - sadece view all articles yetkisi olanlar kullanabilir
-        if ($this->authorFilter !== null && $this->authorFilter !== '' && Auth::user()->can('view all articles')) {
-            $query->ofAuthor($this->authorFilter);
-        }
-
-        // Sorting: Referans modül kalıbına göre
-        if ($this->sortBy === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
-        }
-
+        $query = $this->articleService->getFilteredQuery($filters, $canViewAll);
         $articles = $query->paginate(Pagination::clamp($this->perPage));
 
         // Sadece view all articles yetkisi olanlar yazar listesini görebilir

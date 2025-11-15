@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -22,6 +23,8 @@ use Spatie\Permission\Models\Role;
 class UserIndex extends Component
 {
     use ValidationMessages, WithPagination;
+
+    protected UserService $userService;
 
     public ?string $search = null;
 
@@ -42,6 +45,11 @@ class UserIndex extends Component
         'sortBy' => ['except' => 'created_at'],
         'sortDirection' => ['except' => 'desc'],
     ];
+
+    public function boot(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
 
     public function mount()
     {
@@ -88,41 +96,24 @@ class UserIndex extends Component
 
         try {
             $user = User::findOrFail($userId);
-
-            // Güvenlik: Super admin değilse, super_admin kullanıcısını silemez
-            $currentUser = Auth::user();
-            if (! $currentUser->hasRole('super_admin') && $user->hasRole('super_admin')) {
-                abort(403, 'Super admin kullanıcısını silemezsiniz.');
-            }
-
-            $userName = $user->name;
-            $user->delete();
+            $this->userService->delete($user, Auth::user());
 
             $this->successMessage = $this->createContextualSuccessMessage('deleted', 'name', 'user');
         } catch (\Exception $e) {
-            session()->flash('error', 'Kullanıcı silinirken hata oluştu: '.$e->getMessage());
+            session()->flash('error', $e->getMessage());
         }
     }
 
     public function render()
     {
-        $query = User::with('roles');
+        $filters = [
+            'search' => $this->search,
+            'roleFilter' => $this->roleFilter,
+            'sortBy' => $this->sortBy,
+            'sortDirection' => $this->sortDirection,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->roleFilter !== null) {
-            $query->whereRelation('roles', 'name', $this->roleFilter);
-        }
-
-        // Sıralama
-        if ($this->sortBy === 'created_at' && $this->sortDirection === 'desc') {
-            $query->sortedLatest('created_at');
-        } else {
-            $query->orderBy($this->sortBy, $this->sortDirection);
-        }
-
+        $query = $this->userService->getFilteredQuery($filters);
         $users = $query->paginate(Pagination::clamp($this->perPage));
 
         // Roller için dropdown

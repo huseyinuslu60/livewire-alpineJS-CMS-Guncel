@@ -5,9 +5,12 @@ namespace Modules\Banks\Livewire;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Banks\Models\Stock;
+use Modules\Banks\Services\StockService;
 
 class StockCreate extends Component
 {
+    protected StockService $stockService;
+
     public string $name = '';
 
     public string $unvan = '';
@@ -66,6 +69,11 @@ class StockCreate extends Component
         'personel_sayisi.min' => 'Personel sayısı 0\'dan küçük olamaz.',
     ];
 
+    public function boot(StockService $stockService)
+    {
+        $this->stockService = $stockService;
+    }
+
     public function save()
     {
         if (! Auth::user()->can('create stocks')) {
@@ -75,7 +83,7 @@ class StockCreate extends Component
         $this->validate();
 
         try {
-            Stock::create([
+            $data = [
                 'name' => $this->name,
                 'unvan' => $this->unvan,
                 'kurulus_tarihi' => $this->kurulus_tarihi ?: null,
@@ -91,8 +99,9 @@ class StockCreate extends Component
                 'endeksler' => $this->endeksler,
                 'details' => $this->details,
                 'last_status' => $this->last_status,
-                // Audit fields (created_by, updated_by) are handled by AuditFields trait
-            ]);
+            ];
+
+            $this->stockService->create($data);
 
             session()->flash('success', 'Hisse senedi başarıyla oluşturuldu.');
 

@@ -6,12 +6,15 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Modules\Roles\Services\RoleService;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RoleManagement extends Component
 {
     use ValidationMessages;
+
+    protected RoleService $roleService;
 
     public string $name = '';
 
@@ -43,6 +46,11 @@ class RoleManagement extends Component
         return $this->getContextualValidationMessages()['role'] ?? $this->getValidationMessages();
     }
 
+    public function boot(RoleService $roleService)
+    {
+        $this->roleService = $roleService;
+    }
+
     public function createRole()
     {
         if (! Auth::user()->can('create roles')) {
@@ -65,34 +73,14 @@ class RoleManagement extends Component
             $this->isLoading = true;
             $this->validate();
 
-            $role = Role::create([
+            $data = [
                 'name' => $this->name,
                 'display_name' => $this->display_name,
                 'description' => $this->description,
-            ]);
+                'permissions' => $this->selectedPermissions,
+            ];
 
-            // Yetkileri ata
-            if (! empty($this->selectedPermissions)) {
-                // Modül yönetimi yetkilerini kontrol et - sadece super_admin değiştirebilir
-                $modulePermissions = ['view modules', 'edit modules', 'activate modules'];
-                $isSuperAdmin = Auth::user()->hasRole('super_admin');
-
-                // Eğer super_admin değilse, modül yetkilerini selectedPermissions'dan çıkar
-                if (! $isSuperAdmin) {
-                    $this->selectedPermissions = array_diff($this->selectedPermissions, $modulePermissions);
-                }
-
-                $permissions = Permission::whereIn('name', $this->selectedPermissions)->get();
-                $role->syncPermissions($permissions);
-
-                // Log kaydı - yetki atama
-                \Modules\Logs\Models\UserLog::log(
-                    'update',
-                    'Role yetkileri atandı: '.$role->name.' - '.$permissions->pluck('name')->implode(', '),
-                    'Spatie\Permission\Models\Role',
-                    $role->id
-                );
-            }
+            $this->roleService->createRole($data, Auth::user());
 
             session()->flash('success', $this->createContextualSuccessMessage('created', 'name', 'role'));
             $this->reset(['name', 'display_name', 'description', 'isLoading', 'showRoleForm', 'selectedPermissions']);
@@ -112,10 +100,10 @@ class RoleManagement extends Component
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
         }
 
-        $role = Role::with('permissions')->findOrFail($roleId);
+        $role = $this->roleService->getRoleWithPermissions($roleId);
 
         // Süper Admin rolünü düzenlemeyi engelle (zaten tüm yetkilere sahip)
-        if ($role->name === 'super_admin') {
+        if ($this->roleService->isSystemRole($role)) {
             session()->flash('error', 'Süper Admin rolü düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
 
             return;
@@ -123,7 +111,7 @@ class RoleManagement extends Component
 
         $this->editingRole = $role;
         $this->name = $role->name;
-        $this->display_name = $role->name; // Spatie Permission'da display_name yok, name kullanıyoruz
+        $this->display_name = $role->display_name ?? $role->name;
         $this->description = $role->description ?? '';
         $this->selectedPermissions = $role->permissions->pluck('name')->toArray();
         $this->showRoleForm = true;
@@ -148,7 +136,7 @@ class RoleManagement extends Component
             }
 
             // Süper Admin rolünü güncellemeyi engelle (zaten tüm yetkilere sahip)
-            if ($this->editingRole->name === 'super_admin') {
+            if ($this->roleService->isSystemRole($this->editingRole)) {
                 session()->flash('error', 'Süper Admin rolü güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
 
                 return;
@@ -158,44 +146,14 @@ class RoleManagement extends Component
             $this->rules['name'] = 'required|string|max:255|unique:roles,name,'.$this->editingRole->id;
             $this->validate();
 
-            $this->editingRole->update([
+            $data = [
                 'name' => $this->name,
                 'display_name' => $this->display_name,
                 'description' => $this->description,
-            ]);
+                'permissions' => $this->selectedPermissions,
+            ];
 
-            // Yetkileri güncelle
-            if (! empty($this->selectedPermissions)) {
-                // Modül yönetimi yetkilerini kontrol et - sadece super_admin değiştirebilir
-                $modulePermissions = ['view modules', 'edit modules', 'activate modules'];
-                $isSuperAdmin = Auth::user()->hasRole('super_admin');
-
-                // Eğer super_admin değilse, modül yetkilerini selectedPermissions'dan çıkar
-                if (! $isSuperAdmin) {
-                    $this->selectedPermissions = array_diff($this->selectedPermissions, $modulePermissions);
-                }
-
-                $permissions = Permission::whereIn('name', $this->selectedPermissions)->get();
-                $this->editingRole->syncPermissions($permissions);
-
-                // Log kaydı - yetki güncelleme
-                \Modules\Logs\Models\UserLog::log(
-                    'update',
-                    'Role yetkileri güncellendi: '.$this->editingRole->name.' - '.$permissions->pluck('name')->implode(', '),
-                    'Spatie\Permission\Models\Role',
-                    $this->editingRole->id
-                );
-            } else {
-                $this->editingRole->syncPermissions([]);
-
-                // Log kaydı - yetki temizleme
-                \Modules\Logs\Models\UserLog::log(
-                    'update',
-                    'Role yetkileri temizlendi: '.$this->editingRole->name,
-                    'Spatie\Permission\Models\Role',
-                    $this->editingRole->id
-                );
-            }
+            $this->roleService->updateRole($this->editingRole, $data, Auth::user());
 
             session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'role'));
             $this->reset(['name', 'display_name', 'description', 'editingRole', 'isLoading', 'showRoleForm', 'selectedPermissions']);
@@ -226,28 +184,32 @@ class RoleManagement extends Component
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
         }
 
-        $role = Role::findOrFail($roleId);
+        try {
+            $role = Role::findOrFail($roleId);
 
-        // Süper Admin rolünü silmeyi engelle
-        if ($role->name === 'super_admin') {
-            session()->flash('error', 'Süper Admin rolü silinemez!');
+            // Süper Admin rolünü silmeyi engelle
+            if ($this->roleService->isSystemRole($role)) {
+                session()->flash('error', 'Süper Admin rolü silinemez!');
 
-            return;
+                return;
+            }
+
+            $this->roleService->deleteRole($role, Auth::user());
+            session()->flash('message', 'Rol silindi');
+
+            // Sayfayı yenile ki menü güncellensin
+            $this->dispatch('refresh-page');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Rol silinirken hata oluştu: '.$e->getMessage());
         }
-
-        $role->delete();
-        session()->flash('message', 'Rol silindi');
-
-        // Sayfayı yenile ki menü güncellensin
-        $this->dispatch('refresh-page');
     }
 
     public function openPermissionModal(int $roleId): void
     {
-        $role = Role::with('permissions')->findOrFail($roleId);
+        $role = $this->roleService->getRoleWithPermissions($roleId);
 
         // Süper Admin rolünün yetkilerini düzenlemeyi engelle (zaten tüm yetkilere sahip)
-        if ($role->name === 'super_admin') {
+        if ($this->roleService->isSystemRole($role)) {
             session()->flash('error', 'Süper Admin rolünün yetkileri düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
 
             return;
@@ -273,7 +235,7 @@ class RoleManagement extends Component
             }
 
             // Süper Admin rolünün yetkilerini güncellemeyi engelle (zaten tüm yetkilere sahip)
-            if ($this->editingRole->name === 'super_admin') {
+            if ($this->roleService->isSystemRole($this->editingRole)) {
                 session()->flash('error', 'Süper Admin rolünün yetkileri güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
 
                 return;
@@ -282,16 +244,7 @@ class RoleManagement extends Component
             $this->isLoading = true;
             $this->validate(['selectedPermissions' => ['array']]);
 
-            // Modül yönetimi yetkilerini kontrol et - sadece super_admin değiştirebilir
-            $modulePermissions = ['view modules', 'edit modules', 'activate modules'];
-            $isSuperAdmin = Auth::user()->hasRole('super_admin');
-
-            // Eğer super_admin değilse, modül yetkilerini selectedPermissions'dan çıkar
-            if (! $isSuperAdmin) {
-                $this->selectedPermissions = array_diff($this->selectedPermissions, $modulePermissions);
-            }
-
-            $this->editingRole->syncPermissions($this->selectedPermissions);
+            $this->roleService->syncRolePermissions($this->editingRole, $this->selectedPermissions, Auth::user());
             session()->flash('message', 'Yetkiler güncellendi');
             $this->closePermissionModal();
 
@@ -307,47 +260,7 @@ class RoleManagement extends Component
     {
         // Her render'da fresh data çek (küçük referans listesi - limit ile)
         $roles = Role::withCount(['users', 'permissions'])->limit(50)->get();
-        $permissions = Permission::all()->groupBy(function ($permission) {
-            $name = $permission->name;
-
-            // Özel kontroller - önce özel durumları kontrol et
-            if (str_contains($name, 'newsletter')) {
-                return 'newsletters';
-            }
-
-            if (str_contains($name, 'modules')) {
-                return 'modules';
-            }
-
-            // Modül isimlerini kontrol et - permission name'inde geçen modül adını bul
-            $moduleKeywords = [
-                'articles' => 'articles',
-                'users' => 'users',
-                'categories' => 'categories',
-                'posts' => 'posts',
-                'roles' => 'roles',
-                'authors' => 'authors',
-                'comments' => 'comments',
-                'logs' => 'logs',
-                'featured' => 'featured',
-                'lastminutes' => 'lastminutes',
-                'agency_news' => 'agency_news',
-                'files' => 'files',
-                'settings' => 'settings',
-                'menu' => 'settings',
-                'stocks' => 'banks',
-                'investor_questions' => 'banks',
-            ];
-
-            // Permission name'inde hangi modül adı geçiyor kontrol et
-            foreach ($moduleKeywords as $keyword => $module) {
-                if (str_contains($name, $keyword)) {
-                    return $module;
-                }
-            }
-
-            return 'other';
-        });
+        $permissions = $this->roleService->getGroupedPermissions();
 
         /** @var view-string $view */
         $view = 'roles::livewire.role-management';

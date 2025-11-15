@@ -6,10 +6,13 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Modules\Lastminutes\Models\Lastminute;
+use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteCreate extends Component
 {
     use ValidationMessages;
+
+    protected LastminuteService $lastminuteService;
 
     public string $title = '';
 
@@ -44,6 +47,11 @@ class LastminuteCreate extends Component
         return $this->getContextualValidationMessages()['lastminute'] ?? $this->getValidationMessages();
     }
 
+    public function boot(LastminuteService $lastminuteService)
+    {
+        $this->lastminuteService = $lastminuteService;
+    }
+
     public function setQuickTime($minutes)
     {
         $this->end_at = now()->addMinutes($minutes)->format('Y-m-d\TH:i');
@@ -53,14 +61,15 @@ class LastminuteCreate extends Component
     {
         $this->validate();
 
-        // Audit fields (created_by, updated_by) are handled by AuditFields trait
-        $lastminute = Lastminute::create([
+        $data = [
             'title' => $this->title,
             'redirect' => $this->redirect,
             'end_at' => $this->end_at ?: null,
             'status' => $this->status,
             'weight' => $this->weight,
-        ]);
+        ];
+
+        $this->lastminuteService->create($data);
 
         $this->dispatch('lastminute-created');
 

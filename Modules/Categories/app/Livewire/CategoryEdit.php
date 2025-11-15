@@ -7,10 +7,13 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
 
 class CategoryEdit extends Component
 {
     use ValidationMessages;
+
+    protected CategoryService $categoryService;
 
     public ?\Modules\Categories\Models\Category $category = null;
 
@@ -63,6 +66,11 @@ class CategoryEdit extends Component
         return $this->getAttributeNames();
     }
 
+    public function boot(CategoryService $categoryService)
+    {
+        $this->categoryService = $categoryService;
+    }
+
     public function mount($category)
     {
         Gate::authorize('edit categories');
@@ -108,9 +116,9 @@ class CategoryEdit extends Component
 
             $this->validate();
 
-            $this->category->update([
+            $data = [
                 'name' => $this->name,
-                'slug' => $this->slug ?: Str::slug($this->name),
+                'slug' => $this->slug,
                 'meta_title' => $this->meta_title,
                 'meta_description' => $this->meta_description,
                 'meta_keywords' => $this->meta_keywords,
@@ -119,7 +127,9 @@ class CategoryEdit extends Component
                 'show_in_menu' => $this->show_in_menu,
                 'weight' => $this->weight,
                 'parent_id' => $this->parent_id,
-            ]);
+            ];
+
+            $this->categoryService->update($this->category, $data);
 
             // Toast mesajı göster
             $this->isLoading = false;

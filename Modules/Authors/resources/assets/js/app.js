@@ -93,7 +93,8 @@ document.addEventListener('alpine:init', () => {
         },
 
         showFieldError(fieldName, message) {
-            const field = document.getElementById(fieldName);
+            const root = this.$root || document;
+            const field = root.querySelector(`#${fieldName}`);
             if (field) {
                 field.classList.add('is-invalid');
                 this.showErrorMessage(field, message);
@@ -101,7 +102,8 @@ document.addEventListener('alpine:init', () => {
         },
 
         clearFieldError(fieldName) {
-            const field = document.getElementById(fieldName);
+            const root = this.$root || document;
+            const field = root.querySelector(`#${fieldName}`);
             if (field) {
                 field.classList.remove('is-invalid');
                 this.hideErrorMessage(field);

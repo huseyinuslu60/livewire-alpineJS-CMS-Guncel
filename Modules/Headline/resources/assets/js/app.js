@@ -140,8 +140,12 @@ document.addEventListener('alpine:init', () => {
                         
                         // Livewire metodunu doğrudan çağır
                         if (window.Livewire) {
-                            const activeZone = document.querySelector('[data-zone]')?.dataset.zone || 'manset';
-                            Livewire.find(document.querySelector('[wire\\:id]').getAttribute('wire:id')).call('saveOrder', activeZone, ordered);
+                            const root = this.$root || document;
+                            const activeZone = root.querySelector('[data-zone]')?.dataset.zone || document.querySelector('[data-zone]')?.dataset.zone || 'manset';
+                            const wireRoot = root.querySelector('[wire\\:id]') || document.querySelector('[wire\\:id]');
+                            if (wireRoot) {
+                                Livewire.find(wireRoot.getAttribute('wire:id')).call('saveOrder', activeZone, ordered);
+                            }
                         }
                     }
                 }

@@ -175,7 +175,8 @@ document.addEventListener('alpine:init', () => {
         focusNew() {
       this.$nextTick(() => {
             setTimeout(() => {
-          const items = document.querySelectorAll('#gallery-sortable .gallery-item');
+          const root = this.$root || document;
+          const items = root.querySelectorAll('#gallery-sortable .gallery-item');
           if (items && items.length) {
             const last = items[items.length - 1];
             last.scrollIntoView({ behavior: 'smooth', block: 'center' });

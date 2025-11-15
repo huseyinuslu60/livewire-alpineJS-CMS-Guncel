@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Files\Models\File;
+use Modules\Files\Services\FileService;
 
 /**
  * @property string|null $search
@@ -27,6 +28,8 @@ use Modules\Files\Models\File;
 class FileIndex extends Component
 {
     use ValidationMessages, WithPagination;
+
+    protected FileService $fileService;
 
     public ?string $search = null;
 
@@ -66,6 +69,11 @@ class FileIndex extends Component
         'filesUploaded' => 'refreshFilesList',
         'closeUploadModal' => 'closeUploadModal',
     ];
+
+    public function boot(FileService $fileService)
+    {
+        $this->fileService = $fileService;
+    }
 
     public function mount()
     {
@@ -112,19 +120,9 @@ class FileIndex extends Component
     public function deleteSelectedFiles()
     {
         try {
-            $files = File::whereIn('file_id', $this->selectedFiles)->get();
+            $count = $this->fileService->deleteMultiple($this->selectedFiles);
 
-            foreach ($files as $file) {
-                // Fiziksel dosyayı sil
-                if (file_exists(public_path('storage/'.$file->file_path))) {
-                    unlink(public_path('storage/'.$file->file_path));
-                }
-
-                // Veritabanından sil
-                $file->delete();
-            }
-
-            session()->flash('success', count($files).' dosya başarıyla silindi.');
+            session()->flash('success', $count.' dosya başarıyla silindi.');
             $this->selectedFiles = [];
             $this->selectAll = false;
             $this->resetPage();
@@ -147,12 +145,7 @@ class FileIndex extends Component
                 return;
             }
 
-            // Fiziksel dosyayı sil
-            if (file_exists(public_path('storage/'.$file->file_path))) {
-                unlink(public_path('storage/'.$file->file_path));
-            }
-
-            $file->delete();
+            $this->fileService->delete($file);
 
             session()->flash('success', $this->createContextualSuccessMessage('deleted', 'name', 'file'));
             $this->resetPage();
@@ -178,7 +171,7 @@ class FileIndex extends Component
 
         try {
             if ($this->editingFile) {
-                $this->editingFile->update([
+                $this->fileService->update($this->editingFile, [
                     'alt_text' => $this->editAltText,
                     'caption' => $this->editCaption,
                 ]);
@@ -289,21 +282,12 @@ class FileIndex extends Component
 
     public function getFiles()
     {
-        $query = File::query(); // Tüm dosyaları göster
+        $filters = [
+            'search' => $this->search,
+            'mimeType' => $this->mimeType,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->mimeType !== null) {
-            if ($this->mimeType === 'image') {
-                $query->images();
-            } else {
-                $query->ofType($this->mimeType);
-            }
-        }
-
-        return $query->sortedLatest('updated_at')->orderBy('file_id', 'desc');
+        return $this->fileService->getFilteredQuery($filters);
     }
 
     public function render()

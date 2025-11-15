@@ -1,4 +1,4 @@
-<div x-data="postsForm()">
+<div x-data="postsForm()" x-init="initTrumbowygSync()">
     <!-- Modern Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
@@ -29,7 +29,7 @@
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div class="p-6">
-                    <form wire:submit.prevent="savePost">
+                    <form @submit.prevent="syncContentAndSave">
                         <!-- Başlık -->
                         <div class="mb-6">
                             <label for="title" class="block text-sm font-medium text-gray-700 mb-2">

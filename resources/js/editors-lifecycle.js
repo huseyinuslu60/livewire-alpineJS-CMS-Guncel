@@ -178,24 +178,21 @@ const initTrumbowyg = () => {
 
           const content = $el.trumbowyg('html');
 
-          // Livewire entegrasyonu - dispatch input event for wire:model bindings
-          if (element.hasAttribute('wire:model') || element.hasAttribute('wire:change')) {
-            element.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-
           // Livewire component'i bul ve content'i güncelle
           const wireId = element.closest('[wire\\:id]')?.getAttribute('wire:id');
           if (wireId && window.Livewire) {
             try {
-              const livewireComponent = window.Livewire.find(wireId);
-              if (livewireComponent) {
-                // Livewire 3 API - set method ile güncelle
-                if (typeof livewireComponent.set === 'function') {
-                  livewireComponent.set('content', content, false);
-                }
-                // contentUpdated listener'ı varsa onu da çağır
-                if (typeof livewireComponent.call === 'function') {
-                  livewireComponent.call('contentUpdated', content);
+              const $wire = window.Livewire.find(wireId);
+              if ($wire) {
+                // Livewire 3 API - önce direkt method çağrısı dene
+                if (typeof $wire.contentUpdated === 'function') {
+                  $wire.contentUpdated(content);
+                } else if (typeof $wire.$call === 'function') {
+                  // Livewire 3 $call method'u
+                  $wire.$call('contentUpdated', content);
+                } else if (typeof $wire.set === 'function') {
+                  // wire:ignore için set method'u
+                  $wire.set('content', content, false);
                 }
                 // Alternatif: Livewire.dispatch ile event gönder
                 if (window.Livewire.dispatch) {
@@ -207,6 +204,11 @@ const initTrumbowyg = () => {
                 console.warn('Trumbowyg Livewire sync error:', e);
               }
             }
+          }
+
+          // wire:model için input event'i (wire:ignore olmasa bile)
+          if (element.hasAttribute('wire:model') || element.hasAttribute('wire:change')) {
+            element.dispatchEvent(new Event('input', { bubbles: true }));
           }
         },
         'tbwfullscreenenter': function() {

@@ -76,6 +76,7 @@ document.addEventListener('alpine:init', () => {
     mo: null,
     onUploadFinish: null,
     onLWUpdated: null,
+    trumbowygSyncHandler: null,
 
         init() {
       // 1) Mevcut editörleri sadece bu form scope'unda bağla
@@ -127,10 +128,77 @@ document.addEventListener('alpine:init', () => {
       this.$root.addEventListener('alpine:destroy', () => this.cleanup(), { once: true });
     },
 
+    initTrumbowygSync() {
+      // Form submit'ten önce Trumbowyg content'ini senkronize et
+      const form = this.$root.querySelector('form');
+      if (!form) return;
+
+      this.trumbowygSyncHandler = (e) => {
+        const textarea = document.getElementById('content');
+        if (!textarea || !window.jQuery) return;
+
+        const $el = window.jQuery(textarea);
+        if (!$el.data('trumbowyg')) return;
+
+        const content = $el.trumbowyg('html');
+        if (!content) return;
+
+        // Livewire component'i bul ve content'i güncelle
+        const wireId = textarea.closest('[wire\\:id]')?.getAttribute('wire:id');
+        if (wireId && window.Livewire) {
+          try {
+            const $wire = window.Livewire.find(wireId);
+            if ($wire) {
+              // Livewire 3 API - direkt method çağrısı
+              if (typeof $wire.contentUpdated === 'function') {
+                $wire.contentUpdated(content);
+              } else if (typeof $wire.$call === 'function') {
+                $wire.$call('contentUpdated', content);
+              } else if (typeof $wire.set === 'function') {
+                $wire.set('content', content, false);
+              }
+            }
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.warn('Trumbowyg sync error:', e);
+            }
+          }
+        }
+      };
+
+      form.addEventListener('submit', this.trumbowygSyncHandler, { capture: true });
+    },
+
+    syncContentAndSave() {
+      // Trumbowyg content'ini senkronize et
+      if (this.trumbowygSyncHandler) {
+        this.trumbowygSyncHandler(new Event('submit'));
+      }
+      // Kısa bir gecikme ile Livewire submit'i tetikle
+      // $wire.savePost() direkt çağrılabilir çünkü wire:submit.prevent zaten var
+      this.$nextTick(() => {
+        if (this.$wire) {
+          // Livewire 3 API - direkt method çağrısı
+          if (typeof this.$wire.savePost === 'function') {
+            this.$wire.savePost();
+          } else if (typeof this.$wire.$call === 'function') {
+            this.$wire.$call('savePost');
+          }
+        }
+      });
+    },
+
     cleanup() {
       if (this.mo) { this.mo.disconnect(); this.mo = null; }
       if (this.onUploadFinish) document.removeEventListener('livewire:upload-finish', this.onUploadFinish);
       if (this.onLWUpdated)   document.removeEventListener('livewire:updated', this.onLWUpdated);
+      if (this.trumbowygSyncHandler) {
+        const form = this.$root.querySelector('form');
+        if (form) {
+          form.removeEventListener('submit', this.trumbowygSyncHandler, { capture: true });
+        }
+        this.trumbowygSyncHandler = null;
+      }
       this.trixTimers.forEach((t) => clearTimeout(t));
       this.trixTimers.clear();
     },

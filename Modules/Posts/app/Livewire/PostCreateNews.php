@@ -190,6 +190,12 @@ class PostCreateNews extends Component
         $this->isSaving = true;
 
         try {
+            // Content'i kontrol et - wire:ignore nedeniyle boş olabilir
+            // Eğer content boşsa, Trumbowyg'den tekrar almayı dene
+            if (empty($this->content) || trim(strip_tags($this->content)) === '') {
+                // JavaScript'ten content gelmemiş olabilir, validation'da kontrol edilecek
+            }
+
             // Slug'ı mutlaka unique yap - validation'dan ÖNCE
             // Eğer slug boşsa veya unique değilse, yeni bir unique slug oluştur
             $postsService = new PostsService;

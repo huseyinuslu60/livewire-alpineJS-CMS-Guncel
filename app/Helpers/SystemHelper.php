@@ -3,13 +3,14 @@
 namespace App\Helpers;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class SystemHelper
 {
     /**
      * Resim yükleme fonksiyonu
+     *
+     * @deprecated Use App\Services\FileUploadService::uploadImage() instead
+     * This method is kept for backward compatibility but delegates to FileUploadService
      *
      * @param  \Illuminate\Http\UploadedFile  $file
      * @param  string  $folder
@@ -18,47 +19,9 @@ class SystemHelper
      */
     public static function uploadImage($file, $folder = 'general', $maxSize = 2048)
     {
-        try {
-            // Dosya validasyonu
-            $allowedTypes = ['jpeg', 'jpg', 'png', 'gif', 'webp'];
-            $extension = strtolower($file->getClientOriginalExtension());
+        $fileUploadService = app(\App\Services\FileUploadService::class);
 
-            if (! in_array($extension, $allowedTypes)) {
-                return [
-                    'success' => false,
-                    'message' => 'Desteklenmeyen dosya formatı. Sadece JPEG, PNG, GIF, WEBP dosyaları kabul edilir.',
-                ];
-            }
-
-            if ($file->getSize() > $maxSize * 1024) {
-                return [
-                    'success' => false,
-                    'message' => "Dosya boyutu çok büyük. Maksimum {$maxSize}KB olmalıdır.",
-                ];
-            }
-
-            // Benzersiz dosya adı oluştur
-            $filename = Str::uuid().'.'.$extension;
-            $path = $file->storeAs("public/{$folder}/images", $filename);
-
-            // URL oluştur
-            $url = Storage::url($path);
-
-            return [
-                'success' => true,
-                'filename' => $filename,
-                'path' => $path,
-                'url' => asset($url),
-                'size' => $file->getSize(),
-                'original_name' => $file->getClientOriginalName(),
-            ];
-
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Resim yüklenirken hata oluştu: '.$e->getMessage(),
-            ];
-        }
+        return $fileUploadService->uploadImage($file, $folder, $maxSize);
     }
 
     /**

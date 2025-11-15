@@ -110,6 +110,7 @@ class FileUpload extends Component
 
                 // Bu dosya için açıklamaları al
                 $description = $this->allDescriptions[$index] ?? ['alt_text' => '', 'caption' => ''];
+                $originalName = $file->getClientOriginalName();
 
                 // Post ID'yi URL'den al (medya kütüphanesi için)
                 $postId = request()->get('post_id'); // Null olabilir

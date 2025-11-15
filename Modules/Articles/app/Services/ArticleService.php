@@ -15,7 +15,6 @@ class ArticleService
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
      * @param  bool  $canViewAll  Tüm makaleleri görüntüleme yetkisi
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = [], bool $canViewAll = true): Builder
     {
@@ -56,7 +55,6 @@ class ArticleService
      * Article oluştur
      *
      * @param  array<string, mixed>  $data  Article verileri
-     * @return Article
      */
     public function create(array $data): Article
     {
@@ -83,7 +81,6 @@ class ArticleService
      *
      * @param  Article  $article  Article modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return Article
      */
     public function update(Article $article, array $data): Article
     {
@@ -104,7 +101,6 @@ class ArticleService
      * Article sil
      *
      * @param  Article  $article  Article modeli
-     * @return void
      */
     public function delete(Article $article): void
     {
@@ -170,4 +166,3 @@ class ArticleService
         });
     }
 }
-

@@ -107,6 +107,7 @@ class StockIndex extends Component
         ];
 
         $query = $this->stockService->getFilteredQuery($filters);
+
         return $query->with(['creator', 'updater'])->paginate(Pagination::clamp($this->perPage));
     }
 

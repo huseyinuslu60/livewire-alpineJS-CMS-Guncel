@@ -13,7 +13,6 @@ class CommentService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -44,7 +43,6 @@ class CommentService
      * Yorum onayla
      *
      * @param  Comment  $comment  Comment modeli
-     * @return Comment
      */
     public function approve(Comment $comment): Comment
     {
@@ -63,7 +61,6 @@ class CommentService
      * Yorum reddet
      *
      * @param  Comment  $comment  Comment modeli
-     * @return Comment
      */
     public function reject(Comment $comment): Comment
     {
@@ -83,7 +80,6 @@ class CommentService
      *
      * @param  Comment  $comment  Comment modeli
      * @param  string  $newText  Yeni yorum metni
-     * @return Comment
      */
     public function updateAndApprove(Comment $comment, string $newText): Comment
     {
@@ -106,7 +102,6 @@ class CommentService
      *
      * @param  Comment  $comment  Comment modeli
      * @param  string  $newText  Yeni yorum metni
-     * @return Comment
      */
     public function update(Comment $comment, string $newText): Comment
     {
@@ -125,7 +120,6 @@ class CommentService
      * Yorum sil
      *
      * @param  Comment  $comment  Comment modeli
-     * @return void
      */
     public function delete(Comment $comment): void
     {
@@ -139,4 +133,3 @@ class CommentService
         });
     }
 }
-

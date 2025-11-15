@@ -15,7 +15,6 @@ class AgencyNewsService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -62,7 +61,6 @@ class AgencyNewsService
      * AgencyNews'i sil
      *
      * @param  AgencyNews  $news  AgencyNews modeli
-     * @return void
      */
     public function delete(AgencyNews $news): void
     {
@@ -83,7 +81,6 @@ class AgencyNewsService
      * AgencyNews'i Post'a dönüştür
      *
      * @param  AgencyNews  $news  AgencyNews modeli
-     * @return Post
      */
     public function convertToPost(AgencyNews $news): Post
     {
@@ -150,4 +147,3 @@ class AgencyNewsService
             ->toArray();
     }
 }
-

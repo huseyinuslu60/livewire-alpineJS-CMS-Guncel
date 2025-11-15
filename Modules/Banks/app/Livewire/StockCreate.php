@@ -4,7 +4,6 @@ namespace Modules\Banks\Livewire;
 
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Modules\Banks\Models\Stock;
 use Modules\Banks\Services\StockService;
 
 class StockCreate extends Component

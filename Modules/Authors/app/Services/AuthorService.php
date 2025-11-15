@@ -13,7 +13,6 @@ class AuthorService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -40,7 +39,6 @@ class AuthorService
      * Author oluştur
      *
      * @param  array<string, mixed>  $data  Author verileri
-     * @return Author
      */
     public function create(array $data): Author
     {
@@ -61,7 +59,6 @@ class AuthorService
      *
      * @param  Author  $author  Author modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return Author
      */
     public function update(Author $author, array $data): Author
     {
@@ -81,7 +78,6 @@ class AuthorService
      * Author sil
      *
      * @param  Author  $author  Author modeli
-     * @return void
      */
     public function delete(Author $author): void
     {
@@ -140,4 +136,3 @@ class AuthorService
         });
     }
 }
-

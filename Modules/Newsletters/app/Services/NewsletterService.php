@@ -13,7 +13,6 @@ class NewsletterService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -46,7 +45,6 @@ class NewsletterService
      * Newsletter oluştur
      *
      * @param  array<string, mixed>  $data  Newsletter verileri
-     * @return Newsletter
      */
     public function create(array $data): Newsletter
     {
@@ -68,7 +66,6 @@ class NewsletterService
      *
      * @param  Newsletter  $newsletter  Newsletter modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return Newsletter
      */
     public function update(Newsletter $newsletter, array $data): Newsletter
     {
@@ -89,7 +86,6 @@ class NewsletterService
      * Newsletter sil
      *
      * @param  Newsletter  $newsletter  Newsletter modeli
-     * @return void
      */
     public function delete(Newsletter $newsletter): void
     {
@@ -135,4 +131,3 @@ class NewsletterService
         });
     }
 }
-

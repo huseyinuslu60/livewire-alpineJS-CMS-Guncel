@@ -2,7 +2,6 @@
 
 namespace Modules\User\Livewire;
 
-use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;

@@ -13,7 +13,6 @@ class LastminuteService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -44,7 +43,6 @@ class LastminuteService
      * Lastminute oluştur
      *
      * @param  array<string, mixed>  $data  Lastminute verileri
-     * @return Lastminute
      */
     public function create(array $data): Lastminute
     {
@@ -66,7 +64,6 @@ class LastminuteService
      *
      * @param  Lastminute  $lastminute  Lastminute modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return Lastminute
      */
     public function update(Lastminute $lastminute, array $data): Lastminute
     {
@@ -86,7 +83,6 @@ class LastminuteService
      * Lastminute sil
      *
      * @param  Lastminute  $lastminute  Lastminute modeli
-     * @return void
      */
     public function delete(Lastminute $lastminute): void
     {
@@ -133,7 +129,6 @@ class LastminuteService
      * Lastminute'u süresi dolmuş olarak işaretle
      *
      * @param  Lastminute  $lastminute  Lastminute modeli
-     * @return void
      */
     public function markAsExpired(Lastminute $lastminute): void
     {
@@ -146,4 +141,3 @@ class LastminuteService
         });
     }
 }
-

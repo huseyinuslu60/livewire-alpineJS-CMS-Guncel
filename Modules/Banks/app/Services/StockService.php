@@ -13,7 +13,6 @@ class StockService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -34,7 +33,6 @@ class StockService
      * Stock oluştur
      *
      * @param  array<string, mixed>  $data  Stock verileri
-     * @return Stock
      */
     public function create(array $data): Stock
     {
@@ -54,7 +52,6 @@ class StockService
      *
      * @param  Stock  $stock  Stock modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return Stock
      */
     public function update(Stock $stock, array $data): Stock
     {
@@ -73,7 +70,6 @@ class StockService
      * Stock sil
      *
      * @param  Stock  $stock  Stock modeli
-     * @return void
      */
     public function delete(Stock $stock): void
     {
@@ -126,4 +122,3 @@ class StockService
         });
     }
 }
-

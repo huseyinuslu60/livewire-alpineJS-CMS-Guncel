@@ -14,7 +14,6 @@ class CategoryService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -61,7 +60,6 @@ class CategoryService
      * Yeni kategori oluştur
      *
      * @param  array<string, mixed>  $data  Kategori verileri
-     * @return Category
      */
     public function create(array $data): Category
     {
@@ -91,7 +89,6 @@ class CategoryService
      *
      * @param  Category  $category  Kategori modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return Category
      */
     public function update(Category $category, array $data): Category
     {
@@ -120,7 +117,7 @@ class CategoryService
      * Kategori sil
      *
      * @param  Category  $category  Kategori modeli
-     * @return void
+     *
      * @throws \Exception Alt kategoriler varsa hata fırlatır
      */
     public function delete(Category $category): void
@@ -148,7 +145,6 @@ class CategoryService
      *
      * @param  string  $name  Kategori adı veya slug
      * @param  int|null  $ignoreId  İgnore edilecek kategori ID (update için)
-     * @return string
      */
     public function makeUniqueSlug(string $name, ?int $ignoreId = null): string
     {
@@ -181,6 +177,7 @@ class CategoryService
      * @param  string  $action  İşlem tipi (delete, activate, deactivate)
      * @param  array<int>  $ids  Kategori ID'leri
      * @return string Başarı mesajı
+     *
      * @throws \InvalidArgumentException
      */
     public function applyBulkAction(string $action, array $ids): string
@@ -203,14 +200,17 @@ class CategoryService
                         }
                     }
                     $categories->delete();
+
                     return $selectedCount.' kategori başarıyla silindi.';
 
                 case 'activate':
                     $categories->update(['status' => 'active']);
+
                     return $selectedCount.' kategori aktif yapıldı.';
 
                 case 'deactivate':
                     $categories->update(['status' => 'inactive']);
+
                     return $selectedCount.' kategori pasif yapıldı.';
 
                 default:
@@ -219,4 +219,3 @@ class CategoryService
         });
     }
 }
-

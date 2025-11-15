@@ -15,7 +15,6 @@ class UserService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -50,7 +49,6 @@ class UserService
      * @param  array<string, mixed>  $data  Kullanıcı verileri
      * @param  array<int>  $roleIds  Rol ID'leri
      * @param  User|null  $currentUser  Mevcut kullanıcı (super_admin kontrolü için)
-     * @return User
      */
     public function create(array $data, array $roleIds = [], ?User $currentUser = null): User
     {
@@ -96,7 +94,6 @@ class UserService
      * @param  array<string, mixed>  $data  Güncellenecek veriler
      * @param  array<int>  $roleIds  Rol ID'leri
      * @param  User|null  $currentUser  Mevcut kullanıcı (super_admin kontrolü için)
-     * @return User
      */
     public function update(User $user, array $data, array $roleIds = [], ?User $currentUser = null): User
     {
@@ -156,7 +153,7 @@ class UserService
      *
      * @param  User  $user  Kullanıcı modeli
      * @param  User|null  $currentUser  Mevcut kullanıcı (super_admin kontrolü için)
-     * @return void
+     *
      * @throws \Exception
      */
     public function delete(User $user, ?User $currentUser = null): void
@@ -185,7 +182,6 @@ class UserService
      * @param  User  $user  Kullanıcı modeli
      * @param  array<int>  $roleIds  Rol ID'leri
      * @param  User|null  $currentUser  Mevcut kullanıcı (super_admin kontrolü için)
-     * @return void
      */
     public function assignRoles(User $user, array $roleIds, ?User $currentUser = null): void
     {
@@ -210,4 +206,3 @@ class UserService
         });
     }
 }
-

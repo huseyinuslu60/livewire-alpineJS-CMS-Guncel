@@ -5,7 +5,6 @@ namespace Modules\Roles\Services;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Modules\Logs\Models\UserLog;
@@ -28,7 +27,6 @@ class RoleService
      * Filtreli rol sorgusu (index ekranı için)
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri (search, perPage, sortField, sortDirection)
-     * @return LengthAwarePaginator
      */
     public function getFilteredRoles(array $filters = []): LengthAwarePaginator
     {
@@ -134,7 +132,7 @@ class RoleService
      *
      * @param  array<string, mixed>  $data  Rol verileri (name, display_name, description, permissions)
      * @param  User|null  $currentUser  İşlemi yapan kullanıcı (yetki kontrolü için)
-     * @return Role
+     *
      * @throws \Exception
      */
     public function createRole(array $data, ?User $currentUser = null): Role
@@ -167,7 +165,7 @@ class RoleService
      * @param  Role  $role  Güncellenecek rol modeli
      * @param  array<string, mixed>  $data  Güncelleme verileri (name, display_name, description, permissions)
      * @param  User|null  $currentUser  İşlemi yapan kullanıcı (yetki kontrolü için)
-     * @return Role
+     *
      * @throws \Exception
      */
     public function updateRole(Role $role, array $data, ?User $currentUser = null): Role
@@ -204,7 +202,7 @@ class RoleService
      *
      * @param  Role  $role  Silinecek rol modeli
      * @param  User|null  $currentUser  İşlemi yapan kullanıcı (yetki kontrolü için)
-     * @return void
+     *
      * @throws \Exception
      */
     public function deleteRole(Role $role, ?User $currentUser = null): void
@@ -238,7 +236,7 @@ class RoleService
      * @param  Role  $role  Permission'ları sync edilecek rol
      * @param  array<string>  $permissionNames  Permission name'leri array'i
      * @param  User|null  $currentUser  İşlemi yapan kullanıcı (yetki kontrolü için)
-     * @return void
+     *
      * @throws \Exception
      */
     public function syncRolePermissions(Role $role, array $permissionNames, ?User $currentUser = null): void
@@ -288,7 +286,7 @@ class RoleService
      * @param  User  $user  Rol atanacak kullanıcı
      * @param  array<string|int>  $roleIdsOrNames  Rol ID'leri veya name'leri
      * @param  User|null  $currentUser  İşlemi yapan kullanıcı (yetki kontrolü için)
-     * @return void
+     *
      * @throws \Exception
      */
     public function syncUserRoles(User $user, array $roleIdsOrNames, ?User $currentUser = null): void
@@ -317,7 +315,6 @@ class RoleService
      * Sistem rolü kontrolü
      *
      * @param  Role  $role  Kontrol edilecek rol
-     * @return bool
      */
     public function isSystemRole(Role $role): bool
     {
@@ -328,7 +325,7 @@ class RoleService
      * Rol detaylarını getir (permission'lar ile birlikte)
      *
      * @param  int  $roleId  Rol ID'si
-     * @return Role
+     *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function getRoleWithPermissions(int $roleId): Role
@@ -336,4 +333,3 @@ class RoleService
         return Role::with('permissions')->findOrFail($roleId);
     }
 }
-

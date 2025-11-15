@@ -7,7 +7,6 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\Authors\Models\Author;
 use Modules\Authors\Services\AuthorService;
 
 class AuthorCreate extends Component

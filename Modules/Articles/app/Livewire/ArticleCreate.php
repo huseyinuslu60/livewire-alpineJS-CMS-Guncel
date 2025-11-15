@@ -7,7 +7,6 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Modules\Articles\Models\Article;
 use Modules\Articles\Services\ArticleService;
 
 class ArticleCreate extends Component

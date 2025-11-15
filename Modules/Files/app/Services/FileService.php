@@ -13,7 +13,6 @@ class FileService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -39,7 +38,6 @@ class FileService
      *
      * @param  File  $file  File modeli
      * @param  array<string, mixed>  $data  Güncellenecek veriler
-     * @return File
      */
     public function update(File $file, array $data): File
     {
@@ -59,7 +57,6 @@ class FileService
      * Dosya sil
      *
      * @param  File  $file  File modeli
-     * @return void
      */
     public function delete(File $file): void
     {
@@ -107,4 +104,3 @@ class FileService
         });
     }
 }
-

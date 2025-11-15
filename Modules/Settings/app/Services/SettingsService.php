@@ -73,7 +73,7 @@ class SettingsService
      * @param  int  $settingId  Ayar ID'si
      * @param  mixed  $value  Yeni değer
      * @param  \Illuminate\Http\UploadedFile|null  $file  Dosya yükleme (image type için)
-     * @return SiteSetting
+     *
      * @throws \Exception
      */
     public function updateSetting(int $settingId, $value, $file = null): SiteSetting
@@ -113,7 +113,7 @@ class SettingsService
      * Toplu ayar güncelleme
      *
      * @param  array<string, array<int, array{id: int, value: mixed}>>  $groupedSettings  Grup bazlı ayarlar
-     * @return void
+     *
      * @throws \Exception
      */
     public function updateMultiple(array $groupedSettings): void
@@ -169,7 +169,7 @@ class SettingsService
      * Genel ayarları güncelle (general group)
      *
      * @param  array<string, mixed>  $data  Ayar verileri (key => value)
-     * @return void
+     *
      * @throws \Exception
      */
     public function updateGeneral(array $data): void
@@ -181,7 +181,7 @@ class SettingsService
      * SEO ayarlarını güncelle
      *
      * @param  array<string, mixed>  $data  Ayar verileri
-     * @return void
+     *
      * @throws \Exception
      */
     public function updateSeo(array $data): void
@@ -193,7 +193,7 @@ class SettingsService
      * Sosyal medya ayarlarını güncelle
      *
      * @param  array<string, mixed>  $data  Ayar verileri
-     * @return void
+     *
      * @throws \Exception
      */
     public function updateSocial(array $data): void
@@ -205,7 +205,7 @@ class SettingsService
      * E-posta ayarlarını güncelle
      *
      * @param  array<string, mixed>  $data  Ayar verileri
-     * @return void
+     *
      * @throws \Exception
      */
     public function updateEmail(array $data): void
@@ -222,7 +222,7 @@ class SettingsService
      * Menü ayarlarını güncelle
      *
      * @param  array<string, mixed>  $data  Ayar verileri
-     * @return void
+     *
      * @throws \Exception
      */
     public function updateMenu(array $data): void
@@ -235,7 +235,7 @@ class SettingsService
      *
      * @param  string  $group  Grup adı
      * @param  array<string, mixed>  $data  Key-value çiftleri (key => value)
-     * @return void
+     *
      * @throws \Exception
      */
     protected function updateByGroup(string $group, array $data): void
@@ -280,7 +280,6 @@ class SettingsService
      *
      * @param  string  $key  Ayar anahtarı
      * @param  mixed  $value  Yeni değer
-     * @return bool
      */
     public function set(string $key, $value): bool
     {
@@ -307,4 +306,3 @@ class SettingsService
         return SiteSetting::getAllSettings();
     }
 }
-

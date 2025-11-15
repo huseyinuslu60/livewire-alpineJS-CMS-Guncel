@@ -13,7 +13,6 @@ class LogService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -46,7 +45,6 @@ class LogService
      * Log kaydını sil
      *
      * @param  UserLog  $log  Log modeli
-     * @return void
      */
     public function delete(UserLog $log): void
     {
@@ -91,8 +89,6 @@ class LogService
 
     /**
      * Tüm log kayıtlarını sil
-     *
-     * @return void
      */
     public function clearAll(): void
     {
@@ -102,4 +98,3 @@ class LogService
         });
     }
 }
-

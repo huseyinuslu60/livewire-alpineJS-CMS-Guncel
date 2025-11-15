@@ -5,7 +5,6 @@ namespace Modules\Settings\Livewire;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\Settings\Models\SiteSetting;
 use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component

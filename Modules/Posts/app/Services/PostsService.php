@@ -615,7 +615,6 @@ class PostsService
      * Filtreli sorgu oluştur
      *
      * @param  array<string, mixed>  $filters  Filtre parametreleri
-     * @return Builder
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
@@ -670,6 +669,7 @@ class PostsService
      * @param  string  $action  İşlem tipi (delete, activate, deactivate, newsletter_add, newsletter_remove)
      * @param  array<int>  $ids  Post ID'leri
      * @return string Başarı mesajı
+     *
      * @throws \InvalidArgumentException
      */
     public function applyBulkAction(string $action, array $ids): string
@@ -686,22 +686,27 @@ class PostsService
             switch ($action) {
                 case 'delete':
                     $posts->delete();
+
                     return $selectedCount.' haber başarıyla silindi.';
 
                 case 'activate':
                     $posts->update(['status' => 'published']);
+
                     return $selectedCount.' haber aktif yapıldı.';
 
                 case 'deactivate':
                     $posts->update(['status' => 'draft']);
+
                     return $selectedCount.' haber pasif yapıldı.';
 
                 case 'newsletter_add':
                     $posts->update(['in_newsletter' => true]);
+
                     return $selectedCount.' haber bültene eklendi.';
 
                 case 'newsletter_remove':
                     $posts->update(['in_newsletter' => false]);
+
                     return $selectedCount.' haber bültenden çıkarıldı.';
 
                 default:

@@ -3,7 +3,7 @@
 namespace Modules\Posts\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
-use App\Traits\SecureFileUpload;
+use App\Services\FileUploadService;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -17,9 +17,11 @@ use Modules\Posts\Services\PostsService;
 
 class PostCreateGallery extends Component
 {
-    use InteractsWithToast, SecureFileUpload, ValidationMessages, WithFileUploads;
+    use InteractsWithToast, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
+
+    protected FileUploadService $fileUploadService;
 
     public string $title = '';
 
@@ -94,9 +96,10 @@ class PostCreateGallery extends Component
 
     protected $listeners = ['contentUpdated'];
 
-    public function boot()
+    public function boot(PostsService $postsService, FileUploadService $fileUploadService)
     {
-        $this->postsService = app(PostsService::class);
+        $this->postsService = $postsService;
+        $this->fileUploadService = $fileUploadService;
     }
 
     public function mount()
@@ -380,7 +383,7 @@ class PostCreateGallery extends Component
         // Yeni dosyalar yüklendiğinde uploadedFiles'a ekle
         if (! empty($this->newFiles)) {
             // Secure file processing
-            $result = $this->processSecureUploads($this->newFiles);
+            $result = $this->fileUploadService->processSecureUploads($this->newFiles);
 
             if (! empty($result['errors'])) {
                 foreach ($result['errors'] as $error) {

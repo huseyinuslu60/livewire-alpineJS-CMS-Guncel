@@ -3,17 +3,18 @@
 namespace Modules\Files\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
-use App\Traits\SecureFileUpload;
+use App\Services\FileUploadService;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Files\Models\File;
 
 class FileUpload extends Component
 {
-    use InteractsWithToast, SecureFileUpload, ValidationMessages, WithFileUploads;
+    use InteractsWithToast, ValidationMessages, WithFileUploads;
+
+    protected FileUploadService $fileUploadService;
 
     /** @var array<int, \Illuminate\Http\UploadedFile> */
     public array $files = [];
@@ -45,6 +46,11 @@ class FileUpload extends Component
     protected function messages()
     {
         return $this->getContextualValidationMessages()['file'] ?? $this->getValidationMessages();
+    }
+
+    public function boot(FileUploadService $fileUploadService)
+    {
+        $this->fileUploadService = $fileUploadService;
     }
 
     public function mount()
@@ -90,8 +96,8 @@ class FileUpload extends Component
 
         foreach ($this->allFiles as $index => $file) {
             try {
-                // Security validation using SecureFileUpload trait
-                $validationErrors = $this->validateFile($file);
+                // Security validation using FileUploadService
+                $validationErrors = $this->fileUploadService->validateFile($file);
                 if (! empty($validationErrors)) {
                     $this->errorMessage = implode(' ', $validationErrors);
                     $this->showErrorMessage = true;
@@ -99,13 +105,8 @@ class FileUpload extends Component
                     return;
                 }
 
-                // Dosya adını oluştur (UUID for security)
-                $originalName = $file->getClientOriginalName();
-                $extension = $file->getClientOriginalExtension();
-                $fileName = Str::uuid().'.'.$extension;
-
-                // Secure file storage
-                $path = $this->storeFileSecurely($file, 'files');
+                // Secure file storage using FileUploadService
+                $path = $this->fileUploadService->storeFile($file, 'files', 'public');
 
                 // Bu dosya için açıklamaları al
                 $description = $this->allDescriptions[$index] ?? ['alt_text' => '', 'caption' => ''];

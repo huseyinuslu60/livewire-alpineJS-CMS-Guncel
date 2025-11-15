@@ -3,7 +3,7 @@
 namespace Modules\Posts\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
-use App\Traits\SecureFileUpload;
+use App\Services\FileUploadService;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -21,9 +21,11 @@ use Modules\Posts\Services\PostsService;
 
 class PostEdit extends Component
 {
-    use InteractsWithToast, SecureFileUpload, ValidationMessages, WithFileUploads;
+    use InteractsWithToast, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
+
+    protected FileUploadService $fileUploadService;
 
     public Post $post;
 
@@ -89,9 +91,10 @@ class PostEdit extends Component
 
     protected $listeners = ['contentUpdated', 'updateFileOrder'];
 
-    public function boot()
+    public function boot(PostsService $postsService, FileUploadService $fileUploadService)
     {
-        $this->postsService = app(PostsService::class);
+        $this->postsService = $postsService;
+        $this->fileUploadService = $fileUploadService;
     }
 
     public function mount($post)
@@ -616,7 +619,7 @@ class PostEdit extends Component
             \Log::info('New files uploaded:', ['count' => count($this->newFiles)]);
 
             // Secure file processing
-            $result = $this->processSecureUploads($this->newFiles);
+            $result = $this->fileUploadService->processSecureUploads($this->newFiles);
 
             if (! empty($result['errors'])) {
                 foreach ($result['errors'] as $error) {

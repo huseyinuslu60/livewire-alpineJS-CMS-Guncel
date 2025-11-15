@@ -1,5 +1,7 @@
-<x-settings::layouts.master>
+@extends('layouts.admin')
+
+@section('content')
     <h1>Hello World</h1>
 
     <p>Module: {{ config('settings.name') }}</p>
-</x-settings::layouts.master>
+@endsection

@@ -1,5 +1,9 @@
 <div>
-    @vite(['Modules/Authors/resources/assets/sass/app.scss', 'Modules/Authors/resources/assets/js/app.js'])
+    @push('module-scripts')
+        @once
+            @vite(['Modules/Authors/resources/assets/sass/app.scss', 'Modules/Authors/resources/assets/js/app.js'])
+        @endonce
+    @endpush
     
     <!-- Modern Header -->
     <div class="mb-8">

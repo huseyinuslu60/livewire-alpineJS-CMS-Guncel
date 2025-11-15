@@ -1,5 +1,9 @@
 <div>
-    @vite(['Modules/Roles/resources/assets/sass/app.scss', 'Modules/Roles/resources/assets/js/app.js'])
+    @push('module-scripts')
+        @once
+            @vite(['Modules/Roles/resources/assets/sass/app.scss', 'Modules/Roles/resources/assets/js/app.js'])
+        @endonce
+    @endpush
 
     <!-- Modern Header with Stats -->
     <div class="mb-8">

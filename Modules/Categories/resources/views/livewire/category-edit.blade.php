@@ -213,5 +213,9 @@
     </div>
 
     {{-- Categories modülü asset dosyalarını dahil et --}}
-    @vite(['Modules/Categories/resources/assets/sass/app.scss', 'Modules/Categories/resources/assets/js/app.js'])
+    @push('module-scripts')
+        @once
+            @vite(['Modules/Categories/resources/assets/sass/app.scss', 'Modules/Categories/resources/assets/js/app.js'])
+        @endonce
+    @endpush
 </div>

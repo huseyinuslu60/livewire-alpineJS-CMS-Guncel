@@ -1,7 +1,7 @@
 <div x-data="newslettersTable()" class="newsletter-module">
     <!-- Flash Messages -->
     @if (session()->has('success'))
-        <div x-show="showSuccess" 
+        <div x-show="showSuccess"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -26,7 +26,7 @@
     @endif
 
     @if (session()->has('error'))
-        <div x-show="showError" 
+        <div x-show="showError"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -64,7 +64,7 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('newsletters.index') }}" 
+                    <a href="{{ route('newsletters.index') }}"
                        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Bülten Listesi
@@ -139,8 +139,8 @@
             <!-- Search -->
             <div>
                 <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Ara</label>
-                <input type="text" 
-                       wire:model.live.debounce.300ms="search" 
+                <input type="text"
+                       wire:model.live.debounce.300ms="search"
                        id="search"
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                        placeholder="E-posta veya link ara...">
@@ -149,7 +149,7 @@
             <!-- Type Filter -->
             <div>
                 <label for="typeFilter" class="block text-sm font-medium text-gray-700 mb-2">Tür</label>
-                <select wire:model.live="typeFilter" 
+                <select wire:model.live="typeFilter"
                         id="typeFilter"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                     <option value="">Tümü</option>
@@ -161,7 +161,7 @@
             <!-- Status Filter -->
             <div>
                 <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-2">Durum</label>
-                <select wire:model.live="statusFilter" 
+                <select wire:model.live="statusFilter"
                         id="statusFilter"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                     <option value="">Tümü</option>
@@ -173,7 +173,7 @@
             <!-- Per Page -->
             <div>
                 <label for="perPage" class="block text-sm font-medium text-gray-700 mb-2">Sayfa Başına</label>
-                <select wire:model.live="perPage" 
+                <select wire:model.live="perPage"
                         id="perPage"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                     <option value="10">10</option>
@@ -245,7 +245,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end space-x-2">
-                                    <button wire:click="confirmDeleteLog({{ $log->record_id }})" 
+                                    <button wire:click="confirmDeleteLog({{ $log->record_id }})"
                                             class="text-red-600 hover:text-red-900 transition-colors duration-200"
                                             title="Sil">
                                         <i class="fas fa-trash"></i>
@@ -277,35 +277,6 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('alpine:init', () => {
-    // NOT: sadece component registration (tek seferlik) bu blokta kalmalı.
-    Alpine.data('newsletterTable', () => ({
-        showSuccess: true,
-        showError: true,
-        showDeleteModal: false,
-        deleteLogId: null,
-        
-        init() {
-            // Auto-hide success message after 5 seconds
-            setTimeout(() => {
-                this.showSuccess = false;
-            }, 5000);
-            
-            // Auto-hide error message after 10 seconds
-            setTimeout(() => {
-                this.showError = false;
-            }, 10000);
-        }
-    }));
-});
-
-// Livewire event listeners
-document.addEventListener('livewire:init', () => {
-    Livewire.on('confirm-delete-log', (event) => {
-        document.querySelector('[x-data]').__x.$data.showDeleteModal = true;
-        document.querySelector('[x-data]').__x.$data.deleteLogId = event.logId;
-    });
-});
-
-</script>
+@push('scripts')
+    @vite('Modules/Newsletters/resources/assets/js/app.js')
+@endpush

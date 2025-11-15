@@ -6,41 +6,54 @@ import { showNotification as sharedShowNotification } from '@/js/ui/notification
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
-    // Yazarlar Tablo Bileşeni
-    Alpine.data('authorsTable', () => ({
-        selectedAuthors: [],
-        selectAll: false,
+    // Yazarlar Tablo Bileşeni - Factory pattern
+    function authorsTableData() {
+        return {
+            selectedAuthors: [],
+            selectAll: false,
 
-        toggleSelectAll() {
-            this.selectAll = !this.selectAll;
-            this.selectedAuthors = this.selectAll ? this.getAllAuthorIds() : [];
-        },
+            toggleSelectAll() {
+                this.selectAll = !this.selectAll;
+                this.selectedAuthors = this.selectAll ? this.getAllAuthorIds() : [];
+            },
 
-        toggleAuthor(authorId) {
-            const index = this.selectedAuthors.indexOf(authorId);
-            if (index > -1) {
-                this.selectedAuthors.splice(index, 1);
-            } else {
-                this.selectedAuthors.push(authorId);
+            toggleAuthor(authorId) {
+                const index = this.selectedAuthors.indexOf(authorId);
+                if (index > -1) {
+                    this.selectedAuthors.splice(index, 1);
+                } else {
+                    this.selectedAuthors.push(authorId);
+                }
+                this.updateSelectAllState();
+            },
+
+            updateSelectAllState() {
+                const allIds = this.getAllAuthorIds();
+                this.selectAll = allIds.length > 0 && allIds.every(id => this.selectedAuthors.includes(id));
+            },
+
+            getAllAuthorIds() {
+                const root = this.$root || document;
+                return Array.from(root.querySelectorAll('[data-author-id]'))
+                    .map(el => el.dataset.authorId)
+                    .filter(Boolean);
+            },
+
+            clearSelection() {
+                this.selectedAuthors = [];
+                this.selectAll = false;
             }
-            this.updateSelectAllState();
-        },
+        };
+    }
 
-        updateSelectAllState() {
-            const allIds = this.getAllAuthorIds();
-            this.selectAll = allIds.length > 0 && allIds.every(id => this.selectedAuthors.includes(id));
-        },
+    Alpine.data('authorsTable', authorsTableData);
 
-        getAllAuthorIds() {
-            // Bu tablo yapınıza göre uygulanması gerekir
-            return [];
-        },
-
-        clearSelection() {
-            this.selectedAuthors = [];
-            this.selectAll = false;
-        }
-    }));
+    // Global fonksiyon wrapper - x-data="authorsTable" ve x-data="authorsTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.authorsTable) {
+        window.authorsTable = function () {
+            return authorsTableData();
+        };
+    }
 
     // Yazar Form Bileşeni
     Alpine.data('authorForm', () => ({

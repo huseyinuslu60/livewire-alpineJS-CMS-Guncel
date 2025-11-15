@@ -6,10 +6,21 @@ import { showNotification } from '@/js/ui/notifications';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
-    // Kategoriler Tablo Bileşeni
-    Alpine.data('categoriesTable', () => ({
-        init() {}
-    }));
+    // Kategoriler Tablo Bileşeni - Factory pattern
+    function categoriesTableData() {
+        return {
+            init() {}
+        };
+    }
+
+    Alpine.data('categoriesTable', categoriesTableData);
+
+    // Global fonksiyon wrapper - x-data="categoriesTable" ve x-data="categoriesTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.categoriesTable) {
+        window.categoriesTable = function () {
+            return categoriesTableData();
+        };
+    }
 
     // Kategori Form Bileşeni
     Alpine.data('categoryForm', () => ({

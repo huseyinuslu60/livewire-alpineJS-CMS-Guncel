@@ -6,10 +6,21 @@ import { showNotification as sharedShowNotification } from '@/js/ui/notification
 
 // Loglar modülü için Alpine.js bileşenleri - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
-    // Loglar Tablo Bileşeni
-    Alpine.data('logsTable', () => ({
-        init() {}
-    }));
+    // Loglar Tablo Bileşeni - Factory pattern
+    function logsTableData() {
+        return {
+            init() {}
+        };
+    }
+
+    Alpine.data('logsTable', logsTableData);
+
+    // Global fonksiyon wrapper - x-data="logsTable" ve x-data="logsTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.logsTable) {
+        window.logsTable = function () {
+            return logsTableData();
+        };
+    }
 
     // Loglar yönetim bileşeni
     Alpine.data('logs.management', () => ({

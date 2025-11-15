@@ -25,7 +25,8 @@ document.addEventListener('alpine:init', () => {
       },
 
       getAllIds() {
-        return Array.from(document.querySelectorAll('[data-post-id]')).map(el => el.dataset.postId);
+        const root = this.$root || document;
+        return Array.from(root.querySelectorAll('[data-post-id]')).map(el => el.dataset.postId);
       },
 
       applyBulk() {

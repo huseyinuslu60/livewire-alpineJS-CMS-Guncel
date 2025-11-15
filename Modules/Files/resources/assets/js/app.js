@@ -4,36 +4,37 @@ import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
-    // Dosyalar Tablo Bileşeni
-    Alpine.data('filesTable', () => ({
-        showSuccess: true,
-        showError: true,
+    // Dosyalar Tablo Bileşeni - Factory pattern
+    function filesTableData() {
+        return {
+            showSuccess: true,
+            showError: true,
 
-        init() {
-            // Dosyalar Tablo bileşeni başlatıldı
-        },
+            init() {
+                // Dosyalar Tablo bileşeni başlatıldı
+            },
 
-        // Yardımcı fonksiyonlar
-        formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        },
+            // Yardımcı fonksiyonlar
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            },
 
-        getFileIcon(mimeType) {
-            if (mimeType.includes('image/')) return 'fas fa-image';
-            if (mimeType.includes('video/')) return 'fas fa-video';
-            if (mimeType.includes('audio/')) return 'fas fa-music';
-            if (mimeType.includes('pdf')) return 'fas fa-file-pdf';
-            if (mimeType.includes('word')) return 'fas fa-file-word';
-            if (mimeType.includes('excel')) return 'fas fa-file-excel';
-            if (mimeType.includes('powerpoint')) return 'fas fa-file-powerpoint';
-            return 'fas fa-file';
-        },
+            getFileIcon(mimeType) {
+                if (mimeType.includes('image/')) return 'fas fa-image';
+                if (mimeType.includes('video/')) return 'fas fa-video';
+                if (mimeType.includes('audio/')) return 'fas fa-music';
+                if (mimeType.includes('pdf')) return 'fas fa-file-pdf';
+                if (mimeType.includes('word')) return 'fas fa-file-word';
+                if (mimeType.includes('excel')) return 'fas fa-file-excel';
+                if (mimeType.includes('powerpoint')) return 'fas fa-file-powerpoint';
+                return 'fas fa-file';
+            },
 
-        getFileColor(mimeType) {
+            getFileColor(mimeType) {
             if (mimeType.includes('image/')) return 'bg-green-100 text-green-800';
             if (mimeType.includes('video/')) return 'bg-purple-100 text-purple-800';
             if (mimeType.includes('audio/')) return 'bg-pink-100 text-pink-800';
@@ -43,7 +44,17 @@ document.addEventListener('alpine:init', () => {
             if (mimeType.includes('powerpoint')) return 'bg-orange-100 text-orange-800';
             return 'bg-gray-100 text-gray-800';
         }
-    }));
+    };
+    }
+
+    Alpine.data('filesTable', filesTableData);
+
+    // Global fonksiyon wrapper - x-data="filesTable" ve x-data="filesTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.filesTable) {
+        window.filesTable = function () {
+            return filesTableData();
+        };
+    }
 
     // Dosya Yükleme Bileşeni
     Alpine.data('fileUpload', () => ({

@@ -30,33 +30,45 @@ document.addEventListener('alpine:init', () => {
         }
     }));
 
-    // Son Dakikalar Tablo Bileşeni
-    Alpine.data('lastminutesTable', () => ({
-        showSuccess: true,
-        showError: true,
-        selectedLastminutes: [],
+    // Son Dakikalar Tablo Bileşeni - Factory pattern
+    function lastminutesTableData() {
+        return {
+            showSuccess: true,
+            showError: true,
+            selectedLastminutes: [],
 
-        init() {
-            // Son Dakikalar Tablo: Alpine bileşeni başlatıldı
-        },
+            init() {
+                // Son Dakikalar Tablo: Alpine bileşeni başlatıldı
+            },
 
-        toggleLastminute(lastminuteId) {
-            if (this.selectedLastminutes.includes(lastminuteId)) {
-                this.selectedLastminutes = this.selectedLastminutes.filter(id => id !== lastminuteId);
-            } else {
-                this.selectedLastminutes.push(lastminuteId);
+            toggleLastminute(lastminuteId) {
+                if (this.selectedLastminutes.includes(lastminuteId)) {
+                    this.selectedLastminutes = this.selectedLastminutes.filter(id => id !== lastminuteId);
+                } else {
+                    this.selectedLastminutes.push(lastminuteId);
+                }
+            },
+
+            selectAll() {
+                const root = this.$root || document;
+                const checkboxes = root.querySelectorAll('input[type="checkbox"][name="lastminute_ids[]"]');
+                this.selectedLastminutes = Array.from(checkboxes).map(cb => cb.value);
+            },
+
+            deselectAll() {
+                this.selectedLastminutes = [];
             }
-        },
+        };
+    }
 
-        selectAll() {
-            const checkboxes = document.querySelectorAll('input[type="checkbox"][name="lastminute_ids[]"]');
-            this.selectedLastminutes = Array.from(checkboxes).map(cb => cb.value);
-        },
+    Alpine.data('lastminutesTable', lastminutesTableData);
 
-        deselectAll() {
-            this.selectedLastminutes = [];
-        }
-    }));
+    // Global fonksiyon wrapper - x-data="lastminutesTable" ve x-data="lastminutesTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.lastminutesTable) {
+        window.lastminutesTable = function () {
+            return lastminutesTableData();
+        };
+    }
 }, { once: true });
 
 // Module initialization function

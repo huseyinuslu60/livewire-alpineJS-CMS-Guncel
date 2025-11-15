@@ -347,10 +347,11 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-50 overflow-y-auto hidden"
-         style="display: none;">
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;"
+         x-cloak>
         <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="modal-overlay" @click="showDeleteModal = false"></div>
+            <div class="modal-overlay fixed inset-0 bg-black bg-opacity-50" @click="closeDeleteModal()"></div>
             <div class="modal-content sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
@@ -366,11 +367,11 @@
                     </div>
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button @click="showDeleteModal = false; $wire.deleteNewsletter(deleteNewsletterId)" 
+                    <button @click="deleteNewsletter()" 
                             class="btn btn-danger w-full sm:w-auto sm:ml-3">
                         Sil
                     </button>
-                    <button @click="showDeleteModal = false" 
+                    <button @click="closeDeleteModal()" 
                             class="btn btn-secondary w-full sm:w-auto sm:mt-0 sm:ml-3 mt-3">
                         İptal
                     </button>
@@ -379,4 +380,8 @@
         </div>
     </div>
 </div>
+
+@push('scripts')
+    @vite('Modules/Newsletters/resources/assets/js/app.js')
+@endpush
 

@@ -5,54 +5,81 @@ import { showNotification } from '@/js/ui/notifications';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
-    // Bülten Tablo Bileşeni
-    Alpine.data('newslettersTable', () => ({
-        showDeleteModal: false,
-        deleteNewsletterId: null,
-        showSuccess: true,
-        showError: true,
+    // Bülten Tablo Bileşeni - Factory pattern
+    function newslettersTableData() {
+        return {
+            showDeleteModal: false,
+            deleteNewsletterId: null,
+            showSuccess: true,
+            showError: true,
 
-        init() {
-            this.initializeTableInteractions();
-        },
-
-        initializeTableInteractions() {
-            // Tablo satırı tıklama işleyicileri
-            const newsletterTable = document.querySelector('.newsletter-table');
-            if (newsletterTable) {
-                const rows = newsletterTable.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    row.addEventListener('click', function(e) {
-                        if (!e.target.closest('.table-actions')) {
-                            const editLink = row.querySelector('a[href*="edit"]');
-                            if (editLink) {
-                                window.location.href = editLink.href;
-                            }
-                        }
-                    });
+            init() {
+                this.initializeTableInteractions();
+                
+                // Livewire event listener - silme onayı için
+                this.$wire.on('confirm-delete-newsletter', (data) => {
+                    // Livewire 3'te $wire.on ile gelen data direkt olarak dispatch edilen array'dir
+                    const eventData = Array.isArray(data) && data.length > 0 ? data[0] : data;
+                    const newsletterId = eventData?.newsletterId || eventData?.id;
+                    
+                    if (newsletterId) {
+                        this.confirmDelete(newsletterId);
+                    }
                 });
-            }
-        },
+            },
 
-        confirmDelete(newsletterId) {
-            this.deleteNewsletterId = newsletterId;
-            this.showDeleteModal = true;
-        },
+            initializeTableInteractions() {
+                // Tablo satırı tıklama işleyicileri
+                const root = this.$root || document;
+                const newsletterTable = root.querySelector('.newsletter-table');
+                if (newsletterTable) {
+                    const rows = newsletterTable.querySelectorAll('tbody tr');
+                    rows.forEach(row => {
+                        row.addEventListener('click', function(e) {
+                            if (!e.target.closest('.table-actions')) {
+                                const editLink = row.querySelector('a[href*="edit"]');
+                                if (editLink) {
+                                    window.location.href = editLink.href;
+                                }
+                            }
+                        });
+                    });
+                }
+            },
 
-        deleteNewsletter() {
-            if (this.deleteNewsletterId) {
-                this.$wire.call('deleteNewsletter', this.deleteNewsletterId);
+            confirmDelete(newsletterId) {
+                this.deleteNewsletterId = newsletterId;
+                this.showDeleteModal = true;
+            },
+
+            closeDeleteModal() {
                 this.showDeleteModal = false;
                 this.deleteNewsletterId = null;
-            }
-        },
+            },
 
-        toggleStatus(newsletterId, currentStatus) {
-            if (confirm('Newsletter durumunu değiştirmek istediğinizden emin misiniz?')) {
-                this.$wire.call('toggleStatus', newsletterId);
+            deleteNewsletter() {
+                if (this.deleteNewsletterId) {
+                    this.$wire.call('deleteNewsletter', this.deleteNewsletterId);
+                    this.closeDeleteModal();
+                }
+            },
+
+            toggleStatus(newsletterId, currentStatus) {
+                if (confirm('Newsletter durumunu değiştirmek istediğinizden emin misiniz?')) {
+                    this.$wire.call('toggleStatus', newsletterId);
+                }
             }
-        }
-    }));
+        };
+    }
+
+    Alpine.data('newslettersTable', newslettersTableData);
+
+    // Global fonksiyon wrapper - x-data="newslettersTable" ve x-data="newslettersTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.newslettersTable) {
+        window.newslettersTable = function () {
+            return newslettersTableData();
+        };
+    }
 
     // Bülten Form Bileşeni
     Alpine.data('newsletterForm', () => ({

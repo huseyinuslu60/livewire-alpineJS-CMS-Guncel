@@ -4,71 +4,82 @@ import { registerModuleInit } from '@/js/livewire-alpine-lifecycle';
 
 // Alpine.js Components - Must be registered in alpine:init
 document.addEventListener('alpine:init', () => {
-    // Makaleler Tablo Bileşeni
-    Alpine.data('articlesTable', () => ({
-        showSuccess: true,
-        showError: true,
+    // Makaleler Tablo Bileşeni - Factory pattern
+    function articlesTableData() {
+        return {
+            showSuccess: true,
+            showError: true,
 
-        init() {},
+            init() {},
 
-        // Yardımcı fonksiyonlar
-        formatDate(date) {
-            return new Date(date).toLocaleDateString('tr-TR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
-        },
+            // Yardımcı fonksiyonlar
+            formatDate(date) {
+                return new Date(date).toLocaleDateString('tr-TR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+            },
 
-        formatDateTime(date) {
-            return new Date(date).toLocaleString('tr-TR', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        },
+            formatDateTime(date) {
+                return new Date(date).toLocaleString('tr-TR', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
 
-        getStatusColor(status) {
-            switch(status) {
-                case 'published':
-                    return 'bg-green-100 text-green-800';
-                case 'draft':
-                    return 'bg-yellow-100 text-yellow-800';
-                case 'pending':
-                    return 'bg-blue-100 text-blue-800';
-                default:
-                    return 'bg-gray-100 text-gray-800';
+            getStatusColor(status) {
+                switch(status) {
+                    case 'published':
+                        return 'bg-green-100 text-green-800';
+                    case 'draft':
+                        return 'bg-yellow-100 text-yellow-800';
+                    case 'pending':
+                        return 'bg-blue-100 text-blue-800';
+                    default:
+                        return 'bg-gray-100 text-gray-800';
+                }
+            },
+
+            getStatusIcon(status) {
+                switch(status) {
+                    case 'published':
+                        return 'fas fa-check-circle';
+                    case 'draft':
+                        return 'fas fa-edit';
+                    case 'pending':
+                        return 'fas fa-hourglass-half';
+                    default:
+                        return 'fas fa-question';
+                }
+            },
+
+            getStatusText(status) {
+                switch(status) {
+                    case 'published':
+                        return 'Yayınlanmış';
+                    case 'draft':
+                        return 'Taslak';
+                    case 'pending':
+                        return 'Beklemede';
+                    default:
+                        return 'Bilinmeyen';
+                }
             }
-        },
+        };
+    }
 
-        getStatusIcon(status) {
-            switch(status) {
-                case 'published':
-                    return 'fas fa-check-circle';
-                case 'draft':
-                    return 'fas fa-edit';
-                case 'pending':
-                    return 'fas fa-hourglass-half';
-                default:
-                    return 'fas fa-question';
-            }
-        },
+    Alpine.data('articlesTable', articlesTableData);
 
-        getStatusText(status) {
-            switch(status) {
-                case 'published':
-                    return 'Yayınlanmış';
-                case 'draft':
-                    return 'Taslak';
-                case 'pending':
-                    return 'Beklemede';
-                default:
-                    return 'Bilinmeyen';
-            }
-        }
-    }));
+    // Global fonksiyon wrapper - x-data="articlesTable" ve x-data="articlesTable()" için uyumluluk
+    if (typeof window !== 'undefined' && !window.articlesTable) {
+        window.articlesTable = function () {
+            return articlesTableData();
+        };
+    }
 
     // Makale Form Bileşeni
     Alpine.data('articleForm', () => ({

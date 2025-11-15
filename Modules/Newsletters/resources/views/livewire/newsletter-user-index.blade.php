@@ -298,35 +298,6 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('alpine:init', () => {
-    // NOT: sadece component registration (tek seferlik) bu blokta kalmalı.
-    Alpine.data('newsletterTable', () => ({
-        showSuccess: true,
-        showError: true,
-        showDeleteModal: false,
-        deleteUserId: null,
-        
-        init() {
-            // Auto-hide success message after 5 seconds
-            setTimeout(() => {
-                this.showSuccess = false;
-            }, 5000);
-            
-            // Auto-hide error message after 10 seconds
-            setTimeout(() => {
-                this.showError = false;
-            }, 10000);
-        }
-    }));
-});
-
-// Livewire event listeners
-document.addEventListener('livewire:init', () => {
-    Livewire.on('confirm-delete-user', (event) => {
-        document.querySelector('[x-data]').__x.$data.showDeleteModal = true;
-        document.querySelector('[x-data]').__x.$data.deleteUserId = event.userId;
-    });
-});
-
-</script>
+@push('scripts')
+    @vite('Modules/Newsletters/resources/assets/js/app.js')
+@endpush

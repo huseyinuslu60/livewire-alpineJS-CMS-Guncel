@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use App\Traits\SecureFileUpload;
+use App\Services\FileUploadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -11,12 +11,15 @@ use Tests\TestCase;
 
 class FileUploadSecurityTest extends TestCase
 {
-    use RefreshDatabase, SecureFileUpload;
+    use RefreshDatabase;
+
+    protected FileUploadService $fileUploadService;
 
     protected function setUp(): void
     {
         parent::setUp();
         Storage::fake('public');
+        $this->fileUploadService = app(FileUploadService::class);
     }
 
     public function test_php_files_are_rejected()
@@ -27,7 +30,7 @@ class FileUploadSecurityTest extends TestCase
         // Create a fake PHP file
         $file = UploadedFile::fake()->create('malicious.php', 100, 'application/x-php');
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file);
         $this->assertNotEmpty($errors);
         $this->assertStringContainsString('güvenlik', implode(' ', $errors));
     }
@@ -40,7 +43,7 @@ class FileUploadSecurityTest extends TestCase
         // Create a fake HTML file
         $file = UploadedFile::fake()->create('malicious.html', 100, 'text/html');
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file);
         $this->assertNotEmpty($errors);
     }
 
@@ -52,7 +55,7 @@ class FileUploadSecurityTest extends TestCase
         // Create a fake executable file
         $file = UploadedFile::fake()->create('malicious.exe', 100, 'application/x-msdownload');
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file);
         $this->assertNotEmpty($errors);
     }
 
@@ -64,7 +67,7 @@ class FileUploadSecurityTest extends TestCase
         // Create a valid JPEG image
         $file = UploadedFile::fake()->image('test.jpg', 100, 100);
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file);
         $this->assertEmpty($errors);
     }
 
@@ -94,7 +97,7 @@ startxref
 %%EOF';
         $file = UploadedFile::fake()->createWithContent('document.pdf', $pdfContent);
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file);
         $this->assertEmpty($errors, 'PDF dosyası kabul edilmeli. Hatalar: '.implode(', ', $errors));
     }
 
@@ -106,7 +109,7 @@ startxref
         // Create a file with PHP code disguised as image
         $file = UploadedFile::fake()->createWithContent('image.jpg', '<?php system($_GET["cmd"]); ?>');
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file);
         $this->assertNotEmpty($errors);
         $this->assertStringContainsString('güvenlik', implode(' ', $errors));
     }
@@ -116,15 +119,15 @@ startxref
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        // Override max file size for this test
-        $this->maxFileSize = 100; // 100KB
+        // Set max file size for this test (100KB)
+        $this->fileUploadService->setMaxFileSize(100);
 
         // Create a file larger than limit by creating actual large content
         // UploadedFile::fake() may not respect size, so we create actual large file
         $largeContent = str_repeat('x', 150 * 1024); // 150KB - larger than 100KB limit
         $file = UploadedFile::fake()->createWithContent('large.jpg', $largeContent);
 
-        $errors = $this->validateFile($file);
+        $errors = $this->fileUploadService->validateFile($file, 100);
         // validateFile() returns array - verify large file is rejected
         $this->assertNotEmpty($errors, 'Large file should be rejected');
         $this->assertStringContainsString('boyutu', implode(' ', $errors));
@@ -136,7 +139,7 @@ startxref
         $this->actingAs($user);
 
         $file = UploadedFile::fake()->image('original-name.jpg');
-        $path = $this->storeFileSecurely($file, 'test');
+        $path = $this->fileUploadService->storeFile($file, 'test', 'public');
 
         // Path should contain UUID, not original filename
         $this->assertStringNotContainsString('original-name', $path);

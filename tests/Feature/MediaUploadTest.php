@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Services\FileUploadService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -9,30 +10,32 @@ class MediaUploadTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_media_upload_validation_works()
+    public function test_file_upload_service_exists()
     {
-        // Test media upload validation trait exists
-        $this->assertTrue(trait_exists('App\Traits\SecureFileUpload'));
+        // Test FileUploadService exists
+        $this->assertTrue(class_exists(FileUploadService::class));
     }
 
-    public function test_media_upload_size_limit()
+    public function test_file_upload_service_has_validate_method()
     {
         // Test file validation method exists
-        $reflection = new \ReflectionClass('App\Traits\SecureFileUpload');
+        $reflection = new \ReflectionClass(FileUploadService::class);
         $this->assertTrue($reflection->hasMethod('validateFile'));
     }
 
-    public function test_media_upload_mime_type_validation()
+    public function test_file_upload_service_has_store_method()
     {
-        // Test MIME type validation is part of validateFile method
-        $reflection = new \ReflectionClass('App\Traits\SecureFileUpload');
-        $this->assertTrue($reflection->hasMethod('validateFile'));
+        // Test file storage method exists
+        $reflection = new \ReflectionClass(FileUploadService::class);
+        $this->assertTrue($reflection->hasMethod('storeFile'));
     }
 
-    public function test_media_upload_negative_test()
+    public function test_file_upload_service_has_allowed_mime_types()
     {
-        // Test security validation method exists
-        $reflection = new \ReflectionClass('App\Traits\SecureFileUpload');
-        $this->assertTrue($reflection->hasMethod('validateFile'));
+        // Test allowed MIME types method exists
+        $service = app(FileUploadService::class);
+        $mimeTypes = $service->getAllowedMimeTypes();
+        $this->assertIsArray($mimeTypes);
+        $this->assertNotEmpty($mimeTypes);
     }
 }

@@ -13,7 +13,7 @@ use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteIndex extends Component
 {
-    use ValidationMessages, WithPagination, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages, WithPagination;
 
     protected LastminuteService $lastminuteService;
 

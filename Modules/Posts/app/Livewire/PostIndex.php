@@ -26,7 +26,7 @@ use Modules\Posts\Services\PostsService;
  */
 class PostIndex extends Component
 {
-    use WithPagination, InteractsWithModal, InteractsWithToast;
+    use InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected PostsService $postsService;
 

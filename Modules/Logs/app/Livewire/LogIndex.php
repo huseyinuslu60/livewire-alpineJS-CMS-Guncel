@@ -24,7 +24,7 @@ use Modules\Logs\Services\LogService;
  */
 class LogIndex extends Component
 {
-    use WithPagination, InteractsWithToast;
+    use InteractsWithToast, WithPagination;
 
     protected LogService $logService;
 

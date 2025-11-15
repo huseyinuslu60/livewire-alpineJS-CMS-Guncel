@@ -10,7 +10,7 @@ use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteCreate extends Component
 {
-    use ValidationMessages, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages;
 
     protected LastminuteService $lastminuteService;
 

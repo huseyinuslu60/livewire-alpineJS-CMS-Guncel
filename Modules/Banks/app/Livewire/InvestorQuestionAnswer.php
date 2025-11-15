@@ -10,6 +10,7 @@ use Modules\Banks\Models\InvestorQuestion;
 class InvestorQuestionAnswer extends Component
 {
     use InteractsWithToast;
+
     public ?\Modules\Banks\Models\InvestorQuestion $question = null;
 
     public string $answer = '';

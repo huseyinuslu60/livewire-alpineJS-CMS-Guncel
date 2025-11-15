@@ -14,7 +14,7 @@ use Modules\Posts\Models\Post;
 
 class NewsletterCreate extends Component
 {
-    use ValidationMessages, WithPagination, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages, WithPagination;
 
     protected NewsletterService $newsletterService;
 

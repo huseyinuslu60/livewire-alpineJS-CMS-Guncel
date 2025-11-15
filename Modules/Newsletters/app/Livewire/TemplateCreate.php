@@ -10,6 +10,7 @@ use Modules\Newsletters\Models\NewsletterTemplate;
 class TemplateCreate extends Component
 {
     use InteractsWithToast;
+
     public string $name = '';
 
     public string $slug = '';

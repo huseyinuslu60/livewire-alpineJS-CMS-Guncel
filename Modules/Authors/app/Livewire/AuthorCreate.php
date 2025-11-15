@@ -12,7 +12,7 @@ use Modules\Authors\Services\AuthorService;
 
 class AuthorCreate extends Component
 {
-    use ValidationMessages, WithFileUploads, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages, WithFileUploads;
 
     protected AuthorService $authorService;
 

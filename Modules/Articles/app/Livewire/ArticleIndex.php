@@ -25,7 +25,7 @@ use Modules\Articles\Services\ArticleService;
  */
 class ArticleIndex extends Component
 {
-    use WithPagination, InteractsWithModal, InteractsWithToast;
+    use InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected ArticleService $articleService;
 
@@ -134,10 +134,12 @@ class ArticleIndex extends Component
             Gate::authorize('delete own articles');
             if ($article->author_id !== Auth::id()) {
                 $this->toastError('Sadece kendi makalelerinizi silebilirsiniz.');
+
                 return;
             }
         } else {
             $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+
             return;
         }
 
@@ -154,6 +156,7 @@ class ArticleIndex extends Component
     {
         if (! Auth::user()->can('edit articles')) {
             $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+
             return;
         }
 
@@ -171,6 +174,7 @@ class ArticleIndex extends Component
     {
         if (! Auth::user()->can('edit articles')) {
             $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+
             return;
         }
 

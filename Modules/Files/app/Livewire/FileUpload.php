@@ -13,7 +13,7 @@ use Modules\Files\Models\File;
 
 class FileUpload extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads, InteractsWithToast;
+    use InteractsWithToast, SecureFileUpload, ValidationMessages, WithFileUploads;
 
     /** @var array<int, \Illuminate\Http\UploadedFile> */
     public array $files = [];

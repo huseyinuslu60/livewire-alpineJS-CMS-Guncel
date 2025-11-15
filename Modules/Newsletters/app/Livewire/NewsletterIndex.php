@@ -24,7 +24,7 @@ use Modules\Newsletters\Services\NewsletterService;
  */
 class NewsletterIndex extends Component
 {
-    use WithPagination, InteractsWithToast, InteractsWithModal;
+    use InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected NewsletterService $newsletterService;
 
@@ -121,6 +121,7 @@ class NewsletterIndex extends Component
     {
         if (! Auth::user()->can('delete newsletters')) {
             $this->toastError('Bülten silme yetkiniz bulunmuyor.');
+
             return;
         }
 
@@ -138,6 +139,7 @@ class NewsletterIndex extends Component
     {
         if (! Auth::user()->can('edit newsletters')) {
             $this->toastError('Bülten düzenleme yetkiniz bulunmuyor.');
+
             return;
         }
 

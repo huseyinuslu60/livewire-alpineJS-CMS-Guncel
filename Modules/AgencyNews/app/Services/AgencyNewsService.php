@@ -129,7 +129,7 @@ class AgencyNewsService
             ->distinct()
             ->pluck('agency_id')
             ->map(function ($id) {
-                return ['id' => $id, 'name' => 'Agency '.$id];
+                return ['id' => (int) $id, 'name' => 'Agency '.(int) $id];
             });
     }
 

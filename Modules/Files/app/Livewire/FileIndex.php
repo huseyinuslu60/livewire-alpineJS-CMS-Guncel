@@ -28,7 +28,7 @@ use Modules\Files\Services\FileService;
  */
 class FileIndex extends Component
 {
-    use ValidationMessages, WithPagination, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages, WithPagination;
 
     protected FileService $fileService;
 

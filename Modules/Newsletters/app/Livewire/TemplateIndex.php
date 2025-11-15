@@ -10,7 +10,7 @@ use Modules\Newsletters\Models\NewsletterTemplate;
 
 class TemplateIndex extends Component
 {
-    use WithPagination, InteractsWithToast;
+    use InteractsWithToast, WithPagination;
 
     public string $search = '';
 

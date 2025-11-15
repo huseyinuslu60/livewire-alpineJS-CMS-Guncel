@@ -21,7 +21,7 @@ use Modules\Categories\Services\CategoryService;
  */
 class CategoryIndex extends Component
 {
-    use WithPagination, InteractsWithToast, InteractsWithModal;
+    use InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected CategoryService $categoryService;
 

@@ -17,7 +17,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostCreateGallery extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads, InteractsWithToast;
+    use InteractsWithToast, SecureFileUpload, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
 

@@ -12,7 +12,7 @@ use Modules\Categories\Services\CategoryService;
 
 class CategoryCreate extends Component
 {
-    use ValidationMessages, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages;
 
     protected CategoryService $categoryService;
 

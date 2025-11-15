@@ -10,6 +10,7 @@ use Modules\Newsletters\Models\NewsletterTemplate;
 class TemplateEdit extends Component
 {
     use InteractsWithToast;
+
     public ?\Modules\Newsletters\Models\NewsletterTemplate $template = null;
 
     public string $name = '';

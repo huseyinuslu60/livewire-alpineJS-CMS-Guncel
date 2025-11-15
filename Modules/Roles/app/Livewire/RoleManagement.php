@@ -13,7 +13,7 @@ use Spatie\Permission\Models\Role;
 
 class RoleManagement extends Component
 {
-    use ValidationMessages, InteractsWithModal, InteractsWithToast;
+    use InteractsWithModal, InteractsWithToast, ValidationMessages;
 
     protected RoleService $roleService;
 
@@ -106,6 +106,7 @@ class RoleManagement extends Component
         // Süper Admin rolünü düzenlemeyi engelle (zaten tüm yetkilere sahip)
         if ($this->roleService->isSystemRole($role)) {
             $this->toastError('Süper Admin rolü düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
+
             return;
         }
 
@@ -131,12 +132,14 @@ class RoleManagement extends Component
         try {
             if (! $this->editingRole) {
                 $this->toastError('Düzenlenecek rol bulunamadı.');
+
                 return;
             }
 
             // Süper Admin rolünü güncellemeyi engelle (zaten tüm yetkilere sahip)
             if ($this->roleService->isSystemRole($this->editingRole)) {
                 $this->toastError('Süper Admin rolü güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
+
                 return;
             }
 
@@ -189,6 +192,7 @@ class RoleManagement extends Component
     {
         if (! Auth::user()->can('delete roles')) {
             $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+
             return;
         }
 
@@ -198,6 +202,7 @@ class RoleManagement extends Component
             // Süper Admin rolünü silmeyi engelle
             if ($this->roleService->isSystemRole($role)) {
                 $this->toastError('Süper Admin rolü silinemez!');
+
                 return;
             }
 
@@ -218,6 +223,7 @@ class RoleManagement extends Component
         // Süper Admin rolünün yetkilerini düzenlemeyi engelle (zaten tüm yetkilere sahip)
         if ($this->roleService->isSystemRole($role)) {
             $this->toastError('Süper Admin rolünün yetkileri düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
+
             return;
         }
 
@@ -236,12 +242,14 @@ class RoleManagement extends Component
         try {
             if (! $this->editingRole) {
                 $this->toastError('Düzenlenecek rol bulunamadı.');
+
                 return;
             }
 
             // Süper Admin rolünün yetkilerini güncellemeyi engelle (zaten tüm yetkilere sahip)
             if ($this->roleService->isSystemRole($this->editingRole)) {
                 $this->toastError('Süper Admin rolünün yetkileri güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
+
                 return;
             }
 

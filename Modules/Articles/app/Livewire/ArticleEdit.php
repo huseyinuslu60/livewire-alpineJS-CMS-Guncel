@@ -12,7 +12,7 @@ use Modules\Articles\Services\ArticleService;
 
 class ArticleEdit extends Component
 {
-    use ValidationMessages, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages;
 
     protected ArticleService $articleService;
 

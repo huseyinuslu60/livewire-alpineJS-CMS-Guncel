@@ -21,7 +21,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostEdit extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads, InteractsWithToast;
+    use InteractsWithToast, SecureFileUpload, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
 

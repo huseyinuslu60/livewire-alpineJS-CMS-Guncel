@@ -36,10 +36,11 @@ class CategoryService
 
         // Parent filtresi (opsiyonel)
         if (isset($filters['parent_id'])) {
-            if ($filters['parent_id'] === null || $filters['parent_id'] === '') {
+            $parentId = $filters['parent_id'];
+            if ($parentId === '' || (is_string($parentId) && $parentId === '0')) {
                 $query->root();
-            } else {
-                $query->where('parent_id', $filters['parent_id']);
+            } elseif ($parentId !== null) {
+                $query->where('parent_id', $parentId);
             }
         }
 

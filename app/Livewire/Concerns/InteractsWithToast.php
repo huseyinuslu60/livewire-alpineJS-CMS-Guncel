@@ -7,11 +7,10 @@ trait InteractsWithToast
     /**
      * Dispatch a toast notification
      *
-     * @param string $type Toast type: 'success', 'error', 'warning', 'info'
-     * @param string $message Toast message
-     * @param array $extra Extra options (e.g., 'duration')
-     * @param bool $persistOnRedirect Redirect sonrası da gösterilsin mi? (session flash kullanır)
-     * @return void
+     * @param  string  $type  Toast type: 'success', 'error', 'warning', 'info'
+     * @param  string  $message  Toast message
+     * @param  array  $extra  Extra options (e.g., 'duration')
+     * @param  bool  $persistOnRedirect  Redirect sonrası da gösterilsin mi? (session flash kullanır)
      */
     protected function toast(string $type, string $message, array $extra = [], bool $persistOnRedirect = false): void
     {
@@ -41,11 +40,10 @@ trait InteractsWithToast
     /**
      * Show success toast
      *
-     * @param string $message Toast message
-     * @param int $duration Duration in milliseconds (default: 5000)
-     * @param array $extra Extra options
-     * @param bool $persistOnRedirect Redirect sonrası da gösterilsin mi? (default: true)
-     * @return void
+     * @param  string  $message  Toast message
+     * @param  int  $duration  Duration in milliseconds (default: 5000)
+     * @param  array  $extra  Extra options
+     * @param  bool  $persistOnRedirect  Redirect sonrası da gösterilsin mi? (default: true)
      */
     protected function toastSuccess(string $message, int $duration = 5000, array $extra = [], bool $persistOnRedirect = true): void
     {
@@ -55,11 +53,10 @@ trait InteractsWithToast
     /**
      * Show error toast
      *
-     * @param string $message Toast message
-     * @param int $duration Duration in milliseconds (default: 5000)
-     * @param array $extra Extra options
-     * @param bool $persistOnRedirect Redirect sonrası da gösterilsin mi? (default: true)
-     * @return void
+     * @param  string  $message  Toast message
+     * @param  int  $duration  Duration in milliseconds (default: 5000)
+     * @param  array  $extra  Extra options
+     * @param  bool  $persistOnRedirect  Redirect sonrası da gösterilsin mi? (default: true)
      */
     protected function toastError(string $message, int $duration = 5000, array $extra = [], bool $persistOnRedirect = true): void
     {
@@ -69,11 +66,10 @@ trait InteractsWithToast
     /**
      * Show info toast
      *
-     * @param string $message Toast message
-     * @param int $duration Duration in milliseconds (default: 5000)
-     * @param array $extra Extra options
-     * @param bool $persistOnRedirect Redirect sonrası da gösterilsin mi? (default: false)
-     * @return void
+     * @param  string  $message  Toast message
+     * @param  int  $duration  Duration in milliseconds (default: 5000)
+     * @param  array  $extra  Extra options
+     * @param  bool  $persistOnRedirect  Redirect sonrası da gösterilsin mi? (default: false)
      */
     protected function toastInfo(string $message, int $duration = 5000, array $extra = [], bool $persistOnRedirect = false): void
     {
@@ -83,15 +79,13 @@ trait InteractsWithToast
     /**
      * Show warning toast
      *
-     * @param string $message Toast message
-     * @param int $duration Duration in milliseconds (default: 5000)
-     * @param array $extra Extra options
-     * @param bool $persistOnRedirect Redirect sonrası da gösterilsin mi? (default: false)
-     * @return void
+     * @param  string  $message  Toast message
+     * @param  int  $duration  Duration in milliseconds (default: 5000)
+     * @param  array  $extra  Extra options
+     * @param  bool  $persistOnRedirect  Redirect sonrası da gösterilsin mi? (default: false)
      */
     protected function toastWarning(string $message, int $duration = 5000, array $extra = [], bool $persistOnRedirect = false): void
     {
         $this->toast('warning', $message, array_merge(['duration' => $duration], $extra), $persistOnRedirect);
     }
 }
-

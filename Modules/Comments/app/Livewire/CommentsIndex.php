@@ -21,7 +21,7 @@ use Modules\Comments\Services\CommentService;
  */
 class CommentsIndex extends Component
 {
-    use WithPagination, InteractsWithToast;
+    use InteractsWithToast, WithPagination;
 
     protected CommentService $commentService;
 
@@ -221,6 +221,7 @@ class CommentsIndex extends Component
         ];
 
         // Yeni yorumlar için başlangıç değerlerini ayarla
+        /** @var Comment $comment */
         foreach ($comments as $comment) {
             if (! isset($this->editedCommentTexts[$comment->comment_id])) {
                 $this->editedCommentTexts[$comment->comment_id] = $comment->comment_text;

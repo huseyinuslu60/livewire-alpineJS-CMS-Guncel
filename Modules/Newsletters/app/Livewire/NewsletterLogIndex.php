@@ -12,7 +12,7 @@ use Modules\Newsletters\Models\NewsletterLog;
 
 class NewsletterLogIndex extends Component
 {
-    use WithPagination, InteractsWithToast;
+    use InteractsWithToast, WithPagination;
 
     public ?string $search = null;
 

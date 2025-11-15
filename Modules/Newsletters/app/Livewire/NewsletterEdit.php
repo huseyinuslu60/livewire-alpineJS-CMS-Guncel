@@ -11,7 +11,7 @@ use Modules\Newsletters\Services\NewsletterService;
 
 class NewsletterEdit extends Component
 {
-    use ValidationMessages, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages;
 
     protected NewsletterService $newsletterService;
 

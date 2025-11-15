@@ -17,10 +17,10 @@ class SettingsService
      */
     public function getAllGrouped(): array
     {
-        /** @var Collection<int, SiteSetting> $settings */
+        /** @var \Illuminate\Database\Eloquent\Collection<int, SiteSetting> $settings */
         $settings = SiteSetting::active()->ordered()->get();
 
-        /** @var Collection<string, Collection<int, SiteSetting>> $grouped */
+        /** @var \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, SiteSetting>> $grouped */
         $grouped = $settings->groupBy('group');
 
         return $grouped->map(function ($group): array {

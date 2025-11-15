@@ -12,7 +12,7 @@ use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
 {
-    use WithPagination, InteractsWithToast;
+    use InteractsWithToast, WithPagination;
 
     protected StockService $stockService;
 

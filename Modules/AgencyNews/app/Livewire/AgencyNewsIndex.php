@@ -14,7 +14,7 @@ use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
 {
-    use WithPagination, InteractsWithModal, InteractsWithToast;
+    use InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected AgencyNewsService $agencyNewsService;
 
@@ -103,6 +103,7 @@ class AgencyNewsIndex extends Component
     {
         if (! Auth::user()->can('delete agency_news')) {
             $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+
             return;
         }
 
@@ -135,6 +136,7 @@ class AgencyNewsIndex extends Component
         try {
             if (! Auth::user()->can('publish agency_news')) {
                 $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+
                 return;
             }
 
@@ -142,6 +144,7 @@ class AgencyNewsIndex extends Component
             $agencyNews = AgencyNews::find($agencyNewsId);
             if (! $agencyNews) {
                 $this->toastError('Agency news bulunamadı.');
+
                 return;
             }
 
@@ -150,6 +153,7 @@ class AgencyNewsIndex extends Component
         } catch (\Exception $e) {
             \Log::error('Agency news publish error: '.$e->getMessage());
             $this->toastError('Bir hata oluştu. Lütfen tekrar deneyin.');
+
             return;
         }
     }

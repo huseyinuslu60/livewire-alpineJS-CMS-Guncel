@@ -15,7 +15,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostCreateVideo extends Component
 {
-    use ValidationMessages, WithFileUploads, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages, WithFileUploads;
 
     public string $title = '';
 

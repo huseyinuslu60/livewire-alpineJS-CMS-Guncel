@@ -10,7 +10,7 @@ use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component
 {
-    use WithFileUploads, InteractsWithToast;
+    use InteractsWithToast, WithFileUploads;
 
     protected SettingsService $settingsService;
 

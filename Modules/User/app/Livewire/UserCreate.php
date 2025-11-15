@@ -12,7 +12,7 @@ use Spatie\Permission\Models\Role;
 
 class UserCreate extends Component
 {
-    use ValidationMessages, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages;
 
     protected UserService $userService;
 

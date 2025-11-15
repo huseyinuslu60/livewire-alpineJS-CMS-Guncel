@@ -11,7 +11,7 @@ use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionIndex extends Component
 {
-    use WithPagination, InteractsWithToast;
+    use InteractsWithToast, WithPagination;
 
     public ?string $search = null;
 

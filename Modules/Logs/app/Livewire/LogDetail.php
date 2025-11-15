@@ -10,6 +10,7 @@ use Modules\Logs\Models\UserLog;
 class LogDetail extends Component
 {
     use InteractsWithToast;
+
     public ?\Modules\Logs\Models\UserLog $log = null;
 
     public function mount($id)

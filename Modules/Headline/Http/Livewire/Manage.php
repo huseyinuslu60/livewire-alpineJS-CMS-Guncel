@@ -12,6 +12,7 @@ use Modules\Headline\Services\FeaturedService;
 class Manage extends Component
 {
     use InteractsWithToast;
+
     // Public properties
     public string $activeZone = 'manset';
 

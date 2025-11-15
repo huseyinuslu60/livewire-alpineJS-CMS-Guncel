@@ -70,10 +70,11 @@ class RoleService
     /**
      * Tüm permission'ları grup bazlı getir
      *
-     * @return Collection<string, Collection<int, Permission>>
+     * @return \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, Permission>>
      */
-    public function getGroupedPermissions(): Collection
+    public function getGroupedPermissions()
     {
+        /** @var \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, Permission>> */
         return Permission::all()->groupBy(function ($permission) {
             $name = $permission->name;
 
@@ -138,6 +139,7 @@ class RoleService
     public function createRole(array $data, ?User $currentUser = null): Role
     {
         return DB::transaction(function () use ($data, $currentUser) {
+            /** @var Role $role */
             $role = Role::create([
                 'name' => $data['name'],
                 'display_name' => $data['display_name'] ?? $data['name'],
@@ -176,11 +178,17 @@ class RoleService
         }
 
         return DB::transaction(function () use ($role, $data, $currentUser) {
-            $role->update([
+            $updateData = [
                 'name' => $data['name'] ?? $role->name,
                 'display_name' => $data['display_name'] ?? $role->display_name ?? $role->name,
-                'description' => $data['description'] ?? $role->description,
-            ]);
+            ];
+
+            // Description property'si varsa ekle
+            if (isset($data['description']) || property_exists($role, 'description')) {
+                $updateData['description'] = $data['description'] ?? ($role->description ?? null);
+            }
+
+            $role->update($updateData);
 
             // Permission sync (varsa)
             if (isset($data['permissions'])) {

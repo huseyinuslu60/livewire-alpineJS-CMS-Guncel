@@ -13,7 +13,7 @@ use Spatie\Permission\Models\Role;
 
 class UserEdit extends Component
 {
-    use ValidationMessages, InteractsWithToast;
+    use InteractsWithToast, ValidationMessages;
 
     protected UserService $userService;
 

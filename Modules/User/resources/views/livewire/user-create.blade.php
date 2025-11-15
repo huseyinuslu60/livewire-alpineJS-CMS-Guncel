@@ -13,7 +13,7 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="{{ route('user.index') }}" 
+                    <a href="{{ route('user.index') }}"
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Geri Dön
@@ -40,10 +40,10 @@
                         <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
                             Ad Soyad <span class="text-red-500">*</span>
                         </label>
-                        <input type="text" 
-                               wire:model.defer="name" 
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                               id="name" 
+                        <input type="text"
+                               wire:model.defer="name"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                               id="name"
                                placeholder="Ad Soyad giriniz...">
                         <x-validation-error field="name" />
                     </div>
@@ -51,10 +51,10 @@
                         <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
                             E-posta <span class="text-red-500">*</span>
                         </label>
-                        <input type="email" 
-                               wire:model.defer="email" 
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                               id="email" 
+                        <input type="email"
+                               wire:model.defer="email"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                               id="email"
                                placeholder="E-posta adresi giriniz...">
                         <x-validation-error field="email" />
                     </div>
@@ -66,14 +66,14 @@
                             Şifre <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
-                            <input :type="showPassword ? 'text' : 'password'" 
-                                   wire:model.defer="password" 
+                            <input :type="showPassword ? 'text' : 'password'"
+                                   wire:model.defer="password"
                                    @input="checkPasswordStrength($event.target.value)"
-                                   class="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                                   id="password" 
+                                   class="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                   id="password"
                                    placeholder="Şifre giriniz...">
-                            <button type="button" 
-                                    @click="togglePassword()" 
+                            <button type="button"
+                                    @click="togglePassword()"
                                     class="absolute inset-y-0 right-0 pr-3 flex items-center">
                                 <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'" class="text-gray-400"></i>
                             </button>
@@ -82,11 +82,11 @@
                         <div x-show="password" class="mt-2">
                             <div class="flex items-center space-x-2">
                                 <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                    <div class="h-2 rounded-full transition-all duration-300" 
-                                         :class="getPasswordStrengthColor()" 
+                                    <div class="h-2 rounded-full transition-all duration-300"
+                                         :class="getPasswordStrengthColor()"
                                          :style="`width: ${(passwordStrength / 5) * 100}%`"></div>
                                 </div>
-                                <span class="text-xs font-medium" :class="getPasswordStrengthColor().replace('bg-', 'text-')" 
+                                <span class="text-xs font-medium" :class="getPasswordStrengthColor().replace('bg-', 'text-')"
                                       x-text="getPasswordStrengthText()"></span>
                             </div>
                             <!-- Password Requirements -->
@@ -119,10 +119,10 @@
                         <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-2">
                             Şifre Onayı <span class="text-red-500">*</span>
                         </label>
-                        <input type="password" 
-                               wire:model.defer="password_confirmation" 
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                               id="password_confirmation" 
+                        <input type="password"
+                               wire:model.defer="password_confirmation"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                               id="password_confirmation"
                                placeholder="Şifreyi tekrar giriniz...">
                         <x-validation-error field="password_confirmation" />
                     </div>
@@ -132,9 +132,9 @@
                     <label for="role_ids" class="block text-sm font-medium text-gray-700 mb-2">
                         Roller <span class="text-red-500">*</span>
                     </label>
-                    <select wire:model.defer="role_ids" 
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                            id="role_ids" 
+                    <select wire:model.defer="role_ids"
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            id="role_ids"
                             multiple>
                         @foreach($roles as $role)
                             <option value="{{ $role->id }}">{{ $role->display_name }}</option>
@@ -146,13 +146,13 @@
 
                 <!-- Form Actions -->
                 <div class="flex justify-end space-x-4">
-                    <button type="button" 
-                            wire:click="$set('isLoading', false)" 
+                    <button type="button"
+                            wire:click="cancel"
                             class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150">
                         <i class="fas fa-times mr-2"></i>
                         İptal
                     </button>
-                    <button type="submit" 
+                    <button type="submit"
                             class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200">
                         <i class="fas fa-save mr-2"></i>
                         Kullanıcı Oluştur

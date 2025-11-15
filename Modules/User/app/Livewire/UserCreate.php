@@ -54,6 +54,11 @@ class UserCreate extends Component
         Gate::authorize('create users');
     }
 
+    public function cancel()
+    {
+        return redirect()->route('user.index');
+    }
+
     public function store()
     {
         Gate::authorize('create users');

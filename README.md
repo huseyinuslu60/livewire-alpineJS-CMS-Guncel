@@ -10,7 +10,7 @@ Modern Laravel 12 tabanlı, tam modüler haber ve içerik yönetim sistemi. Live
 
 ### 🧩 Modüler Mimari
 - **Tam modüler yapı** - `nwidart/laravel-modules` ile bağımsız modül geliştirme
-- **16 aktif modül** - Her modül kendi route, controller, view ve migration'larına sahip
+- **15 aktif modül** - Her modül kendi route, controller, view ve migration'larına sahip
 - **Kolay genişletilebilirlik** - Yeni modüller kolayca eklenebilir
 
 ### ⚡ Modern Teknoloji Stack
@@ -39,6 +39,12 @@ Modern Laravel 12 tabanlı, tam modüler haber ve içerik yönetim sistemi. Live
 - **Banka yönetimi** - Banka bilgileri ve entegrasyonları
 - **Ayarlar modülü** - Sistem geneli ayar yönetimi
 - **Yazar yönetimi** - İçerik yazarları ve profilleri
+
+### ⚡ Performans Optimizasyonları
+- **Livewire Query Optimizasyonu** - Gereksiz DB sorgularını önlemek için `visibleIds` pattern kullanımı
+- **Efficient Selection Management** - Selection change event'lerinde DB query'siz çalışma
+- **Array-based Calculations** - `array_diff()` ile selectAll hesaplamaları
+- **Automatic Selection Reset** - Filtre değişikliklerinde otomatik selection temizleme
 
 ### 🧱 Geliştirme Araçları
 - **CI/CD entegrasyonu** - GitHub Actions ile otomatik test ve deploy
@@ -70,7 +76,6 @@ Proje aşağıdaki modülleri içermektedir:
 | **Roles** | Rol ve yetki yönetimi |
 | **Settings** | Sistem ayarları |
 | **User** | Kullanıcı yönetimi |
-| **Users** | Kullanıcı işlemleri |
 
 ## 🚀 Kurulum
 
@@ -195,6 +200,8 @@ composer format
 
 # Statik Analiz
 ./vendor/bin/phpstan analyse
+# veya (memory limit artırılmış)
+php -d memory_limit=512M vendor/bin/phpstan analyse
 # veya
 composer analyse
 
@@ -239,8 +246,8 @@ Proje aşağıdaki otomatik kalite kontrol süreçlerini kullanır:
 
 | Kontrol | Araç | Komut |
 |---------|------|-------|
-| Kod stili | Laravel Pint | `composer format` |
-| Statik analiz | PHPStan (Level 5) | `composer analyse` |
+| Kod stili | Laravel Pint | `composer format` veya `composer format:test` |
+| Statik analiz | PHPStan (Level 5) | `composer analyse` (512M memory limit ile) |
 | Testler | Pest/PHPUnit | `composer test` |
 | Veritabanı | PostgreSQL 15+ | CI ortamında test edilir |
 | Frontend build | Vite | `npm run build` |
@@ -331,12 +338,17 @@ Projeye katkıda bulunmak için:
 
 ### Son Güncellemeler
 
+- ✅ **Livewire Performans Optimizasyonları** - LogIndex, PostIndex, ArticleIndex component'lerinde gereksiz DB sorguları kaldırıldı
+- ✅ **visibleIds Pattern** - Selection yönetimi için DB query'siz çalışma
+- ✅ **Array-based Calculations** - `array_diff()` ile selectAll hesaplamaları
+- ✅ **Automatic Selection Reset** - Filtre değişikliklerinde otomatik selection temizleme
 - ✅ Modüler yapı ile tam entegrasyon
 - ✅ Permission-based dashboard sistemi
 - ✅ Agency news modülü iyileştirmeleri
 - ✅ Post yönetimi ve primary file seçimi
 - ✅ Newsletter template seeder
 - ✅ CI/CD workflow optimizasyonları
+- ✅ Boş migration dosyaları temizlendi
 
 Detaylı değişiklik listesi için [commits](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/commits/main) sayfasını kontrol edebilirsiniz.
 

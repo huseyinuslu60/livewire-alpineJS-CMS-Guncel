@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Livewire;
 
+use App\Helpers\MenuHelper;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\MenuItem;
 use Illuminate\Support\Facades\Gate;
@@ -11,6 +12,7 @@ use Spatie\Permission\Models\Role;
 class MenuManagement extends Component
 {
     use InteractsWithToast;
+
     /** @var array<int, array{id: int, name: string, title: string, icon: string, type: string, route: string, permission: string, active_pattern: string, parent_id: int|null, sort_order: int, is_active: bool, children: array}> */
     public array $menuItems = [];
 
@@ -300,32 +302,32 @@ class MenuManagement extends Component
     public function updateSortOrder($newOrder)
     {
         try {
-            \Log::info('updateSortOrder called with:', $newOrder);
-
             if (empty($newOrder) || ! is_array($newOrder)) {
-                \Log::warning('Empty or invalid newOrder array');
-
                 return;
             }
 
             foreach ($newOrder as $item) {
                 if (! isset($item['id']) || ! isset($item['sort_order'])) {
-                    \Log::warning('Missing id or sort_order in item:', $item);
-
                     continue;
                 }
 
+                $updateData = ['sort_order' => $item['sort_order']];
+
+                // Eğer parent_id gönderilmişse güncelle (alt seviye öğeler için)
+                if (isset($item['parent_id'])) {
+                    $updateData['parent_id'] = $item['parent_id'] ?: null;
+                }
+
                 MenuItem::where('id', $item['id'])
-                    ->update(['sort_order' => $item['sort_order']]);
+                    ->update($updateData);
             }
+
+            // Clear menu cache so sidebar reflects new order immediately
+            MenuHelper::clearAllCache();
 
             $this->loadData();
             $this->toastSuccess('Menü sıralaması başarıyla güncellendi.');
         } catch (\Exception $e) {
-            \Log::error('Sort order update error: '.$e->getMessage(), [
-                'newOrder' => $newOrder,
-                'trace' => $e->getTraceAsString(),
-            ]);
             $this->toastError('Sıralama güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }

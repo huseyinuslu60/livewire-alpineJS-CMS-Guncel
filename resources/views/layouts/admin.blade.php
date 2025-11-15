@@ -27,6 +27,9 @@
     <!-- Tailwind CSS -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+    <!-- Module JavaScript Files -->
+    @stack('module-scripts')
+
     @livewireStyles
 
     <!-- Custom CSS -->
@@ -595,22 +598,22 @@
         (function() {
             const message = '{{ session('success') }}';
             const now = Date.now();
-            
+
             // Global duplicate kontrolü - event toast ile aynı değişkeni kullan
             if (typeof window.__lastToastMessage === 'undefined') {
                 window.__lastToastMessage = null;
                 window.__lastToastTime = 0;
             }
-            
+
             // Duplicate kontrolü - eğer aynı mesaj kısa süre önce gösterildiyse ignore et
             if (window.__lastToastMessage === message && (now - window.__lastToastTime) < 5000) {
                 // Duplicate, ignore et
                 return;
             }
-            
+
             window.__lastToastMessage = message;
             window.__lastToastTime = now;
-            
+
             function showToast() {
                 if (window.Alpine && window.Alpine.store('globalToast')) {
                     window.Alpine.store('globalToast').success(message, { duration: 6000 });
@@ -638,21 +641,21 @@
         (function() {
             const message = '{{ session('error') }}';
             const now = Date.now();
-            
+
             // Global duplicate kontrolü
             if (typeof window.__lastToastMessage === 'undefined') {
                 window.__lastToastMessage = null;
                 window.__lastToastTime = 0;
             }
-            
+
             // Duplicate kontrolü
             if (window.__lastToastMessage === message && (now - window.__lastToastTime) < 5000) {
                 return;
             }
-            
+
             window.__lastToastMessage = message;
             window.__lastToastTime = now;
-            
+
             function showToast() {
                 if (window.Alpine && window.Alpine.store('globalToast')) {
                     window.Alpine.store('globalToast').error(message, { duration: 6000 });
@@ -678,21 +681,21 @@
         (function() {
             const message = '{{ session('info') }}';
             const now = Date.now();
-            
+
             // Global duplicate kontrolü
             if (typeof window.__lastToastMessage === 'undefined') {
                 window.__lastToastMessage = null;
                 window.__lastToastTime = 0;
             }
-            
+
             // Duplicate kontrolü
             if (window.__lastToastMessage === message && (now - window.__lastToastTime) < 5000) {
                 return;
             }
-            
+
             window.__lastToastMessage = message;
             window.__lastToastTime = now;
-            
+
             function showToast() {
                 if (window.Alpine && window.Alpine.store('globalToast')) {
                     window.Alpine.store('globalToast').warn(message, { duration: 6000 });
@@ -712,6 +715,8 @@
         })();
     </script>
 @endif
+
+@stack('module-scripts')
 
 </body>
 

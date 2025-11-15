@@ -716,7 +716,6 @@
     </script>
 @endif
 
-@stack('module-scripts')
 
 </body>
 

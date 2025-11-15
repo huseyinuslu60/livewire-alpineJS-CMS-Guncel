@@ -119,7 +119,16 @@ class PostCreateNews extends Component
             'title' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255',
             'summary' => 'required|string',
-            'content' => 'required|string',
+            'content' => ['required', 'string', function ($attribute, $value, $fail) {
+                // HTML içeriğini temizle ve gerçek içeriği kontrol et
+                $textContent = strip_tags($value);
+                $textContent = html_entity_decode($textContent, ENT_QUOTES, 'UTF-8');
+                $textContent = trim($textContent);
+
+                if (empty($textContent)) {
+                    $fail('Yazı içeriği zorunludur.');
+                }
+            }],
             'post_type' => 'required|in:'.implode(',', Post::TYPES),
             'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
             'status' => 'required|in:'.implode(',', Post::STATUSES),

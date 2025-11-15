@@ -13,7 +13,7 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('posts.index') }}" 
+                    <a href="{{ route('posts.index') }}"
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Geri Dön
@@ -36,10 +36,10 @@
                                 <i class="fas fa-heading mr-1 text-blue-500"></i>
                                 Başlık *
                             </label>
-                            <input type="text" 
-                                   wire:model.live="title" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('title') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                   id="title" 
+                            <input type="text"
+                                   wire:model.live="title"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('title') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   id="title"
                                    placeholder="Haber başlığını girin..."
                                    required>
                             @error('title')
@@ -53,10 +53,10 @@
                                 <i class="fas fa-link mr-1 text-blue-500"></i>
                                 Slug
                             </label>
-                            <input type="text" 
-                                   wire:model="slug" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('slug') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                   id="slug" 
+                            <input type="text"
+                                   wire:model="slug"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('slug') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   id="slug"
                                    placeholder="URL slug'ı (otomatik oluşturulur)">
                             @error('slug')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -69,10 +69,10 @@
                                 <i class="fas fa-file-alt mr-1 text-blue-500"></i>
                                 Özet
                             </label>
-                            <textarea wire:model.live="summary" 
-                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('summary') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                      id="summary" 
-                                      rows="3" 
+                            <textarea wire:model.live="summary"
+                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('summary') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                      id="summary"
+                                      rows="3"
                                       placeholder="Haber özetini girin..."></textarea>
                             @error('summary')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -86,10 +86,10 @@
                                 İçerik *
                             </label>
                             <div wire:ignore>
-                                <textarea wire:model="content" 
-                                          class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                          id="content" 
-                                          rows="10" 
+                                <textarea wire:model="content"
+                                          class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                          id="content"
+                                          rows="10"
                                           placeholder="Haber içeriğini girin..."
                                           required></textarea>
                             </div>
@@ -105,11 +105,11 @@
                                 Görsel (Opsiyonel)
                             </label>
                             <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-200 relative">
-                                <input type="file" 
-                                       wire:model.live="files" 
+                                <input type="file"
+                                       wire:model.live="files"
                                        multiple
-                                       class="hidden" 
-                                       id="files" 
+                                       class="hidden"
+                                       id="files"
                                        accept="image/*">
                                 <label for="files" class="cursor-pointer">
                                     <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
@@ -125,7 +125,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Seçilen Dosyaların Önizlemesi -->
                             @if($files)
                                 <div class="mt-4">
@@ -136,10 +136,10 @@
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                         @foreach($files as $index => $file)
                                             <div class="relative">
-                                                <img src="{{ $file->temporaryUrl() }}" 
-                                                     class="w-full h-24 object-cover rounded-lg border border-gray-200" 
+                                                <img src="{{ $file->temporaryUrl() }}"
+                                                     class="w-full h-24 object-cover rounded-lg border border-gray-200"
                                                      alt="Preview {{ $index + 1 }}">
-                                                <button type="button" 
+                                                <button type="button"
                                                         class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200"
                                                         wire:click="removeFile({{ $index }})"
                                                         title="Resmi Kaldır">
@@ -153,7 +153,7 @@
                                     </div>
                                 </div>
                             @endif
-                            
+
                             @error('files.*')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
@@ -165,7 +165,7 @@
 
                         <!-- Form Actions -->
                         <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-                            <button type="submit" 
+                            <button type="submit"
                                     class="inline-flex items-center px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200">
                                 <i class="fas fa-save mr-2"></i>
                                 Haber Ekle
@@ -192,9 +192,9 @@
                                 <i class="fas fa-layers mr-1 text-blue-500"></i>
                                 Pozisyon *
                             </label>
-                            <select wire:model.live="post_position" 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                                    id="post_position" 
+                            <select wire:model.live="post_position"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    id="post_position"
                                     required>
                                 @foreach($postPositions as $position)
                                     <option value="{{ $position }}">{{ \Modules\Posts\Models\Post::POSITION_LABELS[$position] ?? ucfirst($position) }}</option>
@@ -208,9 +208,9 @@
                                 <i class="fas fa-flag mr-1 text-blue-500"></i>
                                 Durum *
                             </label>
-                            <select wire:model.live="status" 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                                    id="status" 
+                            <select wire:model.live="status"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    id="status"
                                     required>
                                 @foreach($postStatuses as $status)
                                     <option value="{{ $status }}">
@@ -231,9 +231,9 @@
                                 <i class="fas fa-calendar mr-1 text-blue-500"></i>
                                 Yayın Tarihi
                             </label>
-                            <input type="datetime-local" 
-                                   wire:model.live="published_date" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                            <input type="datetime-local"
+                                   wire:model.live="published_date"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                    id="published_date">
                         </div>
                     </div>
@@ -248,9 +248,9 @@
                         Kategoriler *
                     </h3>
                     <div wire:ignore>
-                        <select wire:model.live="categoryIds" 
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('categoryIds') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                id="categoryIds" 
+                        <select wire:model.live="categoryIds"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('categoryIds') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                id="categoryIds"
                                 multiple>
                             @foreach($categories as $category)
                                 <option value="{{ $category->category_id }}">{{ $category->name }}</option>
@@ -280,10 +280,10 @@
                         <label for="redirect_url" class="block text-sm font-medium text-gray-700 mb-2">
                             URL
                         </label>
-                        <input type="url" 
-                               wire:model.live="redirect_url" 
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                               id="redirect_url" 
+                        <input type="url"
+                               wire:model.live="redirect_url"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                               id="redirect_url"
                                placeholder="https://example.com">
                         <p class="mt-2 text-xs text-gray-500">
                             <i class="fas fa-info-circle mr-1"></i>
@@ -306,7 +306,7 @@
                             <template x-for="(tag, index) in tags" :key="index">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
                                     <span x-text="tag"></span>
-                                    <button type="button" 
+                                    <button type="button"
                                             @click="removeTag(index)"
                                             class="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-blue-200 transition-colors">
                                         <i class="fas fa-times text-xs"></i>
@@ -314,21 +314,21 @@
                                 </span>
                             </template>
                         </div>
-                        
+
                         <!-- Yeni Etiket Ekleme -->
                         <div class="flex space-x-2">
-                            <input type="text" 
+                            <input type="text"
                                    x-model="newTag"
                                    @keydown="keydown($event)"
-                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                    placeholder="Etiket ekle...">
-                            <button type="button" 
+                            <button type="button"
                                     @click="addTag()"
                                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
-                        
+
                         <p class="text-xs text-gray-500">
                             <i class="fas fa-info-circle mr-1"></i>
                             Etiketleri virgülle ayırın veya Enter tuşuna basın.
@@ -347,8 +347,8 @@
                     <div class="space-y-4">
                         <!-- Yorumlara izin ver -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="is_comment" 
+                            <input type="checkbox"
+                                   wire:model.live="is_comment"
                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-comment mr-1"></i>
@@ -358,8 +358,8 @@
 
                         <!-- Ana sayfada göster -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="is_mainpage" 
+                            <input type="checkbox"
+                                   wire:model.live="is_mainpage"
                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-home mr-1"></i>
@@ -369,8 +369,8 @@
 
                         <!-- Bülten'de göster -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="in_newsletter" 
+                            <input type="checkbox"
+                                   wire:model.live="in_newsletter"
                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-envelope mr-1"></i>
@@ -380,8 +380,8 @@
 
                         <!-- Reklam gösterme -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="no_ads" 
+                            <input type="checkbox"
+                                   wire:model.live="no_ads"
                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-ad mr-1"></i>

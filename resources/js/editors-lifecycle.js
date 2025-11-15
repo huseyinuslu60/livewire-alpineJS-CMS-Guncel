@@ -172,21 +172,39 @@ const initTrumbowyg = () => {
         },
         'tbwchange': function() {
           const element = this;
+          const $el = window.jQuery(element);
+
+          if (!$el.data('trumbowyg')) return;
+
+          const content = $el.trumbowyg('html');
+
           // Livewire entegrasyonu - dispatch input event for wire:model bindings
           if (element.hasAttribute('wire:model') || element.hasAttribute('wire:change')) {
             element.dispatchEvent(new Event('input', { bubbles: true }));
           }
 
-          // Also sync directly to Livewire component if needed (for non-wire:model cases)
+          // Livewire component'i bul ve content'i güncelle
           const wireId = element.closest('[wire\\:id]')?.getAttribute('wire:id');
-          if (wireId && window.Livewire && window.jQuery) {
-            const livewireComponent = window.Livewire.find(wireId);
-            if (livewireComponent && window.jQuery(element).data('trumbowyg')) {
-              const content = window.jQuery(element).trumbowyg('html');
-              // Only update if content actually changed (avoid infinite loops)
-              const currentValue = livewireComponent.get('content');
-              if (content !== currentValue) {
-                livewireComponent.set('content', content, false);
+          if (wireId && window.Livewire) {
+            try {
+              const livewireComponent = window.Livewire.find(wireId);
+              if (livewireComponent) {
+                // Livewire 3 API - set method ile güncelle
+                if (typeof livewireComponent.set === 'function') {
+                  livewireComponent.set('content', content, false);
+                }
+                // contentUpdated listener'ı varsa onu da çağır
+                if (typeof livewireComponent.call === 'function') {
+                  livewireComponent.call('contentUpdated', content);
+                }
+                // Alternatif: Livewire.dispatch ile event gönder
+                if (window.Livewire.dispatch) {
+                  window.Livewire.dispatch('contentUpdated', { content });
+                }
+              }
+            } catch (e) {
+              if (import.meta.env.DEV) {
+                console.warn('Trumbowyg Livewire sync error:', e);
               }
             }
           }

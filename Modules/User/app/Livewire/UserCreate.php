@@ -2,6 +2,7 @@
 
 namespace Modules\User\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +12,7 @@ use Spatie\Permission\Models\Role;
 
 class UserCreate extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithToast;
 
     protected UserService $userService;
 
@@ -71,15 +72,12 @@ class UserCreate extends Component
             $this->userService->create($data, $this->role_ids, $currentUser);
 
             $this->isLoading = false;
-            $this->dispatch('user-created');
-
-            // Success mesajını session flash ile göster ve yönlendir
-            session()->flash('success', $this->createContextualSuccessMessage('created', 'name', 'user'));
+            $this->toastSuccess($this->createContextualSuccessMessage('created', 'name', 'user'), 6000);
 
             return redirect()->route('user.index');
         } catch (\Exception $e) {
             $this->isLoading = false;
-            session()->flash('error', 'Kullanıcı oluşturulurken hata oluştu: '.$e->getMessage());
+            $this->toastError('Kullanıcı oluşturulurken hata oluştu: '.$e->getMessage());
         }
     }
 

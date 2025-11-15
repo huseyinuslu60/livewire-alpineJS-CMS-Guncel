@@ -2,12 +2,15 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Banks\Services\StockService;
 
 class StockCreate extends Component
 {
+    use InteractsWithToast;
+
     protected StockService $stockService;
 
     public string $name = '';
@@ -102,11 +105,11 @@ class StockCreate extends Component
 
             $this->stockService->create($data);
 
-            session()->flash('success', 'Hisse senedi başarıyla oluşturuldu.');
+            $this->toastSuccess('Hisse senedi başarıyla oluşturuldu.', 6000);
 
             return redirect()->route('banks.stocks.index');
         } catch (\Exception $e) {
-            session()->flash('error', 'Hisse senedi oluşturulurken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Hisse senedi oluşturulurken bir hata oluştu: '.$e->getMessage());
         }
     }
 

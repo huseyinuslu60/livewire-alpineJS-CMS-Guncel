@@ -2,12 +2,14 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionAnswer extends Component
 {
+    use InteractsWithToast;
     public ?\Modules\Banks\Models\InvestorQuestion $question = null;
 
     public string $answer = '';
@@ -50,7 +52,7 @@ class InvestorQuestionAnswer extends Component
                     $this->answer_title,
                     Auth::id()
                 );
-                session()->flash('success', 'Cevap başarıyla güncellendi.');
+                $this->toastSuccess('Cevap başarıyla güncellendi.');
             } else {
                 // Yeni cevap ekle
                 $this->question->markAsAnswered(
@@ -58,12 +60,12 @@ class InvestorQuestionAnswer extends Component
                     $this->answer_title,
                     Auth::id()
                 );
-                session()->flash('success', 'Soru başarıyla cevaplandı.');
+                $this->toastSuccess('Soru başarıyla cevaplandı.', 6000);
             }
 
             return redirect()->route('banks.investor-questions.index');
         } catch (\Exception $e) {
-            session()->flash('error', 'İşlem sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('İşlem sırasında bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -76,11 +78,11 @@ class InvestorQuestionAnswer extends Component
         try {
             $this->question->markAsRejected(Auth::id());
 
-            session()->flash('success', 'Soru reddedildi.');
+            $this->toastSuccess('Soru reddedildi.', 6000);
 
             return redirect()->route('banks.investor-questions.index');
         } catch (\Exception $e) {
-            session()->flash('error', 'Soru reddedilirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Soru reddedilirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

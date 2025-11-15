@@ -2,6 +2,7 @@
 
 namespace Modules\Authors\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -12,7 +13,7 @@ use Modules\Authors\Services\AuthorService;
 
 class AuthorEdit extends Component
 {
-    use ValidationMessages, WithFileUploads;
+    use ValidationMessages, WithFileUploads, InteractsWithToast;
 
     protected AuthorService $authorService;
 
@@ -112,10 +113,7 @@ class AuthorEdit extends Component
 
         $this->authorService->update($this->author, $data);
 
-        $this->dispatch('author-updated');
-
-        // Success mesajını session flash ile göster ve yönlendir
-        session()->flash('success', $this->createContextualSuccessMessage('updated', 'title', 'author'));
+        $this->toastSuccess($this->createContextualSuccessMessage('updated', 'title', 'author'), 6000);
 
         return redirect()->route('authors.index');
     }

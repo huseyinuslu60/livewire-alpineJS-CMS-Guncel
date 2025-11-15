@@ -1,31 +1,4 @@
 <div class="w-full px-6 py-6">
-    <!-- Flash Messages -->
-    @if($successMessage)
-        <div x-data="{ showSuccess: true }" 
-             x-init="setTimeout(() => { showSuccess = false; $wire.successMessage = ''; }, 5000)"
-             x-show="showSuccess" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform scale-95"
-             x-transition:enter-end="opacity-100 transform scale-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform scale-100"
-             x-transition:leave-end="opacity-0 transform scale-95"
-             class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 shadow-sm">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <p class="text-sm font-medium text-green-800">{{ $successMessage }}</p>
-                </div>
-                <div class="ml-auto pl-3">
-                    <button @click="showSuccess = false; $wire.successMessage = ''" class="text-green-400 hover:text-green-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <!-- Modern Header with Stats -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">

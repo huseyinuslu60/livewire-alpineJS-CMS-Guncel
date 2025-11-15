@@ -18,7 +18,7 @@
                             <div class="text-2xl font-bold text-blue-600">{{ $templates->total() }}</div>
                             <div class="text-sm text-gray-500">Toplam Template</div>
                         </div>
-                        <a href="{{ route('newsletters.templates.create') }}" 
+                        <a href="{{ route('newsletters.templates.create') }}"
                            class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center">
                             <i class="fas fa-plus mr-2"></i>
                             Yeni Template
@@ -33,14 +33,14 @@
             <div class="flex flex-col sm:flex-row gap-4">
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Arama</label>
-                    <input type="text" 
-                           wire:model.live.debounce.300ms="search" 
+                    <input type="text"
+                           wire:model.live.debounce.300ms="search"
                            placeholder="Template adı veya açıklama ara..."
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div class="sm:w-48">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Sayfa Başına</label>
-                    <select wire:model.live="perPage" 
+                    <select wire:model.live="perPage"
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="10">10</option>
                         <option value="25">25</option>
@@ -109,7 +109,7 @@
                                     <div class="text-sm text-gray-900">{{ \Illuminate\Support\Str::limit($template->description, 50) }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <button wire:click="toggleActive({{ $template->id }})" 
+                                    <button wire:click="toggleActive({{ $template->id }})"
                                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                                                    {{ $template->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
                                         <i class="fas fa-{{ $template->is_active ? 'check' : 'times' }} mr-1"></i>
@@ -121,11 +121,11 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex items-center justify-end space-x-2">
-                                        <a href="{{ route('newsletters.templates.edit', $template->id) }}" 
+                                        <a href="{{ route('newsletters.templates.edit', $template->id) }}"
                                            class="text-blue-600 hover:text-blue-900 p-1 rounded">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button wire:click="deleteTemplate({{ $template->id }})" 
+                                        <button wire:click="deleteTemplate({{ $template->id }})"
                                                 wire:confirm="Bu template'i silmek istediğinizden emin misiniz?"
                                                 class="text-red-600 hover:text-red-900 p-1 rounded">
                                             <i class="fas fa-trash"></i>
@@ -155,10 +155,4 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            <i class="fas fa-check mr-2"></i>{{ session('success') }}
-        </div>
-    @endif
 </div>

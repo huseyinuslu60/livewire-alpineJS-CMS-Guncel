@@ -1,7 +1,8 @@
 @props(['field'])
 
 @error($field)
-    <span class="text-danger small d-block mt-1">
-        <i class="feather icon-alert-circle mr-1"></i>{{ $message }}
+    <span class="mt-1 text-sm text-red-600 flex items-center gap-1">
+        <i class="fas fa-exclamation-circle text-xs"></i>
+        <span>{{ $message }}</span>
     </span>
 @enderror

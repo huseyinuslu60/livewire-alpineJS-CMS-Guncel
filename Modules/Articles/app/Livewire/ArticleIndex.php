@@ -3,6 +3,8 @@
 namespace Modules\Articles\Livewire;
 
 use App\Helpers\SystemHelper;
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +25,7 @@ use Modules\Articles\Services\ArticleService;
  */
 class ArticleIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithModal, InteractsWithToast;
 
     protected ArticleService $articleService;
 
@@ -109,11 +111,16 @@ class ArticleIndex extends Component
 
     public function confirmDeleteArticle($articleId)
     {
-        $this->dispatch('confirm-delete-article', [
-            'title' => 'Makale Sil',
-            'message' => 'Bu makaleyi silmek istediğinizden emin misiniz?',
-            'articleId' => $articleId,
-        ]);
+        $this->confirmModal(
+            'Makale Sil',
+            'Bu makaleyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deleteArticle',
+            ['id' => $articleId],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
     }
 
     public function deleteArticle($articleId)
@@ -126,50 +133,54 @@ class ArticleIndex extends Component
         } elseif (Auth::user()->can('delete own articles')) {
             Gate::authorize('delete own articles');
             if ($article->author_id !== Auth::id()) {
-                abort(403, 'Sadece kendi makalelerinizi silebilirsiniz.');
+                $this->toastError('Sadece kendi makalelerinizi silebilirsiniz.');
+                return;
             }
         } else {
-            abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
+            $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
             $this->articleService->delete($article);
 
-            session()->flash('success', 'Makale başarıyla silindi.');
+            $this->toastSuccess('Makale başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Makale silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Makale silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
     public function toggleStatus($articleId)
     {
         if (! Auth::user()->can('edit articles')) {
-            abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
+            $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
             $article = Article::findOrFail($articleId);
             $this->articleService->toggleStatus($article);
 
-            session()->flash('success', 'Makale durumu güncellendi.');
+            $this->toastSuccess('Makale durumu güncellendi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Makale durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Makale durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
     public function toggleMainPage($articleId)
     {
         if (! Auth::user()->can('edit articles')) {
-            abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
+            $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
             $article = Article::findOrFail($articleId);
             $this->articleService->toggleMainPage($article);
 
-            session()->flash('success', 'Ana sayfa durumu güncellendi.');
+            $this->toastSuccess('Ana sayfa durumu güncellendi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

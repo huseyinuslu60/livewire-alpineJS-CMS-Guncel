@@ -10,24 +10,6 @@
         </p>
     </div>
 
-    <!-- Success/Error Messages -->
-    @if (session()->has('success'))
-        <div class="mb-6 bg-emerald-50 text-emerald-900 rounded-xl p-4 border border-emerald-200">
-            <div class="flex items-center">
-                <i class="fas fa-check-circle mr-2"></i>
-                {{ session('success') }}
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div class="mb-6 bg-red-50 text-red-900 rounded-xl p-4 border border-red-200">
-            <div class="flex items-center">
-                <i class="fas fa-exclamation-circle mr-2"></i>
-                {{ session('error') }}
-            </div>
-        </div>
-    @endif
 
     <!-- Tabs -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">

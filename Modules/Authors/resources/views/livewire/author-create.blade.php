@@ -1,9 +1,6 @@
 <div>
     @vite(['Modules/Authors/resources/assets/sass/app.scss', 'Modules/Authors/resources/assets/js/app.js'])
     
-    <!-- Success Message -->
-    <x-success-message :message="$successMessage" />
-    
     <!-- Modern Header -->
     <div class="mb-8">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -27,32 +24,6 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-400"></i>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-400"></i>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <!-- Form -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200" x-data="authorForm()">

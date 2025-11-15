@@ -2,6 +2,7 @@
 
 namespace Modules\Files\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -12,7 +13,7 @@ use Modules\Files\Models\File;
 
 class FileUpload extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads;
+    use SecureFileUpload, ValidationMessages, WithFileUploads, InteractsWithToast;
 
     /** @var array<int, \Illuminate\Http\UploadedFile> */
     public array $files = [];
@@ -132,7 +133,7 @@ class FileUpload extends Component
             }
         }
 
-        session()->flash('success', $this->createContextualSuccessMessage('uploaded', 'name', 'file'));
+        $this->toastSuccess($this->createContextualSuccessMessage('uploaded', 'name', 'file'));
         $this->reset(['files', 'fileDescriptions', 'allFiles', 'allDescriptions']);
         // Parent component'e modal'ı kapatmasını ve listeyi yenilemesini söyle
         $this->dispatch('closeUploadModal');

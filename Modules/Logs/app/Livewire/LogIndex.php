@@ -2,6 +2,7 @@
 
 namespace Modules\Logs\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -23,7 +24,7 @@ use Modules\Logs\Services\LogService;
  */
 class LogIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast;
 
     protected LogService $logService;
 
@@ -107,9 +108,9 @@ class LogIndex extends Component
             $this->selectAll = false;
             $this->bulkAction = '';
 
-            session()->flash('success', $message);
+            $this->toastSuccess($message);
         } catch (\Exception $e) {
-            session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -121,9 +122,9 @@ class LogIndex extends Component
             $log = UserLog::findOrFail($id);
             $this->logService->delete($log);
 
-            session()->flash('success', 'Log kaydı başarıyla silindi.');
+            $this->toastSuccess('Log kaydı başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -133,9 +134,9 @@ class LogIndex extends Component
 
         try {
             $this->logService->clearAll();
-            session()->flash('success', 'Tüm log kayıtları başarıyla silindi.');
+            $this->toastSuccess('Tüm log kayıtları başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Log kayıtları silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Log kayıtları silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

@@ -220,6 +220,10 @@ window.loginApp = () => ({
     }
 });
 
+// Global Components - Alpine stores (Alpine.start()'tan ÖNCE yüklenmeli)
+import './components/GlobalModal';
+import './components/GlobalToast';
+
 // Lifecycle manager'lar - merkezi event yönetimi
 // adminApp tanımlandıktan SONRA ama Alpine.start()'tan ÖNCE import et
 import { mountEditorsLifecycle } from './editors-lifecycle';

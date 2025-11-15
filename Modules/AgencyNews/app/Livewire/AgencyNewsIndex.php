@@ -3,6 +3,8 @@
 namespace Modules\AgencyNews\Livewire;
 
 use App\Helpers\SystemHelper;
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -12,7 +14,7 @@ use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithModal, InteractsWithToast;
 
     protected AgencyNewsService $agencyNewsService;
 
@@ -85,51 +87,61 @@ class AgencyNewsIndex extends Component
 
     public function confirmDeleteAgencyNews($agencyNewsId)
     {
-        $this->dispatch('confirm-delete-agency-news', [
-            'title' => 'Agency News Sil',
-            'message' => 'Bu agency news\'i silmek istediğinizden emin misiniz?',
-            'agencyNewsId' => $agencyNewsId,
-        ]);
+        $this->confirmModal(
+            'Agency News Sil',
+            'Bu agency news\'i silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deleteAgencyNews',
+            ['id' => $agencyNewsId],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
     }
 
     public function deleteAgencyNews($agencyNewsId)
     {
         if (! Auth::user()->can('delete agency_news')) {
-            abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
+            $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
             $agencyNews = AgencyNews::findOrFail($agencyNewsId);
             $this->agencyNewsService->delete($agencyNews);
 
-            session()->flash('success', 'Agency news başarıyla silindi.');
+            $this->toastSuccess('Agency news başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Agency news silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Agency news silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
     public function confirmPublishAgencyNews($agencyNewsId)
     {
-        \Log::info('confirmPublishAgencyNews çağrıldı', ['agencyNewsId' => $agencyNewsId]);
-        $this->dispatch('confirm-publish-agency-news', [
-            'title' => 'Agency News Yayına Al',
-            'message' => 'Bu agency news\'i post edit sayfasına yönlendirmek istediğinizden emin misiniz? Son kontrolü yapıp yayınlayabilirsiniz.',
-            'agencyNewsId' => $agencyNewsId,
-        ]);
+        $this->confirmModal(
+            'Agency News Yayına Al',
+            'Bu agency news\'i post edit sayfasına yönlendirmek istediğinizden emin misiniz? Son kontrolü yapıp yayınlayabilirsiniz.',
+            'publishAgencyNews',
+            ['id' => $agencyNewsId],
+            [
+                'confirmLabel' => 'Yayına Al',
+                'cancelLabel' => 'İptal',
+            ]
+        );
     }
 
     public function publishAgencyNews($agencyNewsId)
     {
         try {
             if (! Auth::user()->can('publish agency_news')) {
-                abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
+                $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+                return;
             }
 
             // Agency news'i bul
             $agencyNews = AgencyNews::find($agencyNewsId);
             if (! $agencyNews) {
-                session()->flash('error', 'Agency news bulunamadı.');
-
+                $this->toastError('Agency news bulunamadı.');
                 return;
             }
 
@@ -137,8 +149,7 @@ class AgencyNewsIndex extends Component
             return redirect()->route('posts.create.news', ['agency' => $agencyNewsId]);
         } catch (\Exception $e) {
             \Log::error('Agency news publish error: '.$e->getMessage());
-            session()->flash('error', 'Bir hata oluştu. Lütfen tekrar deneyin.');
-
+            $this->toastError('Bir hata oluştu. Lütfen tekrar deneyin.');
             return;
         }
     }

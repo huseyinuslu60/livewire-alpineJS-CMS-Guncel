@@ -244,20 +244,6 @@
         </div>
     @endif
 
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div class="fixed top-4 right-4 z-50" x-data="{ show: true }" x-show="show" x-transition>
-            <div class="bg-green-50 border border-green-200 rounded-xl p-4 shadow-lg">
-                <div class="flex items-center">
-                    <i class="fas fa-check-circle text-green-500 mr-3"></i>
-                    <span class="text-sm font-medium text-green-800">{{ session('success') }}</span>
-                    <button @click="show = false" class="ml-4 text-green-400 hover:text-green-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
     
     {{-- Comments modülü asset dosyalarını dahil et --}}
     @vite(['Modules/Comments/resources/assets/sass/app.scss', 'Modules/Comments/resources/assets/js/app.js'])

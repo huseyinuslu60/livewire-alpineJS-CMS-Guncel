@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +16,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostCreateNews extends Component
 {
-    use ValidationMessages, WithFileUploads;
+    use ValidationMessages, WithFileUploads, InteractsWithToast;
 
     public string $title = '';
 
@@ -224,10 +225,7 @@ class PostCreateNews extends Component
                 $tagIds
             );
 
-            $this->dispatch('post-created');
-
-            // Success mesajını session flash ile göster ve yönlendir
-            session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));
+            $this->toastSuccess($this->createContextualSuccessMessage('created', 'title', 'post'), 6000);
 
             return redirect()->route('posts.index');
         } catch (\Exception $e) {

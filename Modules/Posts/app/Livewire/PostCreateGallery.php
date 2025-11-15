@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
@@ -16,7 +17,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostCreateGallery extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads;
+    use SecureFileUpload, ValidationMessages, WithFileUploads, InteractsWithToast;
 
     protected PostsService $postsService;
 
@@ -343,10 +344,7 @@ class PostCreateGallery extends Component
                 }
             }
 
-            $this->dispatch('post-created');
-
-            // Success mesajını session flash ile göster ve yönlendir
-            session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));
+            $this->toastSuccess($this->createContextualSuccessMessage('created', 'title', 'post'), 6000);
 
             return redirect()->route('posts.index');
         } catch (\Exception $e) {

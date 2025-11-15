@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -10,7 +11,7 @@ use Modules\Newsletters\Services\NewsletterService;
 
 class NewsletterEdit extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithToast;
 
     protected NewsletterService $newsletterService;
 
@@ -88,9 +89,7 @@ class NewsletterEdit extends Component
 
         $this->newsletterService->update($this->newsletter, $data);
 
-        $this->dispatch('newsletter-updated');
-
-        session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'newsletter'));
+        $this->toastSuccess($this->createContextualSuccessMessage('updated', 'name', 'newsletter'), 6000);
 
         return redirect()->route('newsletters.index');
     }

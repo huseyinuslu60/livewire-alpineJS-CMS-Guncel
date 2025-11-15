@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
@@ -20,7 +21,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostEdit extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads;
+    use SecureFileUpload, ValidationMessages, WithFileUploads, InteractsWithToast;
 
     protected PostsService $postsService;
 
@@ -348,9 +349,9 @@ class PostEdit extends Component
             $this->post->update(['is_mainpage' => $value]);
 
             $visibility = $value ? 'gösterilecek' : 'gizlenecek';
-            session()->flash('success', "Yazı ana sayfada {$visibility}.");
+            $this->toastSuccess("Yazı ana sayfada {$visibility}.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -410,7 +411,7 @@ class PostEdit extends Component
         ]);
 
         // Kullanıcıya bilgi ver
-        session()->flash('success', 'Sıralama güncellendi ve açıklamalar korundu.');
+        $this->toastSuccess('Sıralama güncellendi ve açıklamalar korundu.');
     }
 
     public function refreshExistingFiles()
@@ -536,7 +537,7 @@ class PostEdit extends Component
         $this->updateGalleryContent();
 
         // Kullanıcıya bilgi ver
-        session()->flash('success', 'Sıralama güncellendi.');
+        $this->toastSuccess('Sıralama güncellendi.');
     }
 
     // Sıralama bilgisini veritabanına kaydet
@@ -1012,12 +1013,12 @@ class PostEdit extends Component
 
         $this->dispatch('post-updated');
 
-        // Success mesajını session flash ile göster ve yönlendir
+        // Success mesajını toast ile göster ve yönlendir
         $successMessage = $this->createContextualSuccessMessage('updated', 'title', 'post');
         if ($shouldAddToFeatured) {
             $successMessage .= " ve {$this->post_position} alanına otomatik eklendi.";
         }
-        session()->flash('success', $successMessage);
+        $this->toastSuccess($successMessage, 6000);
 
         return redirect()->route('posts.index');
     }
@@ -1044,7 +1045,7 @@ class PostEdit extends Component
             // Galeri türü için content'i güncelle
             if ($this->post->post_type === 'gallery') {
                 $this->updateGalleryContent();
-                session()->flash('success', 'Görsel kaldırıldı.');
+                $this->toastSuccess('Görsel kaldırıldı.');
             }
         }
     }
@@ -1224,7 +1225,7 @@ class PostEdit extends Component
             ]);
 
             // Kullanıcıya hata göster
-            session()->flash('error', 'Galeri içeriği güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Galeri içeriği güncellenirken bir hata oluştu: '.$e->getMessage());
 
             throw $e;
         }

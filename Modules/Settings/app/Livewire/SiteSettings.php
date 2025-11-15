@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -9,7 +10,7 @@ use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, InteractsWithToast;
 
     protected SettingsService $settingsService;
 
@@ -74,13 +75,13 @@ class SiteSettings extends Component
         try {
             $this->settingsService->updateMultiple($this->settings);
 
-            session()->flash('success', 'Ayarlar başarıyla kaydedildi.');
+            $this->toastSuccess('Ayarlar başarıyla kaydedildi.');
             $this->dispatch('settings-saved');
 
             // Ayarları yeniden yükle ki güncel değerler görünsün
             $this->loadSettings();
         } catch (\Exception $e) {
-            session()->flash('error', 'Ayarlar kaydedilirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Ayarlar kaydedilirken bir hata oluştu: '.$e->getMessage());
         } finally {
             $this->isLoading = false;
         }
@@ -89,7 +90,7 @@ class SiteSettings extends Component
     public function resetSettings()
     {
         $this->loadSettings();
-        session()->flash('info', 'Ayarlar sıfırlandı.');
+        $this->toastInfo('Ayarlar sıfırlandı.');
     }
 
     public function render()

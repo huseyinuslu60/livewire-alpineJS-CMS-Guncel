@@ -2,6 +2,7 @@
 
 namespace Modules\Lastminutes\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -9,7 +10,7 @@ use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteCreate extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithToast;
 
     protected LastminuteService $lastminuteService;
 
@@ -70,10 +71,7 @@ class LastminuteCreate extends Component
 
         $this->lastminuteService->create($data);
 
-        $this->dispatch('lastminute-created');
-
-        $successMessage = $this->createContextualSuccessMessage('created', 'title', 'lastminute');
-        session()->flash('success', $successMessage);
+        $this->toastSuccess($this->createContextualSuccessMessage('created', 'title', 'lastminute'), 6000);
 
         return redirect()->route('lastminutes.index');
     }

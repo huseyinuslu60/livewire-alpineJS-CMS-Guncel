@@ -2,6 +2,7 @@
 
 namespace Modules\Files\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -27,7 +28,7 @@ use Modules\Files\Services\FileService;
  */
 class FileIndex extends Component
 {
-    use ValidationMessages, WithPagination;
+    use ValidationMessages, WithPagination, InteractsWithToast;
 
     protected FileService $fileService;
 
@@ -122,13 +123,12 @@ class FileIndex extends Component
         try {
             $count = $this->fileService->deleteMultiple($this->selectedFiles);
 
-            session()->flash('success', $count.' dosya başarıyla silindi.');
+            $this->toastSuccess($count.' dosya başarıyla silindi.');
             $this->selectedFiles = [];
             $this->selectAll = false;
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->errorMessage = 'Dosyalar silinirken hata oluştu: '.$e->getMessage();
-            $this->showErrorMessage = true;
+            $this->toastError('Dosyalar silinirken hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -147,11 +147,10 @@ class FileIndex extends Component
 
             $this->fileService->delete($file);
 
-            session()->flash('success', $this->createContextualSuccessMessage('deleted', 'name', 'file'));
+            $this->toastSuccess($this->createContextualSuccessMessage('deleted', 'name', 'file'));
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->errorMessage = 'Dosya silinirken hata oluştu: '.$e->getMessage();
-            $this->showErrorMessage = true;
+            $this->toastError('Dosya silinirken hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -176,14 +175,13 @@ class FileIndex extends Component
                     'caption' => $this->editCaption,
                 ]);
 
-                session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'file'));
+                $this->toastSuccess($this->createContextualSuccessMessage('updated', 'name', 'file'));
 
                 // Form'u reset et ve modal'ı kapat
                 $this->resetEditForm();
             }
         } catch (\Exception $e) {
-            $this->errorMessage = 'Dosya güncellenirken hata oluştu: '.$e->getMessage();
-            $this->showErrorMessage = true;
+            $this->toastError('Dosya güncellenirken hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -205,7 +203,7 @@ class FileIndex extends Component
     public function refreshFilesList()
     {
         $this->resetPage(); // İlk sayfaya dön
-        session()->flash('success', $this->createContextualSuccessMessage('uploaded', 'name', 'file'));
+        $this->toastSuccess($this->createContextualSuccessMessage('uploaded', 'name', 'file'));
     }
 
     /**

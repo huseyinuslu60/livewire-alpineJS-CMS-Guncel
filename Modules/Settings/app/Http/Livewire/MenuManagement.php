@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\MenuItem;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -9,6 +10,7 @@ use Spatie\Permission\Models\Role;
 
 class MenuManagement extends Component
 {
+    use InteractsWithToast;
     /** @var array<int, array{id: int, name: string, title: string, icon: string, type: string, route: string, permission: string, active_pattern: string, parent_id: int|null, sort_order: int, is_active: bool, children: array}> */
     public array $menuItems = [];
 
@@ -188,7 +190,7 @@ class MenuManagement extends Component
 
         $item = MenuItem::find($itemId);
         if (! $item) {
-            session()->flash('error', 'Menü öğesi bulunamadı.');
+            $this->toastError('Menü öğesi bulunamadı.');
 
             return;
         }
@@ -237,10 +239,10 @@ class MenuManagement extends Component
 
             if ($this->isEditing && $this->editingItem) {
                 $this->editingItem->update($data);
-                session()->flash('success', 'Menü öğesi başarıyla güncellendi.');
+                $this->toastSuccess('Menü öğesi başarıyla güncellendi.');
             } else {
                 MenuItem::create($data);
-                session()->flash('success', 'Menü öğesi başarıyla oluşturuldu.');
+                $this->toastSuccess('Menü öğesi başarıyla oluşturuldu.');
             }
 
             // Başarılı kayıt sonrası formu kapat ve verileri yenile
@@ -254,7 +256,7 @@ class MenuManagement extends Component
             $this->isLoading = false;
             throw $e;
         } catch (\Exception $e) {
-            session()->flash('error', 'Bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Bir hata oluştu: '.$e->getMessage());
             $this->isLoading = false;
         }
     }
@@ -265,11 +267,11 @@ class MenuManagement extends Component
             $item = MenuItem::find($itemId);
             if ($item) {
                 $item->delete();
-                session()->flash('success', 'Menü öğesi başarıyla silindi.');
+                $this->toastSuccess('Menü öğesi başarıyla silindi.');
                 $this->loadData();
             }
         } catch (\Exception $e) {
-            session()->flash('error', 'Silme işlemi sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Silme işlemi sırasında bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -282,7 +284,7 @@ class MenuManagement extends Component
                 $this->loadData();
             }
         } catch (\Exception $e) {
-            session()->flash('error', 'Durum değiştirme sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Durum değiştirme sırasında bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -318,13 +320,13 @@ class MenuManagement extends Component
             }
 
             $this->loadData();
-            session()->flash('success', 'Menü sıralaması başarıyla güncellendi.');
+            $this->toastSuccess('Menü sıralaması başarıyla güncellendi.');
         } catch (\Exception $e) {
             \Log::error('Sort order update error: '.$e->getMessage(), [
                 'newOrder' => $newOrder,
                 'trace' => $e->getTraceAsString(),
             ]);
-            session()->flash('error', 'Sıralama güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Sıralama güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

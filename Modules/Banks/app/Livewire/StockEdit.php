@@ -2,6 +2,7 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -10,6 +11,8 @@ use Modules\Banks\Services\StockService;
 
 class StockEdit extends Component
 {
+    use InteractsWithToast;
+
     protected StockService $stockService;
 
     public ?\Modules\Banks\Models\Stock $stock = null;
@@ -135,11 +138,11 @@ class StockEdit extends Component
 
             $this->stockService->update($this->stock, $data);
 
-            session()->flash('success', 'Hisse senedi başarıyla güncellendi.');
+            $this->toastSuccess('Hisse senedi başarıyla güncellendi.', 6000);
 
             return redirect()->route('banks.stocks.index');
         } catch (\Exception $e) {
-            session()->flash('error', 'Hisse senedi güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Hisse senedi güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

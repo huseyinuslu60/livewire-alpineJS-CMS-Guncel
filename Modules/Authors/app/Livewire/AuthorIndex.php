@@ -2,6 +2,7 @@
 
 namespace Modules\Authors\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -16,7 +17,7 @@ use Modules\Authors\Services\AuthorService;
  */
 class AuthorIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast;
 
     protected AuthorService $authorService;
 
@@ -51,9 +52,9 @@ class AuthorIndex extends Component
             $this->authorService->toggleMainPage($author);
 
             $visibility = $author->show_on_mainpage ? 'gösterilecek' : 'gizlenecek';
-            session()->flash('success', "Yazar ana sayfada {$visibility}.");
+            $this->toastSuccess("Yazar ana sayfada {$visibility}.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -66,9 +67,9 @@ class AuthorIndex extends Component
             $this->authorService->toggleStatus($author);
 
             $status = $author->status ? 'aktif' : 'pasif';
-            session()->flash('success', "Yazar durumu {$status} olarak güncellendi.");
+            $this->toastSuccess("Yazar durumu {$status} olarak güncellendi.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Yazar durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Yazar durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -103,9 +104,9 @@ class AuthorIndex extends Component
             $author = Author::findOrFail($authorId);
             $this->authorService->delete($author);
 
-            session()->flash('success', 'Yazar başarıyla silindi.');
+            $this->toastSuccess('Yazar başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Yazar silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Yazar silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

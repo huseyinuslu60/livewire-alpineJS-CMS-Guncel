@@ -2,6 +2,7 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -10,7 +11,7 @@ use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast;
 
     public ?string $search = null;
 
@@ -84,9 +85,9 @@ class InvestorQuestionIndex extends Component
             $this->selectAll = false;
             $this->bulkAction = '';
 
-            session()->flash('success', $message);
+            $this->toastSuccess($message);
         } catch (\Exception $e) {
-            session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -103,9 +104,9 @@ class InvestorQuestionIndex extends Component
                 'status' => 'rejected',
             ]);
 
-            session()->flash('success', 'Soru başarıyla reddedildi.');
+            $this->toastSuccess('Soru başarıyla reddedildi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Soru reddedilirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Soru reddedilirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -119,9 +120,9 @@ class InvestorQuestionIndex extends Component
             $question = InvestorQuestion::findOrFail($id);
             $question->delete();
 
-            session()->flash('success', 'Soru başarıyla silindi.');
+            $this->toastSuccess('Soru başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Soru silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Soru silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

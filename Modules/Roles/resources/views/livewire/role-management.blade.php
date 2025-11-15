@@ -1,9 +1,6 @@
 <div>
     @vite(['Modules/Roles/resources/assets/sass/app.scss', 'Modules/Roles/resources/assets/js/app.js'])
 
-    <!-- Success Message -->
-    <x-success-message :message="$successMessage" />
-
     <!-- Modern Header with Stats -->
     <div class="mb-8">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
@@ -33,32 +30,6 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 fade-in">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 fade-in">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <!-- Roles Grid -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200" x-data="roleManagement()">

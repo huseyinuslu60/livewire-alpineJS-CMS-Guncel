@@ -221,10 +221,4 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-            <i class="fas fa-check mr-2"></i>{{ session('success') }}
-        </div>
-    @endif
 </div>

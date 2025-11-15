@@ -1,7 +1,4 @@
 <div x-data="usersForm()">
-    <!-- Success Message -->
-    <x-success-message :message="$successMessage" />
-    
     <!-- Modern Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
@@ -26,84 +23,6 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div x-data="{ showSuccess: true }" 
-             x-show="showSuccess" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform scale-95"
-             x-transition:enter-end="opacity-100 transform scale-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform scale-100"
-             x-transition:leave-end="opacity-0 transform scale-95"
-             class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 shadow-sm">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                </div>
-                <div class="ml-auto pl-3">
-                    <button @click="showSuccess = false" class="text-green-400 hover:text-green-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div x-data="{ showError: true }" 
-             x-show="showError" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform scale-95"
-             x-transition:enter-end="opacity-100 transform scale-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform scale-100"
-             x-transition:leave-end="opacity-0 transform scale-95"
-             class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 shadow-sm">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-500 text-lg"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
-                </div>
-                <div class="ml-auto pl-3">
-                    <button @click="showError = false" class="text-red-400 hover:text-red-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('warning'))
-        <div x-data="{ showWarning: true }" 
-             x-show="showWarning" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform scale-95"
-             x-transition:enter-end="opacity-100 transform scale-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform scale-100"
-             x-transition:leave-end="opacity-0 transform scale-95"
-             class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 shadow-sm">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-triangle text-yellow-500 text-lg"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <p class="text-sm font-medium text-yellow-800">{{ session('warning') }}</p>
-                </div>
-                <div class="ml-auto pl-3">
-                    <button @click="showWarning = false" class="text-yellow-400 hover:text-yellow-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <!-- Form -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200">

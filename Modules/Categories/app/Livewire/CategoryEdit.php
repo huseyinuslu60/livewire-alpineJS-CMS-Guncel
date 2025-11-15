@@ -2,6 +2,7 @@
 
 namespace Modules\Categories\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -11,7 +12,7 @@ use Modules\Categories\Services\CategoryService;
 
 class CategoryEdit extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithToast;
 
     protected CategoryService $categoryService;
 
@@ -133,15 +134,13 @@ class CategoryEdit extends Component
 
             // Toast mesajı göster
             $this->isLoading = false;
-            $this->dispatch('category-updated');
+            $this->toastSuccess($this->createContextualSuccessMessage('updated', 'name', 'category'), 6000);
 
-            // Success mesajını session flash ile göster ve yönlendir
-            session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'category'));
-
+            // Redirect - toast session flash'a da eklenecek
             return redirect()->route('categories.index');
         } catch (\Exception $e) {
             $this->isLoading = false;
-            session()->flash('error', 'Kategori güncellenirken hata oluştu: '.$e->getMessage());
+            $this->toastError('Kategori güncellenirken hata oluştu: '.$e->getMessage());
         }
     }
 

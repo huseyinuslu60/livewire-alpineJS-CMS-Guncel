@@ -8,24 +8,8 @@ document.addEventListener('alpine:init', () => {
     // Bülten Tablo Bileşeni - Factory pattern
     function newslettersTableData() {
         return {
-            showDeleteModal: false,
-            deleteNewsletterId: null,
-            showSuccess: true,
-            showError: true,
-
             init() {
                 this.initializeTableInteractions();
-                
-                // Livewire event listener - silme onayı için
-                this.$wire.on('confirm-delete-newsletter', (data) => {
-                    // Livewire 3'te $wire.on ile gelen data direkt olarak dispatch edilen array'dir
-                    const eventData = Array.isArray(data) && data.length > 0 ? data[0] : data;
-                    const newsletterId = eventData?.newsletterId || eventData?.id;
-                    
-                    if (newsletterId) {
-                        this.confirmDelete(newsletterId);
-                    }
-                });
             },
 
             initializeTableInteractions() {
@@ -44,29 +28,6 @@ document.addEventListener('alpine:init', () => {
                             }
                         });
                     });
-                }
-            },
-
-            confirmDelete(newsletterId) {
-                this.deleteNewsletterId = newsletterId;
-                this.showDeleteModal = true;
-            },
-
-            closeDeleteModal() {
-                this.showDeleteModal = false;
-                this.deleteNewsletterId = null;
-            },
-
-            deleteNewsletter() {
-                if (this.deleteNewsletterId) {
-                    this.$wire.call('deleteNewsletter', this.deleteNewsletterId);
-                    this.closeDeleteModal();
-                }
-            },
-
-            toggleStatus(newsletterId, currentStatus) {
-                if (confirm('Newsletter durumunu değiştirmek istediğinizden emin misiniz?')) {
-                    this.$wire.call('toggleStatus', newsletterId);
                 }
             }
         };

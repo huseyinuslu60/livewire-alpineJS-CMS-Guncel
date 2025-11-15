@@ -2,6 +2,7 @@
 
 namespace Modules\Lastminutes\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -12,7 +13,7 @@ use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteIndex extends Component
 {
-    use ValidationMessages, WithPagination;
+    use ValidationMessages, WithPagination, InteractsWithToast;
 
     protected LastminuteService $lastminuteService;
 
@@ -76,8 +77,7 @@ class LastminuteIndex extends Component
         $lastminute = Lastminute::findOrFail($id);
         $this->lastminuteService->delete($lastminute);
 
-        $this->dispatch('lastminute-deleted');
-        session()->flash('success', 'Son dakika başarıyla silindi.');
+        $this->toastSuccess('Son dakika başarıyla silindi.');
     }
 
     public function toggleStatus($id)
@@ -87,8 +87,7 @@ class LastminuteIndex extends Component
         $lastminute = Lastminute::findOrFail($id);
         $this->lastminuteService->toggleStatus($lastminute);
 
-        $this->dispatch('lastminute-status-changed');
-        session()->flash('success', 'Son dakika durumu güncellendi.');
+        $this->toastSuccess('Son dakika durumu güncellendi.');
     }
 
     public function markAsExpired($id)
@@ -98,8 +97,7 @@ class LastminuteIndex extends Component
         $lastminute = Lastminute::findOrFail($id);
         $this->lastminuteService->markAsExpired($lastminute);
 
-        $this->dispatch('lastminute-expired');
-        session()->flash('success', 'Son dakika süresi dolmuş olarak işaretlendi.');
+        $this->toastSuccess('Son dakika süresi dolmuş olarak işaretlendi.');
     }
 
     public function render()

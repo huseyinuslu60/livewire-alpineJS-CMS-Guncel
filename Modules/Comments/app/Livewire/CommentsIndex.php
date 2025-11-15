@@ -2,6 +2,7 @@
 
 namespace Modules\Comments\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -20,7 +21,7 @@ use Modules\Comments\Services\CommentService;
  */
 class CommentsIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast;
 
     protected CommentService $commentService;
 
@@ -140,9 +141,9 @@ class CommentsIndex extends Component
         try {
             $comment = Comment::findOrFail($commentId);
             $this->commentService->delete($comment);
-            session()->flash('success', 'Yorum silindi.');
+            $this->toastSuccess('Yorum silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Yorum silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Yorum silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -164,12 +165,12 @@ class CommentsIndex extends Component
             $this->commentService->updateAndApprove($comment, $newText);
 
             unset($this->editedCommentTexts[$commentId]);
-            session()->flash('success', 'Yorum düzenlendi ve onaylandı.');
+            $this->toastSuccess('Yorum düzenlendi ve onaylandı.');
 
             // Sadece bu yorumu yeniden render et, tüm sayfayı değil
             $this->dispatch('comment-updated', $commentId);
         } catch (\Exception $e) {
-            session()->flash('error', 'Yorum düzenlenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Yorum düzenlenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -191,12 +192,12 @@ class CommentsIndex extends Component
             $this->commentService->update($comment, $newText);
 
             unset($this->editedCommentTexts[$commentId]);
-            session()->flash('success', 'Yorum başarıyla güncellendi.');
+            $this->toastSuccess('Yorum başarıyla güncellendi.');
 
             // Sadece bu yorumu yeniden render et, tüm sayfayı değil
             $this->dispatch('comment-updated', $commentId);
         } catch (\Exception $e) {
-            session()->flash('error', 'Yorum güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Yorum güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

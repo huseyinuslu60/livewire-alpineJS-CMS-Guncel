@@ -2,6 +2,7 @@
 
 namespace Modules\Authors\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +12,7 @@ use Modules\Authors\Services\AuthorService;
 
 class AuthorCreate extends Component
 {
-    use ValidationMessages, WithFileUploads;
+    use ValidationMessages, WithFileUploads, InteractsWithToast;
 
     protected AuthorService $authorService;
 
@@ -90,10 +91,7 @@ class AuthorCreate extends Component
 
         $this->authorService->create($data);
 
-        $this->dispatch('author-created');
-
-        // Success mesajını session flash ile göster ve yönlendir
-        session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'author'));
+        $this->toastSuccess($this->createContextualSuccessMessage('created', 'title', 'author'), 6000);
 
         return redirect()->route('authors.index');
     }

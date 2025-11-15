@@ -2,6 +2,8 @@
 
 namespace Modules\User\Livewire;
 
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
@@ -22,7 +24,7 @@ use Spatie\Permission\Models\Role;
  */
 class UserIndex extends Component
 {
-    use ValidationMessages, WithPagination;
+    use ValidationMessages, WithPagination, InteractsWithToast, InteractsWithModal;
 
     protected UserService $userService;
 
@@ -90,6 +92,20 @@ class UserIndex extends Component
         $this->sortBy($field);
     }
 
+    public function confirmDeleteUser($userId)
+    {
+        $this->confirmModal(
+            'Kullanıcı Sil',
+            'Bu kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deleteUser',
+            ['id' => $userId],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
+    }
+
     public function deleteUser($userId)
     {
         Gate::authorize('delete users');
@@ -98,9 +114,9 @@ class UserIndex extends Component
             $user = User::findOrFail($userId);
             $this->userService->delete($user, Auth::user());
 
-            $this->successMessage = $this->createContextualSuccessMessage('deleted', 'name', 'user');
+            $this->toastSuccess($this->createContextualSuccessMessage('deleted', 'name', 'user'));
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->toastError($e->getMessage());
         }
     }
 

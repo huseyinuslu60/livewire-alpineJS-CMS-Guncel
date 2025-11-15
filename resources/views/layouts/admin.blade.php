@@ -583,7 +583,135 @@
         });
     </script>
 
-    @stack('scripts')
+@stack('scripts')
+
+<!-- Global Components -->
+<x-global-modal />
+<x-global-toast />
+
+<!-- Convert session flash messages to toast notifications -->
+@if (session()->has('success'))
+    <script>
+        (function() {
+            const message = '{{ session('success') }}';
+            const now = Date.now();
+            
+            // Global duplicate kontrolü - event toast ile aynı değişkeni kullan
+            if (typeof window.__lastToastMessage === 'undefined') {
+                window.__lastToastMessage = null;
+                window.__lastToastTime = 0;
+            }
+            
+            // Duplicate kontrolü - eğer aynı mesaj kısa süre önce gösterildiyse ignore et
+            if (window.__lastToastMessage === message && (now - window.__lastToastTime) < 5000) {
+                // Duplicate, ignore et
+                return;
+            }
+            
+            window.__lastToastMessage = message;
+            window.__lastToastTime = now;
+            
+            function showToast() {
+                if (window.Alpine && window.Alpine.store('globalToast')) {
+                    window.Alpine.store('globalToast').success(message, { duration: 6000 });
+                } else if (window.toast && typeof window.toast.success === 'function') {
+                    window.toast.success(message, { duration: 6000 });
+                } else {
+                    // Alpine henüz hazır değilse bekle
+                    setTimeout(showToast, 100);
+                }
+            }
+
+            // Sadece sayfa ilk yüklendiğinde göster (redirect sonrası için)
+            // livewire:navigated event'inde gösterme çünkü event toast ile duplicate olabilir
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showToast);
+            } else {
+                showToast();
+            }
+        })();
+    </script>
+@endif
+
+@if (session()->has('error'))
+    <script>
+        (function() {
+            const message = '{{ session('error') }}';
+            const now = Date.now();
+            
+            // Global duplicate kontrolü
+            if (typeof window.__lastToastMessage === 'undefined') {
+                window.__lastToastMessage = null;
+                window.__lastToastTime = 0;
+            }
+            
+            // Duplicate kontrolü
+            if (window.__lastToastMessage === message && (now - window.__lastToastTime) < 5000) {
+                return;
+            }
+            
+            window.__lastToastMessage = message;
+            window.__lastToastTime = now;
+            
+            function showToast() {
+                if (window.Alpine && window.Alpine.store('globalToast')) {
+                    window.Alpine.store('globalToast').error(message, { duration: 6000 });
+                } else if (window.toast && typeof window.toast.error === 'function') {
+                    window.toast.error(message, { duration: 6000 });
+                } else {
+                    setTimeout(showToast, 100);
+                }
+            }
+
+            // Sadece sayfa ilk yüklendiğinde göster
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showToast);
+            } else {
+                showToast();
+            }
+        })();
+    </script>
+@endif
+
+@if (session()->has('info'))
+    <script>
+        (function() {
+            const message = '{{ session('info') }}';
+            const now = Date.now();
+            
+            // Global duplicate kontrolü
+            if (typeof window.__lastToastMessage === 'undefined') {
+                window.__lastToastMessage = null;
+                window.__lastToastTime = 0;
+            }
+            
+            // Duplicate kontrolü
+            if (window.__lastToastMessage === message && (now - window.__lastToastTime) < 5000) {
+                return;
+            }
+            
+            window.__lastToastMessage = message;
+            window.__lastToastTime = now;
+            
+            function showToast() {
+                if (window.Alpine && window.Alpine.store('globalToast')) {
+                    window.Alpine.store('globalToast').warn(message, { duration: 6000 });
+                } else if (window.toast && typeof window.toast.warn === 'function') {
+                    window.toast.warn(message, { duration: 6000 });
+                } else {
+                    setTimeout(showToast, 100);
+                }
+            }
+
+            // Sadece sayfa ilk yüklendiğinde göster
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showToast);
+            } else {
+                showToast();
+            }
+        })();
+    </script>
+@endif
 
 </body>
 

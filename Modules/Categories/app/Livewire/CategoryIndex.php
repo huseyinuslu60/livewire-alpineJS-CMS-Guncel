@@ -2,6 +2,8 @@
 
 namespace Modules\Categories\Livewire;
 
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -19,7 +21,7 @@ use Modules\Categories\Services\CategoryService;
  */
 class CategoryIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast, InteractsWithModal;
 
     protected CategoryService $categoryService;
 
@@ -93,6 +95,20 @@ class CategoryIndex extends Component
         $this->sortBy($field);
     }
 
+    public function confirmDeleteCategory($categoryId)
+    {
+        $this->confirmModal(
+            'Kategori Sil',
+            'Bu kategoriyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deleteCategory',
+            ['id' => $categoryId],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
+    }
+
     public function deleteCategory($categoryId)
     {
         Gate::authorize('delete categories');
@@ -101,9 +117,9 @@ class CategoryIndex extends Component
             $category = Category::findOrFail($categoryId);
             $this->categoryService->delete($category);
 
-            session()->flash('success', 'Kategori başarıyla silindi.');
+            $this->toastSuccess('Kategori başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', $e->getMessage());
+            $this->toastError($e->getMessage());
         }
     }
 

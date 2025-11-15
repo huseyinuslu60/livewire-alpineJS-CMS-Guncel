@@ -2,6 +2,7 @@
 
 namespace Modules\Headline\Http\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -10,10 +11,9 @@ use Modules\Headline\Services\FeaturedService;
 
 class Manage extends Component
 {
+    use InteractsWithToast;
     // Public properties
     public string $activeZone = 'manset';
-
-    public string $successMessage = '';
 
     public array $zones = [
         'manset' => 'Manşet',
@@ -152,8 +152,8 @@ class Manage extends Component
         $service = app(FeaturedService::class);
         $result = $service->reorder($zone, $ordered);
 
-        // Set success message for Livewire
-        $this->successMessage = 'Sıralama başarıyla kaydedildi!';
+        // Toast mesajı göster
+        $this->toastSuccess('Sıralama başarıyla kaydedildi!');
 
         $this->dispatch('reordered', [
             'zone' => $zone,
@@ -209,7 +209,7 @@ class Manage extends Component
         // If no time is specified, add immediately with slot
         if (empty($this->schedStartsAt) && empty($this->schedEndsAt)) {
             $service->pin($this->schedZone, $this->schedSubjectType, $this->schedSubjectId, null);
-            $this->successMessage = 'İçerik başarıyla eklendi!';
+            $this->toastSuccess('İçerik başarıyla eklendi!');
         } else {
             // For scheduled items, use pinScheduled method (no slot, just priority)
             $service->pinScheduled(
@@ -220,7 +220,7 @@ class Manage extends Component
                 $this->schedEndsAt ? new \DateTime($this->schedEndsAt) : null,
                 0 // priority
             );
-            $this->successMessage = 'Zamanlama başarıyla kaydedildi! Zaman geldiğinde otomatik olarak en üste çıkacak.';
+            $this->toastSuccess('Zamanlama başarıyla kaydedildi! Zaman geldiğinde otomatik olarak en üste çıkacak.');
         }
 
         $this->showScheduleModal = false;
@@ -247,7 +247,7 @@ class Manage extends Component
 
         $this->schedStartsAt = null;
         $this->schedEndsAt = null;
-        $this->successMessage = 'Zamanlama başarıyla sıfırlandı!';
+        $this->toastSuccess('Zamanlama başarıyla sıfırlandı!');
         $this->loadData();
     }
 

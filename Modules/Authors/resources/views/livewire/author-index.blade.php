@@ -1,32 +1,5 @@
 <div>
     @vite(['Modules/Authors/resources/assets/sass/app.scss', 'Modules/Authors/resources/assets/js/app.js'])
-    
-    <!-- Success Message -->
-    @if (session()->has('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-400"></i>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-exclamation-circle text-red-400"></i>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-red-800">{{ session('error') }}</p>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <!-- Modern Header with Stats -->
     <div class="mb-8">
@@ -126,7 +99,7 @@
                 </div>
             </div>
         </div>
-        
+
         @if($authors->count() > 0)
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -202,7 +175,7 @@
                                         </a>
                                         @endcan
                                         @can('delete authors')
-                                        <button wire:click="deleteAuthor({{ $author->id }})" 
+                                        <button wire:click="deleteAuthor({{ $author->id }})"
                                                 wire:confirm="Bu yazarı silmek istediğinizden emin misiniz?"
                                                 class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg text-sm font-medium transition-colors duration-200">
                                             <i class="fas fa-trash mr-1"></i>Sil

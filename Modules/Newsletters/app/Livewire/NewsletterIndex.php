@@ -3,6 +3,8 @@
 namespace Modules\Newsletters\Livewire;
 
 use App\Helpers\SystemHelper;
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -22,7 +24,7 @@ use Modules\Newsletters\Services\NewsletterService;
  */
 class NewsletterIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast, InteractsWithModal;
 
     protected NewsletterService $newsletterService;
 
@@ -103,42 +105,49 @@ class NewsletterIndex extends Component
 
     public function confirmDeleteNewsletter($newsletterId)
     {
-        $this->dispatch('confirm-delete-newsletter', [
-            'title' => 'Newsletter Sil',
-            'message' => 'Bu newsletter\'i silmek istediğinizden emin misiniz?',
-            'newsletterId' => $newsletterId,
-        ]);
+        $this->confirmModal(
+            'Newsletter Sil',
+            'Bu newsletter\'i silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deleteNewsletter',
+            ['id' => $newsletterId],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
     }
 
     public function deleteNewsletter($newsletterId)
     {
         if (! Auth::user()->can('delete newsletters')) {
-            abort(403, 'Bülten silme yetkiniz bulunmuyor.');
+            $this->toastError('Bülten silme yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
             $newsletter = Newsletter::findOrFail($newsletterId);
             $this->newsletterService->delete($newsletter);
 
-            session()->flash('success', 'Newsletter başarıyla silindi.');
+            $this->toastSuccess('Newsletter başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Newsletter silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Newsletter silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
     public function toggleStatus($newsletterId)
     {
         if (! Auth::user()->can('edit newsletters')) {
-            abort(403, 'Bülten düzenleme yetkiniz bulunmuyor.');
+            $this->toastError('Bülten düzenleme yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
             $newsletter = Newsletter::findOrFail($newsletterId);
             $this->newsletterService->toggleStatus($newsletter);
 
-            session()->flash('success', 'Newsletter durumu güncellendi.');
+            $this->toastSuccess('Newsletter durumu güncellendi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Newsletter durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Newsletter durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

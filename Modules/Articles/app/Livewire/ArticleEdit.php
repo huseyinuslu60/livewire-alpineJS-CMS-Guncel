@@ -2,6 +2,7 @@
 
 namespace Modules\Articles\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +12,7 @@ use Modules\Articles\Services\ArticleService;
 
 class ArticleEdit extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithToast;
 
     protected ArticleService $articleService;
 
@@ -100,10 +101,8 @@ class ArticleEdit extends Component
 
         $this->articleService->update($this->article, $data);
 
-        $this->dispatch('article-updated');
-
-        // Success mesajını session flash ile göster ve yönlendir
-        session()->flash('success', $this->createContextualSuccessMessage('updated', 'title', 'article'));
+        // Toast mesajı göster
+        $this->toastSuccess($this->createContextualSuccessMessage('updated', 'title', 'article'), 6000);
 
         return redirect()->route('articles.index');
     }

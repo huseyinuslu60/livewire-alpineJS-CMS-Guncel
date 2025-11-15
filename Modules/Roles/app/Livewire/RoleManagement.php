@@ -2,6 +2,8 @@
 
 namespace Modules\Roles\Livewire;
 
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
@@ -11,7 +13,7 @@ use Spatie\Permission\Models\Role;
 
 class RoleManagement extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithModal, InteractsWithToast;
 
     protected RoleService $roleService;
 
@@ -81,7 +83,7 @@ class RoleManagement extends Component
 
             $this->roleService->createRole($data, Auth::user());
 
-            session()->flash('success', $this->createContextualSuccessMessage('created', 'name', 'role'));
+            $this->toastSuccess($this->createContextualSuccessMessage('created', 'name', 'role'));
             $this->reset(['name', 'display_name', 'description', 'isLoading', 'showRoleForm', 'selectedPermissions']);
             $this->dispatch('role-created');
 
@@ -89,7 +91,7 @@ class RoleManagement extends Component
             $this->dispatch('refresh-page');
         } catch (\Exception $e) {
             $this->isLoading = false;
-            session()->flash('error', 'Rol oluşturulurken hata oluştu: '.$e->getMessage());
+            $this->toastError('Rol oluşturulurken hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -103,8 +105,7 @@ class RoleManagement extends Component
 
         // Süper Admin rolünü düzenlemeyi engelle (zaten tüm yetkilere sahip)
         if ($this->roleService->isSystemRole($role)) {
-            session()->flash('error', 'Süper Admin rolü düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
-
+            $this->toastError('Süper Admin rolü düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
             return;
         }
 
@@ -129,15 +130,13 @@ class RoleManagement extends Component
     {
         try {
             if (! $this->editingRole) {
-                session()->flash('error', 'Düzenlenecek rol bulunamadı.');
-
+                $this->toastError('Düzenlenecek rol bulunamadı.');
                 return;
             }
 
             // Süper Admin rolünü güncellemeyi engelle (zaten tüm yetkilere sahip)
             if ($this->roleService->isSystemRole($this->editingRole)) {
-                session()->flash('error', 'Süper Admin rolü güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
-
+                $this->toastError('Süper Admin rolü güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
                 return;
             }
 
@@ -154,7 +153,7 @@ class RoleManagement extends Component
 
             $this->roleService->updateRole($this->editingRole, $data, Auth::user());
 
-            session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'role'));
+            $this->toastSuccess($this->createContextualSuccessMessage('updated', 'name', 'role'));
             $this->reset(['name', 'display_name', 'description', 'editingRole', 'isLoading', 'showRoleForm', 'selectedPermissions']);
             $this->dispatch('role-updated');
 
@@ -162,7 +161,7 @@ class RoleManagement extends Component
             $this->dispatch('refresh-page');
         } catch (\Exception $e) {
             $this->isLoading = false;
-            session()->flash('error', 'Rol güncellenirken hata oluştu: '.$e->getMessage());
+            $this->toastError('Rol güncellenirken hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -173,14 +172,24 @@ class RoleManagement extends Component
 
     public function confirmDeleteRole(int $id): void
     {
-        $this->dispatch('confirm-delete-role', title: 'Silinsin mi?', message: 'Bu rol silinecek, onaylıyor musunuz?', roleId: $id);
+        $this->confirmModal(
+            'Rol Sil',
+            'Bu rolü silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deleteRole',
+            ['id' => $id],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
     }
 
     #[On('deleteRole')]
     public function deleteRole(int $roleId): void
     {
         if (! Auth::user()->can('delete roles')) {
-            abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
+            $this->toastError('Bu işlem için yetkiniz bulunmuyor.');
+            return;
         }
 
         try {
@@ -188,18 +197,17 @@ class RoleManagement extends Component
 
             // Süper Admin rolünü silmeyi engelle
             if ($this->roleService->isSystemRole($role)) {
-                session()->flash('error', 'Süper Admin rolü silinemez!');
-
+                $this->toastError('Süper Admin rolü silinemez!');
                 return;
             }
 
             $this->roleService->deleteRole($role, Auth::user());
-            session()->flash('message', 'Rol silindi');
+            $this->toastSuccess('Rol silindi');
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
         } catch (\Exception $e) {
-            session()->flash('error', 'Rol silinirken hata oluştu: '.$e->getMessage());
+            $this->toastError('Rol silinirken hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -209,8 +217,7 @@ class RoleManagement extends Component
 
         // Süper Admin rolünün yetkilerini düzenlemeyi engelle (zaten tüm yetkilere sahip)
         if ($this->roleService->isSystemRole($role)) {
-            session()->flash('error', 'Süper Admin rolünün yetkileri düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
-
+            $this->toastError('Süper Admin rolünün yetkileri düzenlenemez! Bu rol zaten tüm yetkilere sahiptir.');
             return;
         }
 
@@ -228,15 +235,13 @@ class RoleManagement extends Component
     {
         try {
             if (! $this->editingRole) {
-                session()->flash('error', 'Düzenlenecek rol bulunamadı.');
-
+                $this->toastError('Düzenlenecek rol bulunamadı.');
                 return;
             }
 
             // Süper Admin rolünün yetkilerini güncellemeyi engelle (zaten tüm yetkilere sahip)
             if ($this->roleService->isSystemRole($this->editingRole)) {
-                session()->flash('error', 'Süper Admin rolünün yetkileri güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
-
+                $this->toastError('Süper Admin rolünün yetkileri güncellenemez! Bu rol zaten tüm yetkilere sahiptir.');
                 return;
             }
 
@@ -244,14 +249,14 @@ class RoleManagement extends Component
             $this->validate(['selectedPermissions' => ['array']]);
 
             $this->roleService->syncRolePermissions($this->editingRole, $this->selectedPermissions, Auth::user());
-            session()->flash('message', 'Yetkiler güncellendi');
+            $this->toastSuccess('Yetkiler güncellendi');
             $this->closePermissionModal();
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
         } catch (\Exception $e) {
             $this->isLoading = false;
-            session()->flash('error', 'Yetkiler güncellenirken hata oluştu: '.$e->getMessage());
+            $this->toastError('Yetkiler güncellenirken hata oluştu: '.$e->getMessage());
         }
     }
 

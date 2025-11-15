@@ -1,29 +1,4 @@
 <div x-data="lastminutesTable()">
-    <!-- Flash Messages -->
-    @if (session()->has('success'))
-        <div x-show="showSuccess" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform scale-95"
-             x-transition:enter-end="opacity-100 transform scale-100"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 transform scale-100"
-             x-transition:leave-end="opacity-0 transform scale-95"
-             class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 shadow-sm">
-            <div class="flex items-center">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-check-circle text-green-500 text-lg"></i>
-                </div>
-                <div class="ml-3 flex-1">
-                    <p class="text-sm font-medium text-green-800">{{ session('success') }}</p>
-                </div>
-                <div class="ml-auto pl-3">
-                    <button @click="showSuccess = false" class="text-green-400 hover:text-green-600">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
 
     <!-- Modern Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
@@ -40,7 +15,7 @@
                 </div>
                 <div class="flex items-center space-x-3">
                     @can('create lastminutes')
-                    <a href="{{ route('lastminutes.create') }}" 
+                    <a href="{{ route('lastminutes.create') }}"
                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200">
                         <i class="fas fa-plus mr-2"></i>
                         Yeni Son Dakika
@@ -61,9 +36,9 @@
                         <i class="fas fa-search mr-1 text-red-500"></i>
                         Arama
                     </label>
-                    <input type="text" 
-                           wire:model.live.debounce.300ms="search" 
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                    <input type="text"
+                           wire:model.live.debounce.300ms="search"
+                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
                            placeholder="Başlık ara...">
                 </div>
 
@@ -73,7 +48,7 @@
                         <i class="fas fa-filter mr-1 text-red-500"></i>
                         Durum
                     </label>
-                    <select wire:model.live="status" 
+                    <select wire:model.live="status"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm">
                         @foreach($statusOptions as $value => $label)
                             <option value="{{ $value }}">{{ $label }}</option>
@@ -87,7 +62,7 @@
                         <i class="fas fa-list mr-1 text-red-500"></i>
                         Sayfa Başına
                     </label>
-                    <select wire:model.live="perPage" 
+                    <select wire:model.live="perPage"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm">
                         <option value="10">10</option>
                         <option value="25">25</option>
@@ -102,7 +77,7 @@
                         <i class="fas fa-sort mr-1 text-red-500"></i>
                         Sıralama
                     </label>
-                    <select wire:model.live="sortBy" 
+                    <select wire:model.live="sortBy"
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm">
                         <option value="created_at">Oluşturulma</option>
                         <option value="title">Başlık</option>
@@ -115,8 +90,8 @@
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6" 
-         wire:loading.class="opacity-50" 
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6"
+         wire:loading.class="opacity-50"
          wire:target="search,status,perPage,sortBy">
         <div class="overflow-hidden">
             <div class="overflow-x-auto">
@@ -168,8 +143,8 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if($lastminute->redirect)
-                                        <a href="{{ $lastminute->redirect_url }}" 
-                                           target="_blank" 
+                                        <a href="{{ $lastminute->redirect_url }}"
+                                           target="_blank"
                                            class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
                                             <i class="fas fa-external-link-alt mr-1"></i>
                                             {{ Str::limit($lastminute->redirect, 80) }}
@@ -209,14 +184,14 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex items-center space-x-2">
                                         @can('edit lastminutes')
-                                        <a href="{{ route('lastminutes.edit', $lastminute) }}" 
+                                        <a href="{{ route('lastminutes.edit', $lastminute) }}"
                                            class="text-indigo-600 hover:text-indigo-900 cursor-pointer">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         @endcan
 
                                         @can('edit lastminutes')
-                                        <button wire:click="toggleStatus({{ $lastminute->lastminute_id }})" 
+                                        <button wire:click="toggleStatus({{ $lastminute->lastminute_id }})"
                                                 class="text-yellow-600 hover:text-yellow-900 cursor-pointer"
                                                 title="{{ $lastminute->status === 'active' ? 'Pasif Yap' : 'Aktif Yap' }}">
                                             <i class="fas fa-{{ $lastminute->status === 'active' ? 'pause' : 'play' }}"></i>
@@ -225,7 +200,7 @@
 
                                         @if($lastminute->end_at && !$lastminute->is_expired)
                                         @can('edit lastminutes')
-                                        <button wire:click="markAsExpired({{ $lastminute->lastminute_id }})" 
+                                        <button wire:click="markAsExpired({{ $lastminute->lastminute_id }})"
                                                 class="text-orange-600 hover:text-orange-900 cursor-pointer"
                                                 title="Süresi Dolmuş Olarak İşaretle">
                                             <i class="fas fa-clock"></i>
@@ -234,7 +209,7 @@
                                         @endif
 
                                         @can('delete lastminutes')
-                                        <button wire:click="deleteLastminute({{ $lastminute->lastminute_id }})" 
+                                        <button wire:click="deleteLastminute({{ $lastminute->lastminute_id }})"
                                                 wire:confirm="Bu son dakikayı silmek istediğinizden emin misiniz?"
                                                 class="text-red-600 hover:text-red-900 cursor-pointer">
                                             <i class="fas fa-trash"></i>
@@ -251,7 +226,7 @@
                                         <h3 class="text-lg font-medium text-gray-900 mb-2">Son dakika bulunamadı</h3>
                                         <p class="text-gray-500 mb-4">Henüz hiç son dakika eklenmemiş.</p>
                                         @can('create lastminutes')
-                                        <a href="{{ route('lastminutes.create') }}" 
+                                        <a href="{{ route('lastminutes.create') }}"
                                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700">
                                             <i class="fas fa-plus mr-2"></i>
                                             İlk Son Dakikayı Ekle
@@ -280,7 +255,7 @@ document.addEventListener('alpine:init', () => {
     // NOT: sadece component registration (tek seferlik) bu blokta kalmalı.
     Alpine.data('lastminutesTable', () => ({
         showSuccess: true,
-        
+
         init() {
             // Auto-hide success message after 5 seconds
             setTimeout(() => {

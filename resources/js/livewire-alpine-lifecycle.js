@@ -186,4 +186,173 @@ export function mountLivewireAlpineLifecycle() {
   document.addEventListener('livewire:updated', () => {
     handleLivewireUpdated();
   });
+
+  // Global Modal Event Listener - Livewire'dan modal açma
+  document.addEventListener('livewire:initialized', () => {
+    Livewire.on('modal:confirm', (data) => {
+      // Livewire 3'te data direkt array olarak gelebilir veya object olabilir
+      const eventData = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
+      const { title, message, action, id, confirmLabel = 'Onayla', cancelLabel = 'Vazgeç' } = eventData || {};
+
+      if (!title || !message || !action) {
+        console.warn('modal:confirm event eksik parametreler içeriyor:', eventData);
+        return;
+      }
+
+      // Global modal'ı aç
+      if (window.Alpine && window.Alpine.store('globalModal')) {
+        window.Alpine.store('globalModal').show({
+          title,
+          message,
+          confirmLabel,
+          cancelLabel,
+          onConfirm: () => {
+            // Livewire action'ı çağır
+            if (id !== undefined) {
+              Livewire.dispatch(action, { id });
+            } else {
+              Livewire.dispatch(action);
+            }
+          }
+        });
+      }
+    });
+  });
+
+  // Global Toast Event Listener - Livewire'dan toast gösterme
+  // Hem livewire:initialized hem de livewire:navigated'da çalışmalı
+  // Duplicate toast'ları engellemek için son toast'ı takip et
+  // Global değişken kullanarak hem event hem session flash toast'larını kontrol et
+  if (typeof window.__lastToastMessage === 'undefined') {
+    window.__lastToastMessage = null;
+    window.__lastToastTime = 0;
+  }
+  const TOAST_DEBOUNCE_MS = 5000; // Aynı mesaj 5 saniye içinde tekrar gelirse ignore et (event + session flash için)
+
+  function setupToastListener() {
+    if (!window.Livewire) {
+      // Livewire henüz hazır değilse tekrar dene
+      setTimeout(setupToastListener, 100);
+      return;
+    }
+
+    // Listener zaten kurulmuşsa tekrar kurma (duplicate'ı önlemek için)
+    if (window.__toastListenerSetup) {
+      return;
+    }
+
+    window.__toastListenerSetup = true;
+
+    // Toast event handler
+    window.__toastListenerHandler = (data) => {
+      // Livewire 3'te data direkt array olarak gelebilir veya object olabilir
+      const eventData = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
+      const { type = 'success', message, duration } = eventData || {};
+
+      if (!message) {
+        if (import.meta.env.DEV) {
+          console.warn('toast event eksik message içeriyor:', eventData);
+        }
+        return;
+      }
+
+      // Duplicate toast kontrolü - aynı mesaj kısa süre içinde gelirse ignore et
+      // Hem event hem session flash toast'ları için aynı değişkeni kullan
+      const now = Date.now();
+      if (window.__lastToastMessage === message && (now - window.__lastToastTime) < TOAST_DEBOUNCE_MS) {
+        if (import.meta.env.DEV) {
+          console.log('Duplicate toast ignored (event):', message);
+        }
+        return;
+      }
+
+      window.__lastToastMessage = message;
+      window.__lastToastTime = now;
+
+      // Alpine store'un hazır olmasını bekle
+      const showToast = (retryCount = 0) => {
+        if (retryCount > 20) {
+          // 20 denemeden sonra vazgeç (1 saniye)
+          if (import.meta.env.DEV) {
+            console.error('Toast gösterilemedi: Alpine store hazır değil');
+          }
+          return;
+        }
+
+        if (window.Alpine && window.Alpine.store('globalToast')) {
+          try {
+            const options = duration ? { duration } : {};
+            window.Alpine.store('globalToast').show(type, message, options);
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.error('Toast gösterilirken hata:', e);
+            }
+            // Hata durumunda tekrar dene
+            setTimeout(() => showToast(retryCount + 1), 50);
+          }
+        } else if (window.toast && typeof window.toast[type] === 'function') {
+          // Fallback: window.toast API kullan
+          try {
+            const options = duration ? { duration } : {};
+            window.toast[type](message, options);
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.error('Toast gösterilirken hata (fallback):', e);
+            }
+          }
+        } else if (window.toast && typeof window.toast.success === 'function') {
+          // Fallback: type yoksa success kullan
+          try {
+            const options = duration ? { duration } : {};
+            window.toast.success(message, options);
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.error('Toast gösterilirken hata (fallback 2):', e);
+            }
+          }
+        } else {
+          // Alpine henüz hazır değilse bekle
+          setTimeout(() => showToast(retryCount + 1), 50);
+        }
+      };
+
+      showToast();
+    };
+
+    // Listener'ı ekle
+    try {
+      Livewire.on('toast', window.__toastListenerHandler);
+    } catch (e) {
+      if (import.meta.env.DEV) {
+        console.error('Toast listener eklenirken hata:', e);
+      }
+    }
+  }
+
+  // Livewire initialize olduğunda
+  document.addEventListener('livewire:initialized', () => {
+    setupToastListener();
+  });
+
+  // Livewire navigasyon sonrası listener'ı sıfırla ve yeniden kur
+  // Çünkü navigated sonrası listener kaybolabilir
+  document.addEventListener('livewire:navigated', () => {
+    // Listener'ı sıfırla ve yeniden kur
+    window.__toastListenerSetup = false;
+    if (window.__toastListenerHandler && window.Livewire) {
+      try {
+        Livewire.off('toast', window.__toastListenerHandler);
+      } catch (e) {
+        // Ignore
+      }
+    }
+    window.__toastListenerHandler = null;
+
+    // Yeniden kur
+    setTimeout(() => {
+      setupToastListener();
+    }, 100);
+  });
 }

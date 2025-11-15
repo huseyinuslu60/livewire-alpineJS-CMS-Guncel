@@ -2,12 +2,14 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Newsletters\Models\NewsletterTemplate;
 
 class TemplateCreate extends Component
 {
+    use InteractsWithToast;
     public string $name = '';
 
     public string $slug = '';
@@ -118,7 +120,7 @@ class TemplateCreate extends Component
             'sort_order' => $this->sort_order,
         ]);
 
-        session()->flash('success', 'Template başarıyla oluşturuldu!');
+        $this->toastSuccess('Template başarıyla oluşturuldu!', 6000);
 
         return redirect()->route('newsletters.templates.index');
     }

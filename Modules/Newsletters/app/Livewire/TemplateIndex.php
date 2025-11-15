@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -9,7 +10,7 @@ use Modules\Newsletters\Models\NewsletterTemplate;
 
 class TemplateIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast;
 
     public string $search = '';
 
@@ -45,7 +46,7 @@ class TemplateIndex extends Component
         $template = NewsletterTemplate::find($templateId);
         if ($template) {
             $template->update(['is_active' => ! $template->is_active]);
-            session()->flash('success', 'Template durumu güncellendi!');
+            $this->toastSuccess('Template durumu güncellendi!');
         }
     }
 
@@ -54,7 +55,7 @@ class TemplateIndex extends Component
         $template = NewsletterTemplate::find($templateId);
         if ($template) {
             $template->delete();
-            session()->flash('success', 'Template başarıyla silindi!');
+            $this->toastSuccess('Template başarıyla silindi!');
         }
     }
 

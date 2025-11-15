@@ -2,6 +2,8 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Livewire\Concerns\InteractsWithModal;
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +26,7 @@ use Modules\Posts\Services\PostsService;
  */
 class PostIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithModal, InteractsWithToast;
 
     protected PostsService $postsService;
 
@@ -100,10 +102,24 @@ class PostIndex extends Component
             $this->selectAll = false;
             $this->bulkAction = '';
 
-            session()->flash('success', $message);
+            $this->toastSuccess($message);
         } catch (\Exception $e) {
-            session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
+    }
+
+    public function confirmDeletePost($id)
+    {
+        $this->confirmModal(
+            'Haber Sil',
+            'Bu haberi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+            'deletePost',
+            ['id' => $id],
+            [
+                'confirmLabel' => 'Sil',
+                'cancelLabel' => 'İptal',
+            ]
+        );
     }
 
     public function deletePost($id)
@@ -114,9 +130,9 @@ class PostIndex extends Component
             $post = Post::findOrFail($id);
             $this->postsService->delete($post);
 
-            session()->flash('success', 'Haber başarıyla silindi.');
+            $this->toastSuccess('Haber başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Haber silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Haber silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -130,9 +146,9 @@ class PostIndex extends Component
 
             $visibility = $newValue ? 'gösterilecek' : 'gizlenecek';
 
-            session()->flash('success', "Yazı ana sayfada {$visibility}.");
+            $this->toastSuccess("Yazı ana sayfada {$visibility}.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

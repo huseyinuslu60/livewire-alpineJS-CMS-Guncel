@@ -2,6 +2,7 @@
 
 namespace Modules\Categories\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -11,7 +12,7 @@ use Modules\Categories\Services\CategoryService;
 
 class CategoryCreate extends Component
 {
-    use ValidationMessages;
+    use ValidationMessages, InteractsWithToast;
 
     protected CategoryService $categoryService;
 
@@ -110,15 +111,13 @@ class CategoryCreate extends Component
 
             // Toast mesajı göster
             $this->isLoading = false;
-            $this->dispatch('category-created');
+            $this->toastSuccess($this->createContextualSuccessMessage('created', 'name', 'category'), 6000);
 
-            // Success mesajını session flash ile göster ve yönlendir
-            session()->flash('success', $this->createContextualSuccessMessage('created', 'name', 'category'));
-
+            // Redirect - toast session flash'a da eklenecek
             return redirect()->route('categories.index');
         } catch (\Exception $e) {
             $this->isLoading = false;
-            session()->flash('error', 'Kategori oluşturulurken hata oluştu: '.$e->getMessage());
+            $this->toastError('Kategori oluşturulurken hata oluştu: '.$e->getMessage());
         }
     }
 

@@ -2,12 +2,14 @@
 
 namespace Modules\Logs\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Logs\Models\UserLog;
 
 class LogDetail extends Component
 {
+    use InteractsWithToast;
     public ?\Modules\Logs\Models\UserLog $log = null;
 
     public function mount($id)
@@ -27,11 +29,11 @@ class LogDetail extends Component
 
         try {
             $this->log->delete();
-            session()->flash('success', 'Log kaydı başarıyla silindi.');
+            $this->toastSuccess('Log kaydı başarıyla silindi.');
 
             return redirect()->route('logs.index');
         } catch (\Exception $e) {
-            session()->flash('error', 'Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

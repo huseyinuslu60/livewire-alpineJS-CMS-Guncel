@@ -2,6 +2,7 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -11,7 +12,7 @@ use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
 {
-    use WithPagination;
+    use WithPagination, InteractsWithToast;
 
     protected StockService $stockService;
 
@@ -77,9 +78,9 @@ class StockIndex extends Component
             $this->selectAll = false;
             $this->bulkAction = '';
 
-            session()->flash('success', $message);
+            $this->toastSuccess($message);
         } catch (\Exception $e) {
-            session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -93,9 +94,9 @@ class StockIndex extends Component
             $stock = Stock::findOrFail($id);
             $this->stockService->delete($stock);
 
-            session()->flash('success', 'Hisse senedi başarıyla silindi.');
+            $this->toastSuccess('Hisse senedi başarıyla silindi.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Hisse senedi silinirken bir hata oluştu: '.$e->getMessage());
+            $this->toastError('Hisse senedi silinirken bir hata oluştu: '.$e->getMessage());
         }
     }
 

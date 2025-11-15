@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
 use Livewire\Component;
@@ -13,7 +14,7 @@ use Modules\Posts\Models\Post;
 
 class NewsletterCreate extends Component
 {
-    use ValidationMessages, WithPagination;
+    use ValidationMessages, WithPagination, InteractsWithToast;
 
     protected NewsletterService $newsletterService;
 
@@ -99,7 +100,7 @@ class NewsletterCreate extends Component
         $this->selectedTemplate = $templateId;
         $this->updateNewsletterBody();
         $this->dispatch('$refresh');
-        session()->flash('success', 'Template değiştirildi!');
+        $this->toastSuccess('Template değiştirildi!');
     }
 
     public function addPostToNewsletter($postId)
@@ -108,7 +109,7 @@ class NewsletterCreate extends Component
         if ($post && ! in_array($postId, $this->selectedPosts)) {
             $this->selectedPosts[] = $postId;
             $this->updateNewsletterBody();
-            session()->flash('success', 'Haber bültene eklendi!');
+            $this->toastSuccess('Haber bültene eklendi!');
 
             // Dispatch event to trigger sortable initialization
             $this->dispatch('post-added');
@@ -121,7 +122,7 @@ class NewsletterCreate extends Component
             return $id != $postId;
         }));
         $this->updateNewsletterBody();
-        session()->flash('success', 'Haber bültenden çıkarıldı!');
+        $this->toastSuccess('Haber bültenden çıkarıldı!');
     }
 
     public function updateNewsletterBody()
@@ -258,7 +259,7 @@ class NewsletterCreate extends Component
             $this->selectedPosts[$index - 1] = $temp;
 
             $this->updateNewsletterBody();
-            session()->flash('success', 'Haber yukarı taşındı!');
+            $this->toastSuccess('Haber yukarı taşındı!');
         } elseif ($action === 'moveDown' && $index < count($this->selectedPosts) - 1) {
             // Move item down
             $temp = $this->selectedPosts[$index];
@@ -266,12 +267,12 @@ class NewsletterCreate extends Component
             $this->selectedPosts[$index + 1] = $temp;
 
             $this->updateNewsletterBody();
-            session()->flash('success', 'Haber aşağı taşındı!');
+            $this->toastSuccess('Haber aşağı taşındı!');
         } elseif (! empty($orderedIds)) {
             // Use provided order (for sortable drag & drop)
             $this->selectedPosts = $orderedIds;
             $this->updateNewsletterBody();
-            session()->flash('success', 'Haberlerin sırası güncellendi!');
+            $this->toastSuccess('Haberlerin sırası güncellendi!');
         }
 
         // Force refresh to update the view
@@ -289,7 +290,7 @@ class NewsletterCreate extends Component
         if (! empty($orderedIds)) {
             $this->selectedPosts = $orderedIds;
             $this->updateNewsletterBody();
-            session()->flash('success', 'Haberlerin sırası güncellendi!');
+            $this->toastSuccess('Haberlerin sırası güncellendi!');
             \Log::info('Posts reordered successfully:', $this->selectedPosts);
         }
     }
@@ -308,7 +309,7 @@ class NewsletterCreate extends Component
 
         $this->newsletterService->create($data);
 
-        session()->flash('success', 'Newsletter başarıyla oluşturuldu!');
+        $this->toastSuccess('Newsletter başarıyla oluşturuldu!', 6000);
 
         return redirect()->route('newsletters.index');
     }

@@ -140,8 +140,19 @@
                                 <i class="fas fa-align-left mr-1 text-blue-500"></i>
                                 İçerik *
                             </label>
-                            <div wire:ignore>
+                            <div wire:ignore.self>
                                 <textarea wire:model="content"
+                                          x-data
+                                          x-init="
+                                              $nextTick(() => {
+                                                  if (window.jQuery && window.jQuery('#content').length) {
+                                                      window.jQuery('#content').on('tbwchange', function() {
+                                                          const content = window.jQuery(this).trumbowyg('html');
+                                                          @this.set('content', content);
+                                                      });
+                                                  }
+                                              });
+                                          "
                                           class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
                                           id="content"
                                           rows="10"
@@ -151,6 +162,12 @@
                             @error('content')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
+                            @if(empty($content))
+                                <p class="mt-1 text-xs text-amber-600">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    İçerik alanı boş. Lütfen haber içeriğini girin.
+                                </p>
+                            @endif
                         </div>
 
                         <!-- Medya -->
@@ -401,7 +418,7 @@
                         <i class="fas fa-tag mr-2 text-blue-500"></i>
                         Etiketler
                     </h3>
-                    <div x-data="tagsInput()" class="space-y-3">
+                    <div x-data="tagsInput($wire.tagsInput || '')" class="space-y-3">
                         <!-- Mevcut Etiketler -->
                         <div class="flex flex-wrap gap-2" x-show="tags.length > 0">
                             <template x-for="(tag, index) in tags" :key="index">

@@ -52,6 +52,12 @@ class PostCreateNews extends Component
     /** @var array<int, \Illuminate\Http\UploadedFile> */
     public array $files = []; // Optional thumbnail
 
+    /**
+     * Temporary storage for edited file paths (to avoid serialization issues)
+     * Key: file index, Value: edited image path
+     */
+    protected array $editedFilePaths = [];
+
     /** @var array<int> */
     public array $categoryIds = [];
 
@@ -63,7 +69,102 @@ class PostCreateNews extends Component
 
     public bool $isSaving = false;
 
+    /**
+     * Get PostsService instance - don't store as property to avoid serialization issues
+     */
+    protected function getPostsService(): PostsService
+    {
+        return app(PostsService::class);
+    }
+
+    /**
+     * Process edited files and return files array ready for saving
+     * WithFileUploads trait handles file serialization, so we can use $this->files directly
+     */
+    protected function processEditedFiles(): array
+    {
+        // WithFileUploads trait handles file serialization automatically
+        // We can use $this->files directly, but filter out non-UploadedFile objects
+        if (empty($this->files) || !is_array($this->files)) {
+            return [];
+        }
+
+        $processedFiles = [];
+
+        foreach ($this->files as $index => $file) {
+            // Only process actual UploadedFile instances
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                // If this file was edited, we need to replace it with the edited version
+                if (isset($this->editedFilePaths[$index])) {
+                    $editedPath = $this->editedFilePaths[$index];
+
+                    // Convert URL to file path if needed
+                    $filePath = $editedPath;
+                    if (str_starts_with($editedPath, asset(''))) {
+                        $relativePath = str_replace(asset(''), '', $editedPath);
+                        $filePath = public_path($relativePath);
+                    } elseif (str_starts_with($editedPath, 'http')) {
+                        // Download the edited image
+                        $imageContent = @file_get_contents($editedPath);
+                        if ($imageContent !== false) {
+                            $tempDir = sys_get_temp_dir();
+                            $tempFileName = 'livewire-edited-' . uniqid() . '-' . $file->getClientOriginalName();
+                            $tempFilePath = $tempDir . '/' . $tempFileName;
+                            file_put_contents($tempFilePath, $imageContent);
+                            $filePath = $tempFilePath;
+                        } else {
+                            // Fallback to original file
+                            $processedFiles[] = $file;
+                            continue;
+                        }
+                    }
+
+                    // Create new UploadedFile from edited path
+                    if (file_exists($filePath)) {
+                        $newFile = new \Illuminate\Http\UploadedFile(
+                            $filePath,
+                            $file->getClientOriginalName(),
+                            $file->getMimeType() ?: mime_content_type($filePath) ?: 'image/jpeg',
+                            null,
+                            true
+                        );
+                        $processedFiles[] = $newFile;
+                    } else {
+                        // Fallback to original file
+                        $processedFiles[] = $file;
+                    }
+                } else {
+                    // Use original file
+                    $processedFiles[] = $file;
+                }
+            }
+        }
+
+        return $processedFiles;
+    }
+
     protected $listeners = ['contentUpdated'];
+
+    /**
+     * Hydrate component - called when component is loaded
+     */
+    public function hydrate()
+    {
+        // Ensure files array is properly initialized
+        if (!is_array($this->files)) {
+            $this->files = [];
+        }
+    }
+
+    /**
+     * Dehydrate component - called before component state is serialized
+     * This helps prevent serialization issues with UploadedFile objects
+     */
+    public function dehydrate()
+    {
+        // Files array will be handled by Livewire's WithFileUploads trait
+        // We don't need to modify it here
+    }
 
     protected function messages()
     {
@@ -138,6 +239,20 @@ class PostCreateNews extends Component
         ];
     }
 
+    /**
+     * Ensure tagsInput is always a string when updated
+     */
+    public function updatedTagsInput($value)
+    {
+        // Ensure tagsInput is always a string to prevent Livewire serialization issues
+        if (!is_string($value)) {
+            $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
+        } else {
+            // Clean up the string: remove extra spaces, ensure proper comma separation
+            $this->tagsInput = trim($value);
+        }
+    }
+
     public function updatedTitle($value)
     {
         // Slug'ı her zaman güncelle, sadece boş değilse
@@ -157,100 +272,50 @@ class PostCreateNews extends Component
 
     public function contentUpdated($content)
     {
-        $this->content = $content;
+        // Skip render to avoid checksum issues
+        $this->skipRender();
+        $this->content = $content ?? '';
+    }
+
+    /**
+     * Handle content updates from Trumbowyg editor
+     */
+    public function updatedContent($value)
+    {
+        // Ensure content is always a string
+        $this->content = (string) ($value ?? '');
     }
 
     public function removeFile($index)
     {
         if (isset($this->files[$index])) {
+            $this->skipRender();
             unset($this->files[$index]);
             $this->files = array_values($this->files); // Re-index array
         }
     }
 
+    /**
+     * Update file preview after image editing
+     * Note: We don't replace the UploadedFile object to avoid serialization issues.
+     * Instead, we store the edited image path temporarily and use it during save.
+     */
     public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
     {
-        // identifier index (integer) olabilir
+        // Skip render to avoid checksum issues
+        $this->skipRender();
+
+        // Store edited file path temporarily (not the UploadedFile object)
         if (is_numeric($identifier)) {
             $index = (int) $identifier;
-            if (isset($this->files[$index])) {
-                // Backend'den dönen image'ı yeni bir temporary file olarak oluştur
-                // Image URL'den blob'u al ve yeni temporary file oluştur
-                try {
-                    // Convert asset URL to file path if needed
-                    $filePath = $imageUrl;
-                    if (str_starts_with($imageUrl, asset(''))) {
-                        // Remove asset base URL to get relative path
-                        $relativePath = str_replace(asset(''), '', $imageUrl);
-                        $filePath = public_path($relativePath);
-                    } elseif (str_starts_with($imageUrl, 'http')) {
-                        // For full URLs, download the content
-                        $imageContent = @file_get_contents($imageUrl);
-                        if ($imageContent === false) {
-                            throw new \Exception('Could not download image from URL');
-                        }
-
-                        // Create temporary file in Livewire's temp directory
-                        $tempDir = sys_get_temp_dir();
-                        $tempFileName = 'livewire-' . uniqid() . '-' . $this->files[$index]->getClientOriginalName();
-                        $tempFilePath = $tempDir . '/' . $tempFileName;
-                        file_put_contents($tempFilePath, $imageContent);
-
-                        // Get original file info
-                        $originalName = $this->files[$index]->getClientOriginalName();
-                        $mimeType = $this->files[$index]->getMimeType() ?: 'image/jpeg';
-
-                        // Create new UploadedFile
-                        $newFile = new \Illuminate\Http\UploadedFile(
-                            $tempFilePath,
-                            $originalName,
-                            $mimeType,
-                            null,
-                            true // test mode
-                        );
-
-                        // Replace the file in the array
-                        $this->files[$index] = $newFile;
-
-                        $this->dispatch('image-updated', [
-                            'index' => $index,
-                            'image_url' => $imageUrl,
-                        ]);
-
-                        return;
-                    } else {
-                        $filePath = $imageUrl;
-                    }
-
-                    // If we have a local file path
-                    if (file_exists($filePath)) {
-                        $originalName = $this->files[$index]->getClientOriginalName();
-                        $mimeType = $this->files[$index]->getMimeType() ?: mime_content_type($filePath) ?: 'image/jpeg';
-
-                        $newFile = new \Illuminate\Http\UploadedFile(
-                            $filePath,
-                            $originalName,
-                            $mimeType,
-                            null,
-                            true
-                        );
-
-                        $this->files[$index] = $newFile;
-
-                        $this->dispatch('image-updated', [
-                            'index' => $index,
-                            'image_url' => $imageUrl,
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('Error updating file preview: '.$e->getMessage(), [
-                        'trace' => $e->getTraceAsString(),
-                        'image_url' => $imageUrl,
-                        'index' => $index,
-                    ]);
-                }
-            }
+            // Store the edited path - we'll use this during save
+            $this->editedFilePaths[$index] = $imageUrl;
         }
+
+        $this->dispatch('image-updated', [
+            'identifier' => $identifier,
+            'image_url' => $imageUrl,
+        ]);
     }
 
     public function savePost()
@@ -262,12 +327,24 @@ class PostCreateNews extends Component
 
         Gate::authorize('create posts');
 
+        // Log before save for debugging
+        \Log::info('PostCreateNews savePost called:', [
+            'title' => $this->title,
+            'content_length' => strlen($this->content ?? ''),
+            'content_preview' => substr($this->content ?? '', 0, 100),
+            'summary' => $this->summary,
+            'files_count' => is_array($this->files) ? count($this->files) : 0,
+            'categoryIds' => $this->categoryIds,
+        ]);
+
+        // Set saving flag and skip render to avoid checksum issues
         $this->isSaving = true;
+        $this->skipRender();
 
         try {
             // Slug'ı mutlaka unique yap - validation'dan ÖNCE
             // Eğer slug boşsa veya unique değilse, yeni bir unique slug oluştur
-            $postsService = new PostsService;
+            $postsService = $this->getPostsService();
             if (empty($this->slug)) {
                 $this->slug = $postsService->makeUniqueSlug($this->title);
             } else {
@@ -278,9 +355,37 @@ class PostCreateNews extends Component
             }
 
             // Validation'ı unique slug ile yap
-            $this->validate();
+            // Note: We validate without modifying $files to avoid serialization issues
+            try {
+                $this->validate();
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                // Log validation errors for debugging
+                \Log::error('PostCreateNews Validation Errors:', [
+                    'errors' => $e->errors(),
+                    'content' => $this->content,
+                    'content_length' => strlen($this->content ?? ''),
+                    'title' => $this->title,
+                    'summary' => $this->summary,
+                    'files_count' => is_array($this->files) ? count($this->files) : 0,
+                    'categoryIds' => $this->categoryIds,
+                ]);
+                throw $e;
+            }
 
             $tagIds = array_filter(array_map('trim', explode(',', $this->tagsInput)));
+
+            // Process edited files if any
+            // WithFileUploads trait handles file serialization, so we can use $this->files directly
+            $filesToSave = $this->processEditedFiles();
+
+            // Log files processing for debugging
+            \Log::info('PostCreateNews Files Processing:', [
+                'original_files_count' => is_array($this->files) ? count($this->files) : 0,
+                'processed_files_count' => count($filesToSave),
+                'edited_file_paths' => $this->editedFilePaths,
+                'files_type' => gettype($this->files),
+                'files_is_array' => is_array($this->files),
+            ]);
 
             $formData = [
                 'title' => $this->title,
@@ -301,15 +406,49 @@ class PostCreateNews extends Component
                 'no_ads' => $this->no_ads,
             ];
 
-            $postsService = new PostsService;
             $post = $postsService->create(
                 $formData,
-                $this->files,
+                $filesToSave,
                 $this->categoryIds,
                 $tagIds
             );
 
+            // Build and save spot_data if we have image files
+            if (!empty($this->files) && $post->primaryFile) {
+                $spotData = [
+                    'image' => [
+                        'original' => [
+                            'path' => $post->primaryFile->file_path,
+                            'width' => null,
+                            'height' => null,
+                            'hash' => null,
+                        ],
+                        'variants' => [
+                            'desktop' => [
+                                'crop' => [],
+                                'focus' => 'center',
+                            ],
+                            'mobile' => [
+                                'crop' => [],
+                                'focus' => 'center',
+                            ],
+                        ],
+                        'effects' => [],
+                        'meta' => [
+                            'alt' => $post->primaryFile->alt_text ?? null,
+                            'credit' => null,
+                            'source' => null,
+                        ],
+                    ],
+                ];
+                $post->spot_data = $spotData;
+                $post->save();
+            }
+
             $this->dispatch('post-created');
+
+            // Clear files array before redirect to avoid serialization issues
+            $this->files = [];
 
             // Success mesajını session flash ile göster ve yönlendir
             session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));

@@ -12,7 +12,8 @@ class TestToastComponent extends Component implements SupportsToastErrors
 
     public function toastError(string $message): void
     {
-        // noop for testing
+        // Dispatch show-error event for testing
+        $this->dispatch('show-error', $message);
     }
 
     public function triggerTestException(): void

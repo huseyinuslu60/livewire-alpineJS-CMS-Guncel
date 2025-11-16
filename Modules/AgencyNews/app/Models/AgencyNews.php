@@ -5,6 +5,7 @@ namespace Modules\AgencyNews\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\AgencyNews\Database\Factories\AgencyNewsFactory;
 
 /**
  * @property int $record_id
@@ -234,5 +235,13 @@ class AgencyNews extends Model
     public function getShortContentAttribute()
     {
         return \Str::limit(strip_tags($this->content), 200);
+    }
+
+    /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return AgencyNewsFactory::new();
     }
 }

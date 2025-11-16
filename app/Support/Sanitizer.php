@@ -86,6 +86,9 @@ class Sanitizer
         // Boş tag'leri temizle
         $html = self::cleanEmptyTags($html);
 
+        // Tüm <a> tag'lerine rel="noopener" ekle (post-processing)
+        $html = self::addNoopenerToLinks($html);
+
         return trim($html);
     }
 
@@ -268,6 +271,59 @@ class Sanitizer
         $html = preg_replace('/<(\w+)[^>]*>\s*<\/\1>/i', '', $html);
 
         return $html;
+    }
+
+    /**
+     * Tüm <a> tag'lerine rel="noopener" ekle
+     */
+    protected static function addNoopenerToLinks(string $html): string
+    {
+        if (empty($html) || ! str_contains($html, '<a')) {
+            return $html;
+        }
+
+        // DOMDocument kullanarak linkleri işle
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+
+        // HTML yüklenirken uyarıları bastır
+        libxml_use_internal_errors(true);
+
+        // UTF-8 meta tag ekle ve body içine sar
+        $htmlWithWrapper = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>'.$html.'</body></html>';
+        $dom->loadHTML($htmlWithWrapper, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        // Tüm <a> tag'lerini bul
+        $links = $dom->getElementsByTagName('a');
+
+        foreach ($links as $link) {
+            // Ensure it's a DOMElement
+            if (! ($link instanceof \DOMElement)) {
+                continue;
+            }
+
+            $rel = $link->getAttribute('rel');
+            $relParts = array_filter(explode(' ', $rel));
+
+            // noopener yoksa ekle
+            if (! in_array('noopener', $relParts, true)) {
+                $relParts[] = 'noopener';
+                $link->setAttribute('rel', implode(' ', $relParts));
+            }
+        }
+
+        // body içeriğini geri al
+        $body = $dom->getElementsByTagName('body')->item(0);
+        if ($body === null) {
+            return $html;
+        }
+
+        $innerHTML = '';
+        foreach ($body->childNodes as $child) {
+            $innerHTML .= $dom->saveHTML($child);
+        }
+
+        return $innerHTML;
     }
 
     /**

@@ -158,11 +158,13 @@ class AgencyNewsModuleTest extends TestCase
 
     public function test_agency_news_scope_by_agency()
     {
+        // Create 1 news from agency 1
         AgencyNews::create([
             'title' => 'News from Agency 1',
             'agency_id' => 1,
         ]);
 
+        // Create 1 news from agency 2
         AgencyNews::create([
             'title' => 'News from Agency 2',
             'agency_id' => 2,

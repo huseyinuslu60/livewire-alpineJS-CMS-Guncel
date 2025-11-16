@@ -20,7 +20,7 @@ enum PostStatus: string
             self::Draft->value => 'Pasif',
             self::Published->value => 'Aktif',
             self::Scheduled->value => 'Zamanlanmış',
-            self::Archived->value => 'Arşivlendi',
+            self::Archived->value => 'Arşivlenmiş',
         ];
     }
 

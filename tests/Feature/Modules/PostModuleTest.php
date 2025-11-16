@@ -55,8 +55,9 @@ class PostModuleTest extends TestCase
 
         $this->assertInstanceOf(Post::class, $post);
         $this->assertEquals('Test Post Title', $post->title);
-        $this->assertEquals(PostType::News->value, $post->post_type);
-        $this->assertEquals(PostStatus::Published->value, $post->status);
+        // Model has enum cast, so post_type is an enum instance
+        $this->assertEquals(PostType::News, $post->post_type);
+        $this->assertEquals(PostStatus::Published, $post->status);
     }
 
     public function test_post_can_be_updated()
@@ -73,7 +74,8 @@ class PostModuleTest extends TestCase
         ]);
 
         $this->assertEquals('Updated Title', $post->fresh()->title);
-        $this->assertEquals(PostStatus::Published->value, $post->fresh()->status->value ?? $post->fresh()->status);
+        // Model has enum cast, so status is an enum instance
+        $this->assertEquals(PostStatus::Published, $post->fresh()->status);
     }
 
     public function test_post_can_be_deleted()
@@ -155,7 +157,8 @@ class PostModuleTest extends TestCase
             'published_date' => now(),
         ]);
 
-        $this->assertEquals(PostStatus::Published->value, $post->fresh()->status->value ?? $post->fresh()->status);
+        // Model has enum cast, so status is an enum instance
+        $this->assertEquals(PostStatus::Published, $post->fresh()->status);
         $this->assertNotNull($post->fresh()->published_date);
     }
 }

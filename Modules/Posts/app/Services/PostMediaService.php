@@ -71,7 +71,7 @@ class PostMediaService
 
             File::insert($uploadedFiles);
 
-            $typeValue = $type instanceof PostType ? $type->value : ($type ?? PostType::News->value);
+            $typeValue = ($type instanceof PostType) ? $type->value : (is_string($type) ? $type : PostType::News->value);
             if (! empty($galleryData) && $typeValue === PostType::Gallery->value) {
                 $fileIndex = 0;
                 foreach ($galleryData as &$data) {

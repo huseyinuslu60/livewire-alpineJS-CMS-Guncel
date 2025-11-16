@@ -20,6 +20,8 @@ class PostCreateVideo extends Component
 {
     use InteractsWithToast, ValidationMessages, WithFileUploads;
 
+    protected PostsService $postsService;
+
     public string $title = '';
 
     public string $slug = '';
@@ -65,6 +67,11 @@ class PostCreateVideo extends Component
     public bool $isSaving = false;
 
     protected $listeners = ['contentUpdated'];
+
+    public function boot(PostsService $postsService)
+    {
+        $this->postsService = $postsService;
+    }
 
     protected function messages()
     {

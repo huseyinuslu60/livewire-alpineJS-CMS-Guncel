@@ -7,6 +7,8 @@ export default defineConfig({
     define: {
         // Ensure global is available for UMD modules
         global: 'globalThis',
+        // Alpine.js is loaded globally, define it for Vite parsing
+        'window.Alpine': 'window.Alpine',
     },
     resolve: {
         alias: {

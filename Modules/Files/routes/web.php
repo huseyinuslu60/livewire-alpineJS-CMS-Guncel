@@ -24,6 +24,10 @@ Route::middleware(['web', 'auth', 'verified', 'permission:view files', 'module.a
 
             return response()->download($filePath, $file->title);
         })->name('download');
+
+        // Edit image route - Controller
+        Route::post('/files/edit-image', [\Modules\Files\Http\Controllers\ImageEditorController::class, 'editImage'])
+            ->name('edit-image');
     });
 
 // Deprecated: Eski route'lar (backward compatibility - kaldırılacak)

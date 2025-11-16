@@ -710,6 +710,61 @@ class PostEdit extends Component
         }
     }
 
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    {
+        // identifier file_id (string) veya index (integer) olabilir
+        if (is_string($identifier)) {
+            // file_id ile güncelle
+            foreach ($this->existingFiles as $index => $file) {
+                if (isset($file['file_id']) && (string) $file['file_id'] === (string) $identifier) {
+                    // Path'i güncelle (storage/ ile başlayan path)
+                    $path = str_replace(asset('storage/'), '', $imageUrl);
+                    $this->existingFiles[$index]['path'] = $path;
+                    $this->existingFiles[$index]['is_new'] = false;
+                    
+                    // Post'u refresh et ki değişiklikler görünsün
+                    $this->post->refresh();
+                    
+                    // Livewire'a güncelleme bildir
+                    $this->dispatch('image-updated', [
+                        'file_id' => $identifier,
+                        'image_url' => $imageUrl,
+                    ]);
+                    
+                    return;
+                }
+            }
+            
+            // Eğer Posts modülündeki File model'inde varsa güncelle
+            $file = \Modules\Posts\Models\File::find($identifier);
+            if ($file) {
+                $path = str_replace(asset('storage/'), '', $imageUrl);
+                $file->update(['file_path' => $path]);
+                $this->post->refresh();
+                
+                $this->dispatch('image-updated', [
+                    'file_id' => $identifier,
+                    'image_url' => $imageUrl,
+                ]);
+            }
+        } elseif (is_numeric($identifier)) {
+            // index ile güncelle
+            $index = (int) $identifier;
+            if (isset($this->existingFiles[$index])) {
+                $path = str_replace(asset('storage/'), '', $imageUrl);
+                $this->existingFiles[$index]['path'] = $path;
+                $this->existingFiles[$index]['is_new'] = false;
+                
+                $this->post->refresh();
+                
+                $this->dispatch('image-updated', [
+                    'index' => $index,
+                    'image_url' => $imageUrl,
+                ]);
+            }
+        }
+    }
+
     public function updatePost()
     {
         if (! Auth::user()->can('edit posts')) {

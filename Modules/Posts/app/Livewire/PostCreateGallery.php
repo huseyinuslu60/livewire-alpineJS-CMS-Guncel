@@ -430,6 +430,89 @@ class PostCreateGallery extends Component
         }
     }
 
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    {
+        // identifier fileId (string) olabilir
+        if (is_string($identifier) && isset($this->uploadedFiles[$identifier])) {
+            try {
+                // Convert asset URL to file path if needed
+                $filePath = $imageUrl;
+                if (str_starts_with($imageUrl, asset(''))) {
+                    // Remove asset base URL to get relative path
+                    $relativePath = str_replace(asset(''), '', $imageUrl);
+                    $filePath = public_path($relativePath);
+                } elseif (str_starts_with($imageUrl, 'http')) {
+                    // For full URLs, download the content
+                    $imageContent = @file_get_contents($imageUrl);
+                    if ($imageContent === false) {
+                        throw new \Exception('Could not download image from URL');
+                    }
+
+                    // Create temporary file in Livewire's temp directory
+                    $tempDir = sys_get_temp_dir();
+                    $oldFile = $this->uploadedFiles[$identifier]['file'];
+                    $tempFileName = 'livewire-' . uniqid() . '-' . $oldFile->getClientOriginalName();
+                    $tempFilePath = $tempDir . '/' . $tempFileName;
+                    file_put_contents($tempFilePath, $imageContent);
+
+                    // Get original file info
+                    $originalName = $oldFile->getClientOriginalName();
+                    $mimeType = $oldFile->getMimeType() ?: 'image/jpeg';
+
+                    // Create new UploadedFile
+                    $newFile = new \Illuminate\Http\UploadedFile(
+                        $tempFilePath,
+                        $originalName,
+                        $mimeType,
+                        null,
+                        true // test mode
+                    );
+
+                    // Update the file in the array
+                    $this->uploadedFiles[$identifier]['file'] = $newFile;
+
+                    $this->dispatch('image-updated', [
+                        'file_id' => $identifier,
+                        'image_url' => $imageUrl,
+                    ]);
+
+                    return;
+                } else {
+                    $filePath = $imageUrl;
+                }
+
+                // If we have a local file path
+                if (file_exists($filePath)) {
+                    $oldFile = $this->uploadedFiles[$identifier]['file'];
+                    $originalName = $oldFile->getClientOriginalName();
+                    $mimeType = $oldFile->getMimeType() ?: mime_content_type($filePath) ?: 'image/jpeg';
+
+                    $newFile = new \Illuminate\Http\UploadedFile(
+                        $filePath,
+                        $originalName,
+                        $mimeType,
+                        null,
+                        true
+                    );
+
+                    // Mevcut dosyayı güncelle
+                    $this->uploadedFiles[$identifier]['file'] = $newFile;
+
+                    $this->dispatch('image-updated', [
+                        'file_id' => $identifier,
+                        'image_url' => $imageUrl,
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error updating file preview: '.$e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                    'image_url' => $imageUrl,
+                    'file_id' => $identifier,
+                ]);
+            }
+        }
+    }
+
     public function removeDropzoneFile($file)
     {
         // Dropzone'dan dosyayı kaldır

@@ -211,16 +211,56 @@
                                     </h6>
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                         @foreach($files as $index => $file)
-                                            <div class="relative">
-                                                <img src="{{ $file->temporaryUrl() }}" 
-                                                     class="w-full h-24 object-cover rounded-lg border border-gray-200" 
-                                                     alt="Preview {{ $index + 1 }}">
-                                                <button type="button" 
-                                                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200"
-                                                        wire:click="removeFile({{ $index }})"
-                                                        title="Thumbnail'i Kaldır">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
+                                            <div class="relative group">
+                                                @php
+                                                    $previewUrl = null;
+                                                    try {
+                                                        $previewUrl = $file->temporaryUrl();
+                                                        if (empty($previewUrl) || !filter_var($previewUrl, FILTER_VALIDATE_URL)) {
+                                                            throw new \Exception('Invalid URL');
+                                                        }
+                                                    } catch (\Exception $e) {
+                                                        try {
+                                                            $realPath = $file->getRealPath();
+                                                            if ($realPath && file_exists($realPath)) {
+                                                                $fileSize = filesize($realPath);
+                                                                if ($fileSize < 2 * 1024 * 1024) {
+                                                                    $imageContent = file_get_contents($realPath);
+                                                                    $base64 = base64_encode($imageContent);
+                                                                    $mimeType = $file->getMimeType() ?: 'image/jpeg';
+                                                                    $previewUrl = 'data:' . $mimeType . ';base64,' . $base64;
+                                                                } else {
+                                                                    throw new \Exception('File too large');
+                                                                }
+                                                            } else {
+                                                                throw new \Exception('File path not found');
+                                                            }
+                                                        } catch (\Exception $e2) {
+                                                            $previewUrl = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-size="12">Resim yüklenemedi</text></svg>');
+                                                        }
+                                                    }
+                                                @endphp
+                                                <img src="{{ $previewUrl }}" 
+                                                     class="w-full h-24 object-cover rounded-lg border border-gray-200 bg-gray-100" 
+                                                     alt="Preview {{ $index + 1 }}"
+                                                     onerror="console.error('Image preview error:', this.src); this.style.backgroundColor='#f3f4f6';"
+                                                     onload="this.style.backgroundColor='transparent';"
+                                                     loading="lazy">
+                                                {{-- Top right corner buttons --}}
+                                                <div class="absolute top-1 right-1 flex gap-1">
+                                                    <button type="button" 
+                                                            class="bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                                                            onclick="if (window.openImageEditor) { window.openImageEditor({{ $index }}, '{{ $previewUrl }}'); }"
+                                                            title="Düzenle">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 shadow-md"
+                                                            wire:click="removeFile({{ $index }})"
+                                                            title="Thumbnail'i Kaldır">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
                                                 <div class="mt-1">
                                                     <p class="text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</p>
                                                 </div>
@@ -465,4 +505,9 @@
 
     {{-- Posts modülü asset dosyalarını dahil et --}}
     @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js'])
+
+    {{-- Image Editor Modal --}}
+    <div x-data="imageEditor()">
+        @include('partials.image-editor-modal')
+    </div>
 </div>

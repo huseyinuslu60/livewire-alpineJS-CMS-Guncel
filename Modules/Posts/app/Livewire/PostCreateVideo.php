@@ -129,6 +129,89 @@ class PostCreateVideo extends Component
         }
     }
 
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    {
+        // identifier index (integer) olabilir
+        if (is_numeric($identifier)) {
+            $index = (int) $identifier;
+            if (isset($this->files[$index])) {
+                try {
+                    // Convert asset URL to file path if needed
+                    $filePath = $imageUrl;
+                    if (str_starts_with($imageUrl, asset(''))) {
+                        // Remove asset base URL to get relative path
+                        $relativePath = str_replace(asset(''), '', $imageUrl);
+                        $filePath = public_path($relativePath);
+                    } elseif (str_starts_with($imageUrl, 'http')) {
+                        // For full URLs, download the content
+                        $imageContent = @file_get_contents($imageUrl);
+                        if ($imageContent === false) {
+                            throw new \Exception('Could not download image from URL');
+                        }
+                        
+                        // Create temporary file in Livewire's temp directory
+                        $tempDir = sys_get_temp_dir();
+                        $tempFileName = 'livewire-' . uniqid() . '-' . $this->files[$index]->getClientOriginalName();
+                        $tempFilePath = $tempDir . '/' . $tempFileName;
+                        file_put_contents($tempFilePath, $imageContent);
+                        
+                        // Get original file info
+                        $originalName = $this->files[$index]->getClientOriginalName();
+                        $mimeType = $this->files[$index]->getMimeType() ?: 'image/jpeg';
+                        
+                        // Create new UploadedFile
+                        $newFile = new \Illuminate\Http\UploadedFile(
+                            $tempFilePath,
+                            $originalName,
+                            $mimeType,
+                            null,
+                            true // test mode
+                        );
+                        
+                        // Replace the file in the array
+                        $this->files[$index] = $newFile;
+                        
+                        $this->dispatch('image-updated', [
+                            'index' => $index,
+                            'image_url' => $imageUrl,
+                        ]);
+                        
+                        return;
+                    } else {
+                        $filePath = $imageUrl;
+                    }
+                    
+                    // If we have a local file path
+                    if (file_exists($filePath)) {
+                        $originalName = $this->files[$index]->getClientOriginalName();
+                        $mimeType = $this->files[$index]->getMimeType() ?: mime_content_type($filePath) ?: 'image/jpeg';
+                        
+                        $newFile = new \Illuminate\Http\UploadedFile(
+                            $filePath,
+                            $originalName,
+                            $mimeType,
+                            null,
+                            true
+                        );
+                        
+                        $this->files[$index] = $newFile;
+                        
+                        $this->dispatch('image-updated', [
+                            'index' => $index,
+                            'image_url' => $imageUrl,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error updating file preview: '.$e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
+                        'image_url' => $imageUrl,
+                        'index' => $index,
+                    ]);
+                }
+            }
+        }
+    }
+
     public function savePost()
     {
         // Duplicate submit'i engelle

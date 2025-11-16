@@ -226,6 +226,9 @@ import { mountEditorsLifecycle } from './editors-lifecycle';
 import { mountLivewireAlpineLifecycle } from './livewire-alpine-lifecycle';
 import './admin-layout';
 
+// Image Editor - Alpine.js başlatılmadan önce kaydet
+import { registerImageEditor } from './image-editor';
+
 // AlpineJS Singleton Pattern - Çift başlatmayı önle
 // Alpine başlatılmadan önce global Alpine component'lerin tanımlı olduğundan emin ol
 if (import.meta.env.DEV) {
@@ -239,6 +242,11 @@ if (import.meta.env.DEV) {
         console.warn('moduleManagement Alpine.start()\'tan önce tanımlı değil');
     }
 }
+
+// Image Editor'ı kaydet - Alpine.js başlatılmadan önce
+document.addEventListener('alpine:init', () => {
+    registerImageEditor();
+}, { once: true });
 
 // Alpine.js'i başlat - global component'ler zaten tanımlı olmalı
 // Her şeyin hazır olduğundan emin olmak için DOMContentLoaded kullan

@@ -216,18 +216,37 @@
                                                         <!-- Sol taraf: Resim -->
                                                         <div class="lg:col-span-1">
                                                             <div class="relative">
-                                                                <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
-                                                                    <img src="{{ asset('storage/' . $file['path']) }}" 
-                                                                         class="w-full h-full object-cover" 
-                                                                         alt="{{ $file['alt_text'] ?? 'Gallery Image' }}">
-                                                                </div>
-                                                                <div class="absolute top-2 right-2">
-                                                                    <button type="button" 
-                                                                            class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-red-600 transition-colors duration-200"
-                                                                            wire:click="removeExistingFile({{ $index }})" 
-                                                                            title="Kaldır">
-                                                                        <i class="fas fa-times"></i>
-                                                                    </button>
+                                                                <div class="relative group">
+                                                                    <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                                                                        <img src="{{ asset('storage/' . $file['path']) }}" 
+                                                                             class="w-full h-full object-cover" 
+                                                                             alt="{{ $file['alt_text'] ?? 'Gallery Image' }}">
+                                                                        {{-- Hover overlay with edit button --}}
+                                                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
+                                                                            <button type="button" 
+                                                                                    class="opacity-0 group-hover:opacity-100 bg-blue-500 text-white rounded-lg px-3 py-2 flex items-center gap-2 text-sm font-medium hover:bg-blue-600 transition-all duration-200 shadow-lg"
+                                                                                    onclick="if (window.openImageEditor) { window.openImageEditor('{{ $file['file_id'] }}', '{{ asset('storage/' . $file['path']) }}'); }"
+                                                                                    title="Resmi Düzenle">
+                                                                                <i class="fas fa-edit"></i>
+                                                                                <span>Düzenle</span>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    {{-- Top right corner buttons --}}
+                                                                    <div class="absolute top-2 right-2 flex gap-2">
+                                                                        <button type="button" 
+                                                                                class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $file['file_id'] }}', '{{ asset('storage/' . $file['path']) }}'); }"
+                                                                                title="Düzenle">
+                                                                            <i class="fas fa-edit"></i>
+                                                                        </button>
+                                                                        <button type="button" 
+                                                                                class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-red-600 transition-colors duration-200 shadow-md"
+                                                                                wire:click="removeExistingFile({{ $index }})" 
+                                                                                title="Kaldır">
+                                                                            <i class="fas fa-times"></i>
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                                 @if($file['primary'] === true)
                                                                     <div class="absolute bottom-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-medium">
@@ -357,9 +376,30 @@
                                                          alt="Yeni seçilen resim">
                                                 @endif
                                             @elseif($this->post->primaryFile)
-                                                <img src="{{ asset('storage/' . $this->post->primaryFile->file_path) }}" 
-                                                     class="w-full h-full object-cover" 
-                                                     alt="{{ $this->post->primaryFile->alt_text ?? 'Current Image' }}">
+                                                <div class="relative w-full h-full group">
+                                                    <img src="{{ asset('storage/' . $this->post->primaryFile->file_path) }}" 
+                                                         class="w-full h-full object-cover" 
+                                                         alt="{{ $this->post->primaryFile->alt_text ?? 'Current Image' }}">
+                                                    {{-- Hover overlay with edit button --}}
+                                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
+                                                        <button type="button" 
+                                                                class="opacity-0 group-hover:opacity-100 bg-blue-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 text-sm font-medium hover:bg-blue-600 transition-all duration-200 shadow-lg"
+                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $this->post->primaryFile->id }}', '{{ asset('storage/' . $this->post->primaryFile->file_path) }}'); }"
+                                                                title="Resmi Düzenle">
+                                                            <i class="fas fa-edit"></i>
+                                                            <span>Düzenle</span>
+                                                        </button>
+                                                    </div>
+                                                    {{-- Top right corner button --}}
+                                                    <div class="absolute top-2 right-2">
+                                                        <button type="button" 
+                                                                class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $this->post->primaryFile->id }}', '{{ asset('storage/' . $this->post->primaryFile->file_path) }}'); }"
+                                                                title="Düzenle">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             @else
                                                 <div class="w-full h-full flex items-center justify-center text-gray-400">
                                                     <i class="fas fa-image text-2xl"></i>
@@ -748,4 +788,9 @@
 
     {{-- Posts modülü asset dosyalarını dahil et --}}
     @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js'])
+
+    {{-- Image Editor Modal --}}
+    <div x-data="imageEditor()">
+        @include('partials.image-editor-modal')
+    </div>
 </div>

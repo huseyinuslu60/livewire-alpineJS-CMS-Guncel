@@ -2,6 +2,8 @@
 
 namespace Modules\Settings\Http\Livewire;
 
+use App\Helpers\LogHelper;
+use App\Helpers\MenuHelper;
 use App\Models\MenuItem;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -106,11 +108,11 @@ class MenuManagement extends Component
 
     public function mount()
     {
-        \Log::info('MenuManagement component mounted');
+        LogHelper::info('MenuManagement component mounted');
         try {
             Gate::authorize('manage menu');
             $this->loadData();
-            \Log::info('MenuManagement component loaded successfully');
+            LogHelper::info('MenuManagement component loaded successfully');
         } catch (\Exception $e) {
             \Log::error('MenuManagement component error: '.$e->getMessage());
             throw $e;
@@ -119,7 +121,7 @@ class MenuManagement extends Component
 
     public function loadData()
     {
-        \Log::info('Loading menu data...');
+        LogHelper::info('Loading menu data...');
         $this->menuItems = MenuItem::with('parent', 'children')
             ->whereNull('parent_id')
             ->orderBy('sort_order')
@@ -171,7 +173,7 @@ class MenuManagement extends Component
             })
             ->toArray();
 
-        \Log::info('Menu items loaded: '.count($this->menuItems));
+        LogHelper::info('Menu items loaded: '.count($this->menuItems));
         $this->roles = Role::all()->pluck('name', 'id')->toArray();
     }
 
@@ -184,7 +186,7 @@ class MenuManagement extends Component
 
     public function showEditModal($itemId)
     {
-        \Log::info('showEditModal called with ID: '.$itemId);
+        LogHelper::info('showEditModal called with ID: '.$itemId);
 
         $item = MenuItem::find($itemId);
         if (! $item) {
@@ -209,8 +211,8 @@ class MenuManagement extends Component
         $this->isEditing = true;
         $this->showModal = true;
 
-        \Log::info('showEditModal completed, showModal: true');
-        \Log::info('Modal state - showModal: true, isEditing: true');
+        LogHelper::info('showEditModal completed, showModal: true');
+        LogHelper::info('Modal state - showModal: true, isEditing: true');
     }
 
     public function saveMenuItem()
@@ -249,6 +251,9 @@ class MenuManagement extends Component
             $this->closeModal();
             $this->loadData();
 
+            // Sidebar menü cache'ini temizle
+            MenuHelper::clearAllCache();
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Validation hatası - form kapanmaz, hatalar gösterilir
             $this->isLoading = false;
@@ -267,6 +272,9 @@ class MenuManagement extends Component
                 $item->delete();
                 session()->flash('success', 'Menü öğesi başarıyla silindi.');
                 $this->loadData();
+
+                // Sidebar menü cache'ini temizle
+                MenuHelper::clearAllCache();
             }
         } catch (\Exception $e) {
             session()->flash('error', 'Silme işlemi sırasında bir hata oluştu: '.$e->getMessage());
@@ -280,6 +288,9 @@ class MenuManagement extends Component
             if ($item) {
                 $item->update(['is_active' => ! $item->is_active]);
                 $this->loadData();
+
+                // Sidebar menü cache'ini temizle
+                MenuHelper::clearAllCache();
             }
         } catch (\Exception $e) {
             session()->flash('error', 'Durum değiştirme sırasında bir hata oluştu: '.$e->getMessage());
@@ -298,7 +309,7 @@ class MenuManagement extends Component
     public function updateSortOrder($newOrder)
     {
         try {
-            \Log::info('updateSortOrder called with:', $newOrder);
+            LogHelper::info('updateSortOrder called with:', $newOrder);
 
             if (empty($newOrder) || ! is_array($newOrder)) {
                 \Log::warning('Empty or invalid newOrder array');
@@ -306,18 +317,37 @@ class MenuManagement extends Component
                 return;
             }
 
-            foreach ($newOrder as $item) {
+            // Duplicate ID'leri önlemek için son güncellemeyi kullan
+            $processedIds = [];
+            foreach (array_reverse($newOrder) as $item) {
                 if (! isset($item['id']) || ! isset($item['sort_order'])) {
                     \Log::warning('Missing id or sort_order in item:', $item);
 
                     continue;
                 }
 
+                // Duplicate ID'yi atla (son güncelleme zaten yapıldı)
+                if (in_array($item['id'], $processedIds)) {
+                    continue;
+                }
+                $processedIds[] = $item['id'];
+
+                $updateData = ['sort_order' => $item['sort_order']];
+
+                // parent_id varsa güncelle (null veya 0 ise null yap)
+                if (isset($item['parent_id'])) {
+                    $updateData['parent_id'] = ($item['parent_id'] === 0 || $item['parent_id'] === null) ? null : (int) $item['parent_id'];
+                }
+
                 MenuItem::where('id', $item['id'])
-                    ->update(['sort_order' => $item['sort_order']]);
+                    ->update($updateData);
             }
 
             $this->loadData();
+
+            // Sidebar menü cache'ini temizle
+            MenuHelper::clearAllCache();
+
             session()->flash('success', 'Menü sıralaması başarıyla güncellendi.');
         } catch (\Exception $e) {
             \Log::error('Sort order update error: '.$e->getMessage(), [
@@ -371,7 +401,7 @@ class MenuManagement extends Component
 
     public function render()
     {
-        \Log::info('MenuManagement render method called - showModal: '.($this->showModal ? 'true' : 'false'));
+        LogHelper::info('MenuManagement render method called - showModal: '.($this->showModal ? 'true' : 'false'));
 
         /** @var view-string $view */
         $view = 'settings::livewire.menu-management';

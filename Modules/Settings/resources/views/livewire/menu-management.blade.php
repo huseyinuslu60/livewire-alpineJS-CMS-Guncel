@@ -1,5 +1,11 @@
 <div>
 
+    @push('scripts')
+        @once
+            @vite(['Modules/Settings/resources/assets/js/app.js'])
+        @endonce
+    @endpush
+
     <!-- Header -->
     <div class="mb-6">
         <div class="flex items-center justify-between">

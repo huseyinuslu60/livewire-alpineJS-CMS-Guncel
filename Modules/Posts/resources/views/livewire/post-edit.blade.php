@@ -205,7 +205,7 @@
                                         </div>
                                         <div class="space-y-4" id="gallery-sortable" x-data="gallerySortable()">
                                             @foreach($existingFiles as $index => $file)
-                                                <div class="gallery-item bg-gray-50 rounded-xl p-4 border border-gray-200 relative" data-index="{{ $index }}" data-file-id="{{ $file['file_id'] }}" id="gallery-item-{{ $file['file_id'] }}">
+                                                <div class="gallery-item bg-gray-50 rounded-xl p-4 border border-gray-200 relative" data-index="{{ $index }}" data-file-id="{{ $file['file_id'] }}" id="gallery-item-{{ $file['file_id'] }}" wire:key="gallery-item-{{ $file['file_id'] }}">
                                                     <!-- Sortable Handle -->
                                                     <div class="sortable-handle absolute top-2 left-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10 cursor-grab hover:bg-orange-600 transition-colors">
                                                         <i class="fas fa-grip-vertical mr-1"></i>
@@ -221,16 +221,7 @@
                                                                         <img src="{{ asset('storage/' . $file['path']) }}"
                                                                              class="w-full h-full object-cover"
                                                                              alt="{{ $file['alt_text'] ?? 'Gallery Image' }}">
-                                                                        {{-- Hover overlay with edit button --}}
-                                                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
-                                                                            <button type="button"
-                                                                                    class="opacity-0 group-hover:opacity-100 bg-blue-500 text-white rounded-lg px-3 py-2 flex items-center gap-2 text-sm font-medium hover:bg-blue-600 transition-all duration-200 shadow-lg"
-                                                                                    onclick="if (window.openImageEditor) { window.openImageEditor('{{ $file['file_id'] }}', '{{ asset('storage/' . $file['path']) }}'); }"
-                                                                                    title="Resmi Düzenle">
-                                                                                <i class="fas fa-edit"></i>
-                                                                                <span>Düzenle</span>
-                                                                            </button>
-                                                                        </div>
+
                                                                     </div>
                                                                     {{-- Top right corner buttons --}}
                                                                     <div class="absolute top-2 right-2 flex gap-2">
@@ -291,7 +282,8 @@
                                                                          id="description-editor-{{ $file['file_id'] }}"
                                                                          class="trix-editor block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                                                                          placeholder="Bu resim için detaylı açıklama yazın..."
-                                                                         data-description="{{ $file['description'] ?? '' }}"></trix-editor>
+                                                                         data-description="{{ htmlspecialchars($file['description'] ?? '', ENT_QUOTES, 'UTF-8') }}"
+                                                                         data-file-id="{{ $file['file_id'] }}"></trix-editor>
                                                                 </div>
                                                             </div>
                                                         </div>

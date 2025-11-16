@@ -128,7 +128,8 @@ class PostEdit extends Component
         }
 
         // Model'i yenile ki güncel verileri alsın
-        $this->post = Post::findOrFail($postId)->fresh();
+        $this->post = Post::findOrFail($postId);
+        $this->post->refresh(); // Güncel verileri al
         $this->postType = $this->post->post_type;
 
         // Debug: Post content kontrolü
@@ -188,21 +189,50 @@ class PostEdit extends Component
         }
 
         // Mevcut dosyaları content'den yükle (gallery için)
+        $this->loadExistingFiles();
+
+        // Temiz dosya sistemi başlat
+        $this->uploadedFiles = [];
+
+        // Initialize spot_data properties to avoid Livewire serialization issues
+        $this->desktopCrop = [];
+        $this->mobileCrop = [];
+        $this->desktopFocus = 'center';
+        $this->mobileFocus = 'center';
+        $this->imageEffects = [];
+        $this->imageMeta = [];
+
+        // Load spot_data if exists, otherwise migrate from legacy data
+        $this->loadSpotData();
+    }
+
+    /**
+     * Load existing files from database (for gallery posts)
+     */
+    protected function loadExistingFiles(): void
+    {
         $this->existingFiles = [];
+
         if ($this->post->post_type === 'gallery') {
-            // Content'i direkt database'den al (fresh ile güncel veri)
-            $content = \DB::table('posts')->where('post_id', $postId)->value('content');
+            // Content'i direkt database'den al (güncel veri için)
+            // hydrate() veya mount() zaten refresh() çağırıyor, burada sadece content'i al
+            $content = $this->post->content;
             $galleryData = json_decode($content, true) ?: [];
 
-            // Debug: Gallery data kontrolü (sadece development'ta)
-            if (config('app.debug')) {
-                \Log::info('Loading gallery data:', [
-                    'post_id' => $postId,
-                    'gallery_data' => $galleryData,
-                    'content' => $this->post->content,
-                    'db_content' => $content,
-                ]);
+            // Eğer decode başarısız olursa veya content boşsa, direkt DB'den al
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($galleryData) || empty($content)) {
+                $content = \DB::table('posts')->where('post_id', $this->post->post_id)->value('content');
+                $galleryData = json_decode($content, true) ?: [];
             }
+
+            // Debug: Gallery data kontrolü
+            \Log::info('Loading gallery data in loadExistingFiles:', [
+                'post_id' => $this->post->post_id,
+                'gallery_data_count' => is_array($galleryData) ? count($galleryData) : 0,
+                'content_length' => strlen($content ?? ''),
+                'content_preview' => substr($content ?? '', 0, 200),
+                'json_error' => json_last_error() === JSON_ERROR_NONE ? 'none' : json_last_error_msg(),
+            ]);
 
             if (is_array($galleryData) && ! empty($galleryData)) {
                 // Order'a göre sırala
@@ -226,14 +256,26 @@ class PostEdit extends Component
                         }
                     }
 
+                    $description = $fileData['description'] ?? '';
+
+                    // Debug: Her dosya için description kontrolü
+                    \Log::info('Processing file in loadExistingFiles:', [
+                        'file_id' => $fileId,
+                        'filename' => $fileData['filename'] ?? '',
+                        'description' => $description,
+                        'description_length' => strlen($description),
+                        'has_description' => !empty($description),
+                        'fileData_keys' => array_keys($fileData),
+                    ]);
+
                     return [
                         'file_id' => (string) $fileId, // Kalıcı file_id kullan (string olarak tutuluyor)
-                        'path' => $fileData['file_path'],
-                        'original_name' => $fileData['filename'],
-                        'description' => $fileData['description'] ?? '', // Boş string de olsa göster
-                        'primary' => (bool) $fileData['is_primary'], // is_primary -> primary
+                        'path' => $fileData['file_path'] ?? '',
+                        'original_name' => $fileData['filename'] ?? '',
+                        'description' => $description, // Boş string de olsa göster
+                        'primary' => (bool) ($fileData['is_primary'] ?? false), // is_primary -> primary
                         'type' => $fileData['type'] ?? 'image/jpeg',
-                        'order' => (int) $fileData['order'], // Order'ı koru
+                        'order' => (int) ($fileData['order'] ?? $index), // Order'ı koru
                         'uploaded_at' => $fileData['uploaded_at'] ?? now()->toISOString(), // uploaded_at ekle
                     ];
                 })->toArray();
@@ -243,7 +285,8 @@ class PostEdit extends Component
                     return [
                         'file_id' => $file['file_id'],
                         'description' => $file['description'],
-                        'description_length' => strlen($file['description']),
+                        'description_length' => strlen($file['description'] ?? ''),
+                        'has_description' => !empty($file['description']),
                     ];
                 }, $this->existingFiles));
 
@@ -257,7 +300,7 @@ class PostEdit extends Component
                 }
 
                 // Debug için
-                \Log::info('Primary file ID set to:', ['id' => $this->primaryFileId, 'galleryData' => $galleryData]);
+                \Log::info('Primary file ID set to:', ['id' => $this->primaryFileId]);
                 \Log::info('Existing files loaded:', ['count' => count($this->existingFiles)]);
             }
         } elseif ($this->post->primaryFile) {
@@ -279,20 +322,6 @@ class PostEdit extends Component
                 'path' => $primaryFile->file_path,
             ]);
         }
-
-        // Temiz dosya sistemi başlat
-        $this->uploadedFiles = [];
-
-        // Initialize spot_data properties to avoid Livewire serialization issues
-        $this->desktopCrop = [];
-        $this->mobileCrop = [];
-        $this->desktopFocus = 'center';
-        $this->mobileFocus = 'center';
-        $this->imageEffects = [];
-        $this->imageMeta = [];
-
-        // Load spot_data if exists, otherwise migrate from legacy data
-        $this->loadSpotData();
     }
 
     /**
@@ -1363,6 +1392,21 @@ class PostEdit extends Component
             // Post'u refresh et ki yeni dosyalar için file_path'ler güncellensin
             $this->post->refresh();
 
+            // ÖNEMLİ: existingFiles array'i updateFileById ile güncellenmiş olmalı
+            // Veritabanından yükleme yapmıyoruz çünkü bu güncel description'ları ezer
+
+            // DEBUG: existingFiles array'ini kontrol et
+            \Log::info('Before updateGalleryContent in updatePost - existingFiles:', [
+                'existingFiles_count' => count($this->existingFiles),
+                'descriptions' => array_map(function ($file) {
+                    return [
+                        'file_id' => $file['file_id'],
+                        'description' => $file['description'] ?? '',
+                        'description_length' => strlen($file['description'] ?? ''),
+                    ];
+                }, $this->existingFiles),
+            ]);
+
             // Yeni dosyalar için file_path'leri güncelle ve açıklamaları koru
             if (! empty($newFiles)) {
                 /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Posts\Models\File> $postFiles */
@@ -1392,6 +1436,21 @@ class PostEdit extends Component
             }
 
             // existingFiles'dan açıklamaları al ve updateGalleryContent() ile kaydet
+            // ÖNEMLİ: existingFiles array'i güncel olmalı (updateFileById ile güncellenmiş olmalı)
+            // updateFileById zaten existingFiles array'ini güncelliyor, bu yüzden veritabanından yüklemeye gerek yok
+
+            // DEBUG: existingFiles array'ini kontrol et (updateGalleryContent öncesi)
+            \Log::info('Before updateGalleryContent - final existingFiles descriptions:', [
+                'existingFiles_count' => count($this->existingFiles),
+                'descriptions' => array_map(function ($file) {
+                    return [
+                        'file_id' => $file['file_id'],
+                        'description' => $file['description'] ?? '',
+                        'description_length' => strlen($file['description'] ?? ''),
+                    ];
+                }, $this->existingFiles),
+            ]);
+
             $this->updateGalleryContent();
         }
 
@@ -1647,36 +1706,63 @@ class PostEdit extends Component
         // Convert fileId to string for comparison (handles both string and numeric IDs)
         $fileIdStr = (string) $fileId;
 
+        $updated = false;
+
         // First, try to update in existingFiles array (existing files)
         foreach ($this->existingFiles as $index => $file) {
             $currentFileId = isset($file['file_id']) ? (string) $file['file_id'] : null;
 
             if ($currentFileId === $fileIdStr) {
+                // Mevcut değeri log'la
+                $oldValue = $this->existingFiles[$index][$field] ?? '';
+
+                // existingFiles array'ini güncelle
                 $this->existingFiles[$index][$field] = $value;
+                $updated = true;
 
                 // If fileId is numeric (existing file in database), update database
                 if (is_numeric($fileId)) {
                     File::where('file_id', (int) $fileId)->update([$dbField => $value]);
                 }
 
-                return;
+                // Gallery için description güncellendiğinde log ekle ve veritabanına kaydet
+                if ($this->post->post_type === 'gallery' && $field === 'description') {
+                    \Log::info('Description updated in updateFileById:', [
+                        'file_id' => $fileId,
+                        'file_id_str' => $fileIdStr,
+                        'old_description' => $oldValue,
+                        'new_description' => $value,
+                        'description_length' => strlen($value),
+                        'existingFiles_count' => count($this->existingFiles),
+                        'updated_index' => $index,
+                        'file_data' => $this->existingFiles[$index],
+                        'file_description_after_update' => $this->existingFiles[$index]['description'] ?? 'NOT SET',
+                    ]);
+
+                    // Gallery post'ları için hemen veritabanına kaydet
+                    // updateGalleryContent existingFiles array'ini kullanarak posts.content JSON'ına kaydeder
+                    $this->updateGalleryContent();
+                }
+
+                break;
             }
         }
 
         // If not found in existingFiles, try uploadedFiles array (new files)
-        if (isset($this->uploadedFiles[$fileIdStr])) {
+        if (! $updated && isset($this->uploadedFiles[$fileIdStr])) {
             $this->uploadedFiles[$fileIdStr][$field] = $value;
-
-            return;
+            $updated = true;
         }
 
         // If not found in either array, log debug info
-        \Log::debug('File not found in updateFileById:', [
-            'fileId' => $fileId,
-            'field' => $field,
-            'existing_file_ids' => array_column($this->existingFiles, 'file_id'),
-            'uploaded_file_ids' => array_keys($this->uploadedFiles),
-        ]);
+        if (! $updated) {
+            \Log::debug('File not found in updateFileById:', [
+                'fileId' => $fileId,
+                'field' => $field,
+                'existing_file_ids' => array_column($this->existingFiles, 'file_id'),
+                'uploaded_file_ids' => array_keys($this->uploadedFiles),
+            ]);
+        }
     }
 
     private function updateGalleryContent(): bool
@@ -1687,12 +1773,15 @@ class PostEdit extends Component
                 return [
                     'file_id' => $file['file_id'],
                     'description' => $file['description'] ?? '',
+                    'description_length' => strlen($file['description'] ?? ''),
+                    'has_description' => !empty($file['description']),
                     'original_name' => $file['original_name'],
                 ];
             }, $this->existingFiles);
 
             Log::info('Before saveGalleryContent - existingFiles descriptions:', [
                 'descriptions' => $descriptions,
+                'existingFiles_count' => count($this->existingFiles),
             ]);
 
             // PostsService kullanarak veritabanına kaydet
@@ -1856,6 +1945,24 @@ class PostEdit extends Component
             // Hata durumunda orijinal sıralamayı koru
             $this->post->refresh();
             $this->mount($this->post->post_id);
+        }
+    }
+
+    /**
+     * Hydrate component - called when component is loaded/re-rendered
+     * Ensures existingFiles is always up-to-date for gallery posts
+     */
+    public function hydrate()
+    {
+        // Gallery post'ları için existingFiles'ı her zaman yeniden yükle
+        // Bu sayede description'lar her zaman güncel olur (sayfa yenilendiğinde bile)
+        // updateFileById zaten veritabanına kaydediyor, o yüzden her zaman veritabanından yüklemek güvenli
+        if (isset($this->post) && $this->post->post_type === 'gallery') {
+            // Post model'ini yenile
+            $this->post->refresh();
+
+            // existingFiles'ı yeniden yükle (description'lar dahil - veritabanından)
+            $this->loadExistingFiles();
         }
     }
 

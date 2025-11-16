@@ -4,6 +4,7 @@ namespace Modules\Authors\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -17,7 +18,7 @@ use Modules\Authors\Services\AuthorService;
  */
 class AuthorIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     protected AuthorService $authorService;
 
@@ -53,8 +54,10 @@ class AuthorIndex extends Component
 
             $visibility = $author->show_on_mainpage ? 'gösterilecek' : 'gizlenecek';
             $this->toastSuccess("Yazar ana sayfada {$visibility}.");
-        } catch (\Exception $e) {
-            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Ana sayfa durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'author_id' => $authorId,
+            ]);
         }
     }
 
@@ -68,8 +71,10 @@ class AuthorIndex extends Component
 
             $status = $author->status ? 'aktif' : 'pasif';
             $this->toastSuccess("Yazar durumu {$status} olarak güncellendi.");
-        } catch (\Exception $e) {
-            $this->toastError('Yazar durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yazar durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'author_id' => $authorId,
+            ]);
         }
     }
 
@@ -105,8 +110,10 @@ class AuthorIndex extends Component
             $this->authorService->delete($author);
 
             $this->toastSuccess('Yazar başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Yazar silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yazar silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'author_id' => $authorId,
+            ]);
         }
     }
 

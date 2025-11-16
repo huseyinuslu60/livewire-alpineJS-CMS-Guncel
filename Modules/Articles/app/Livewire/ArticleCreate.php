@@ -4,6 +4,7 @@ namespace Modules\Articles\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
+use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -12,7 +13,7 @@ use Modules\Articles\Services\ArticleService;
 
 class ArticleCreate extends Component
 {
-    use InteractsWithToast, ValidationMessages;
+    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
 
     protected ArticleService $articleService;
 
@@ -96,8 +97,8 @@ class ArticleCreate extends Component
             $this->toastSuccess($this->createContextualSuccessMessage('created', 'title', 'article'), 6000);
 
             return redirect()->route('articles.index');
-        } catch (\Exception $e) {
-            $this->toastError('Makale oluşturulurken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Makale oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
         }
     }
 

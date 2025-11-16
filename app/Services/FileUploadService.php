@@ -164,10 +164,21 @@ class FileUploadService
                 'size' => $file->getSize(),
                 'original_name' => $file->getClientOriginalName(),
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \Log::error('File upload error', [
+                'message' => $e->getMessage(),
+                'exception' => $e,
+                'user_id' => optional(auth()->user())->id,
+                'file_name' => $file->getClientOriginalName() ?? null,
+            ]);
+            
+            if (function_exists('report')) {
+                report($e);
+            }
+            
             return [
                 'success' => false,
-                'message' => 'Resim yüklenirken hata oluştu: '.$e->getMessage(),
+                'message' => 'Resim yüklenirken bir hata oluştu. Lütfen tekrar deneyin.',
             ];
         }
     }
@@ -203,8 +214,19 @@ class FileUploadService
                     'size' => $file->getSize(),
                     'mime_type' => $file->getMimeType(),
                 ];
-            } catch (\Exception $e) {
-                $errors[] = 'Dosya yüklenirken hata oluştu: '.$e->getMessage();
+            } catch (\Throwable $e) {
+                \Log::error('File upload error in batch', [
+                    'message' => $e->getMessage(),
+                    'exception' => $e,
+                    'user_id' => optional(auth()->user())->id,
+                    'file_name' => $file->getClientOriginalName() ?? null,
+                ]);
+                
+                if (function_exists('report')) {
+                    report($e);
+                }
+                
+                $errors[] = 'Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.';
             }
         }
 

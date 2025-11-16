@@ -2,12 +2,14 @@
 
 namespace Modules\Files\Livewire;
 
+use App\Livewire\Concerns\HasBulkActions;
+use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Modules\Files\Models\File;
 use Modules\Files\Services\FileService;
 
@@ -28,22 +30,20 @@ use Modules\Files\Services\FileService;
  */
 class FileIndex extends Component
 {
-    use InteractsWithToast, ValidationMessages, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HasSearchAndFilters, HasBulkActions;
 
     protected FileService $fileService;
 
-    public ?string $search = null;
+    public int $perPage = 10;
 
     public ?string $mimeType = null;
-
-    public int $perPage = 10;
 
     /** @var array<int> */
     public array $selectedFiles = [];
 
-    public bool $selectAll = false;
-
-    public string $bulkAction = '';
+    /** @var array<int> Mevcut sayfadaki görünen file ID'leri - performans için */
+    public array $visibleFileIds = [];
 
     public bool $selectionMode = false; // Medya kütüphanesi seçim modu
 
@@ -81,31 +81,54 @@ class FileIndex extends Component
         Gate::authorize('view files');
     }
 
-    public function updatedSearch()
+    /**
+     * Get filter properties for HasSearchAndFilters trait
+     */
+    protected function getFilterProperties(): array
     {
-        $this->resetPage();
+        return ['search', 'mimeType'];
     }
 
-    public function updatedMimeType()
+    /**
+     * Get selected items property name for HasBulkActions trait
+     */
+    protected function getSelectedItemsPropertyName(): string
     {
-        $this->resetPage();
+        return 'selectedFiles';
     }
 
-    public function updatedSelectAll()
+    /**
+     * Get visible item IDs for HasBulkActions trait
+     */
+    protected function getVisibleItemIds(): array
     {
-        if ($this->selectAll) {
-            $this->selectedFiles = $this->getFiles()->pluck('id')->toArray();
-        } else {
-            $this->selectedFiles = [];
+        return $this->visibleFileIds;
+    }
+
+    /**
+     * Handle updated method - combine both traits
+     */
+    public function updated($propertyName): void
+    {
+        // Handle search and filters
+        if (in_array($propertyName, $this->getFilterProperties())) {
+            $this->onFilterUpdated($propertyName);
+        }
+
+        // Handle bulk actions
+        $selectedPropertyName = $this->getSelectedItemsPropertyName();
+        if ($propertyName === $selectedPropertyName) {
+            if (! is_array($this->$propertyName)) {
+                $this->$propertyName = [];
+            }
+
+            $visibleIds = $this->getVisibleItemIds();
+            $diff = array_diff($visibleIds, $this->$propertyName);
+            $this->selectAll = empty($diff);
         }
     }
 
-    public function updatedSelectedFiles()
-    {
-        $this->selectAll = count($this->selectedFiles) === $this->getFiles()->count();
-    }
-
-    public function applyBulkAction()
+    public function applyBulkAction(): void
     {
         Gate::authorize('delete files');
 
@@ -113,9 +136,7 @@ class FileIndex extends Component
             $this->deleteSelectedFiles();
         }
 
-        $this->selectedFiles = [];
-        $this->selectAll = false;
-        $this->bulkAction = '';
+        $this->clearBulkActionState();
     }
 
     public function deleteSelectedFiles()
@@ -127,8 +148,10 @@ class FileIndex extends Component
             $this->selectedFiles = [];
             $this->selectAll = false;
             $this->resetPage();
-        } catch (\Exception $e) {
-            $this->toastError('Dosyalar silinirken hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Dosyalar silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'selected_files' => $this->selectedFiles ?? null,
+            ]);
         }
     }
 
@@ -149,8 +172,10 @@ class FileIndex extends Component
 
             $this->toastSuccess($this->createContextualSuccessMessage('deleted', 'name', 'file'));
             $this->resetPage();
-        } catch (\Exception $e) {
-            $this->toastError('Dosya silinirken hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Dosya silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'file_id' => $fileId,
+            ]);
         }
     }
 
@@ -180,8 +205,10 @@ class FileIndex extends Component
                 // Form'u reset et ve modal'ı kapat
                 $this->resetEditForm();
             }
-        } catch (\Exception $e) {
-            $this->toastError('Dosya güncellenirken hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Dosya güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'file_id' => $this->editingFile->file_id ?? null,
+            ]);
         }
     }
 
@@ -293,8 +320,13 @@ class FileIndex extends Component
         /** @var view-string $view */
         $view = 'files::livewire.file-index';
 
+        $files = $this->getFiles()->paginate(Pagination::clamp($this->perPage));
+
+        // Mevcut sayfadaki görünen file ID'lerini kaydet - performans için
+        $this->visibleFileIds = $files->pluck('file_id')->all();
+
         return view($view, [
-            'files' => $this->getFiles()->paginate(Pagination::clamp($this->perPage)),
+            'files' => $files,
             'mimeTypes' => [
                 'image' => 'Resimler',
                 'video' => 'Videolar',

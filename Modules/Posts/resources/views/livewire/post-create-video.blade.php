@@ -218,7 +218,7 @@
                                     id="post_position" 
                                     required>
                                 @foreach($postPositions as $position)
-                                    <option value="{{ $position }}">{{ \Modules\Posts\Models\Post::POSITION_LABELS[$position] ?? ucfirst($position) }}</option>
+                                    <option value="{{ $position }}">{{ \Modules\Posts\Enums\PostPosition::label($position) }}</option>
                                 @endforeach
                             </select>
                         </div>

@@ -4,6 +4,7 @@ namespace Modules\Roles\Livewire;
 
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
+use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
@@ -13,7 +14,7 @@ use Spatie\Permission\Models\Role;
 
 class RoleManagement extends Component
 {
-    use InteractsWithModal, InteractsWithToast, ValidationMessages;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
 
     protected RoleService $roleService;
 
@@ -89,9 +90,9 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->isLoading = false;
-            $this->toastError('Rol oluşturulurken hata oluştu: '.$e->getMessage());
+            $this->handleException($e, 'Rol oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
         }
     }
 
@@ -162,9 +163,11 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->isLoading = false;
-            $this->toastError('Rol güncellenirken hata oluştu: '.$e->getMessage());
+            $this->handleException($e, 'Rol güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'role_id' => $this->editingRole->id ?? null,
+            ]);
         }
     }
 
@@ -211,8 +214,10 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
-        } catch (\Exception $e) {
-            $this->toastError('Rol silinirken hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Rol silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'role_id' => $roleId,
+            ]);
         }
     }
 
@@ -262,9 +267,11 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->isLoading = false;
-            $this->toastError('Yetkiler güncellenirken hata oluştu: '.$e->getMessage());
+            $this->handleException($e, 'Yetkiler güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'role_id' => $this->editingRole->id ?? null,
+            ]);
         }
     }
 

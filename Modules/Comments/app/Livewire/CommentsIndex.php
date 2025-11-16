@@ -4,6 +4,7 @@ namespace Modules\Comments\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -21,7 +22,7 @@ use Modules\Comments\Services\CommentService;
  */
 class CommentsIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     protected CommentService $commentService;
 
@@ -108,8 +109,10 @@ class CommentsIndex extends Component
 
             // Success mesajını JavaScript ile göster
             $this->dispatch('show-success', 'Yorum onaylandı.');
-        } catch (\Exception $e) {
-            $this->dispatch('show-error', 'Yorum onaylanırken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yorum onaylanırken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'comment_id' => $commentId,
+            ]);
         }
     }
 
@@ -129,8 +132,10 @@ class CommentsIndex extends Component
 
             // Success mesajını JavaScript ile göster
             $this->dispatch('show-success', 'Yorum reddedildi.');
-        } catch (\Exception $e) {
-            $this->dispatch('show-error', 'Yorum reddedilirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yorum reddedilirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'comment_id' => $commentId,
+            ]);
         }
     }
 
@@ -142,8 +147,10 @@ class CommentsIndex extends Component
             $comment = Comment::findOrFail($commentId);
             $this->commentService->delete($comment);
             $this->toastSuccess('Yorum silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Yorum silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yorum silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'comment_id' => $commentId,
+            ]);
         }
     }
 
@@ -169,8 +176,10 @@ class CommentsIndex extends Component
 
             // Sadece bu yorumu yeniden render et, tüm sayfayı değil
             $this->dispatch('comment-updated', $commentId);
-        } catch (\Exception $e) {
-            $this->toastError('Yorum düzenlenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yorum düzenlenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'comment_id' => $commentId,
+            ]);
         }
     }
 
@@ -196,8 +205,10 @@ class CommentsIndex extends Component
 
             // Sadece bu yorumu yeniden render et, tüm sayfayı değil
             $this->dispatch('comment-updated', $commentId);
-        } catch (\Exception $e) {
-            $this->toastError('Yorum güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Yorum güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'comment_id' => $commentId,
+            ]);
         }
     }
 

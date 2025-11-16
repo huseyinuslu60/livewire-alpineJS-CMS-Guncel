@@ -16,7 +16,17 @@ class LastminuteService
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
-        $query = Lastminute::query();
+        // Optimize: Sadece listing için gerekli kolonları seç
+        $query = Lastminute::query()
+            ->select([
+                'lastminute_id',
+                'title',
+                'redirect',
+                'end_at',
+                'status',
+                'weight',
+                'created_at',
+            ]);
 
         if (! empty($filters['search'])) {
             $query->search($filters['search']);

@@ -2,32 +2,33 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Livewire\Concerns\HasBulkActions;
+use App\Livewire\Concerns\HasSearchAndFilters;
+use App\Livewire\Concerns\HasColumnPreferences;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Modules\Banks\Models\Stock;
 use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HasSearchAndFilters, HasBulkActions, HasColumnPreferences;
 
     protected StockService $stockService;
 
-    public ?string $search = null;
+    public ?int $perPage = null;
 
     public ?string $status = null;
-
-    public ?int $perPage = null;
 
     /** @var array<int> */
     public array $selectedStocks = [];
 
-    public bool $selectAll = false;
-
-    public string $bulkAction = '';
+    /** @var array<int> Mevcut sayfadaki görünen stock ID'leri - performans için */
+    public array $visibleStockIds = [];
 
     /** @var array<string, bool> */
     public array $visibleColumns = [];
@@ -42,26 +43,73 @@ class StockIndex extends Component
         $this->stockService = $stockService;
     }
 
-    public function updatedSearch()
+    /**
+     * Get filter properties for HasSearchAndFilters trait
+     */
+    protected function getFilterProperties(): array
     {
-        $this->resetPage();
+        return ['search', 'status'];
     }
 
-    public function updatedSelectAll()
+    /**
+     * Get selected items property name for HasBulkActions trait
+     */
+    protected function getSelectedItemsPropertyName(): string
     {
-        if ($this->selectAll) {
-            $this->selectedStocks = $this->getStocks()->pluck('stock_id')->toArray();
-        } else {
-            $this->selectedStocks = [];
+        return 'selectedStocks';
+    }
+
+    /**
+     * Get visible item IDs for HasBulkActions trait
+     */
+    protected function getVisibleItemIds(): array
+    {
+        return $this->visibleStockIds;
+    }
+
+    /**
+     * Get default columns for HasColumnPreferences trait
+     */
+    protected function getDefaultColumns(): array
+    {
+        return [
+            'checkbox' => true,
+            'id' => true,
+            'name' => true,
+            'unvan' => true,
+            'kurulus_tarihi' => true,
+            'status' => true,
+            'creator' => true,
+            'updater' => true,
+            'date' => true,
+            'actions' => true,
+        ];
+    }
+
+    /**
+     * Handle updated method - combine both traits
+     */
+    public function updated($propertyName): void
+    {
+        // Handle search and filters
+        if (in_array($propertyName, $this->getFilterProperties())) {
+            $this->onFilterUpdated($propertyName);
+        }
+
+        // Handle bulk actions
+        $selectedPropertyName = $this->getSelectedItemsPropertyName();
+        if ($propertyName === $selectedPropertyName) {
+            if (! is_array($this->$propertyName)) {
+                $this->$propertyName = [];
+            }
+
+            $visibleIds = $this->getVisibleItemIds();
+            $diff = array_diff($visibleIds, $this->$propertyName);
+            $this->selectAll = empty($diff);
         }
     }
 
-    public function updatedSelectedStocks()
-    {
-        $this->selectAll = count($this->selectedStocks) === $this->getStocks()->count();
-    }
-
-    public function applyBulkAction()
+    public function applyBulkAction(): void
     {
         if (! Auth::user()->can('edit stocks')) {
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
@@ -74,13 +122,14 @@ class StockIndex extends Component
         try {
             $message = $this->stockService->applyBulkAction($this->bulkAction, $this->selectedStocks);
 
-            $this->selectedStocks = [];
-            $this->selectAll = false;
-            $this->bulkAction = '';
+            $this->clearBulkActionState();
 
             $this->toastSuccess($message);
-        } catch (\Exception $e) {
-            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'selected_ids' => $this->selectedStocks ?? null,
+                'bulk_action' => $this->bulkAction ?? null,
+            ]);
         }
     }
 
@@ -95,8 +144,10 @@ class StockIndex extends Component
             $this->stockService->delete($stock);
 
             $this->toastSuccess('Hisse senedi başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Hisse senedi silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Hisse senedi silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'stock_id' => $id,
+            ]);
         }
     }
 
@@ -117,38 +168,6 @@ class StockIndex extends Component
         $this->loadUserColumnPreferences();
     }
 
-    public function loadUserColumnPreferences()
-    {
-        $user = Auth::user();
-        $defaultColumns = [
-            'checkbox' => true,
-            'id' => true,
-            'name' => true,
-            'unvan' => true,
-            'kurulus_tarihi' => true,
-            'status' => true,
-            'creator' => true,
-            'updater' => true,
-            'date' => true,
-            'actions' => true,
-        ];
-
-        if ($user && $user instanceof \App\Models\User && $user->table_columns) {
-            $userColumns = is_array($user->table_columns) ? $user->table_columns : json_decode($user->table_columns, true) ?? [];
-            $this->visibleColumns = array_merge($defaultColumns, $userColumns);
-        } else {
-            $this->visibleColumns = $defaultColumns;
-        }
-    }
-
-    public function updatedVisibleColumns()
-    {
-        $user = Auth::user();
-        if ($user) {
-            $user->update(['table_columns' => $this->visibleColumns]);
-        }
-    }
-
     public function render()
     {
         if (! Auth::user()->can('view stocks')) {
@@ -158,8 +177,13 @@ class StockIndex extends Component
         /** @var view-string $view */
         $view = 'banks::livewire.stock-index';
 
+        $stocks = $this->getStocks();
+
+        // Mevcut sayfadaki görünen stock ID'lerini kaydet - performans için
+        $this->visibleStockIds = $stocks->pluck('stock_id')->all();
+
         return view($view, [
-            'stocks' => $this->getStocks(),
+            'stocks' => $stocks,
         ])->extends('layouts.admin')->section('content');
     }
 }

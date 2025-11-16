@@ -2,6 +2,7 @@
 
 namespace Modules\Articles\Services;
 
+use App\Support\Sanitizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,11 @@ class ArticleService
                 $data['published_at'] = now();
             }
 
+            // Sanitize HTML content before saving
+            if (isset($data['article_text'])) {
+                $data['article_text'] = Sanitizer::sanitizeHtml($data['article_text']);
+            }
+
             $article = Article::create($data);
 
             Log::info('Article created via ArticleService', [
@@ -85,6 +91,11 @@ class ArticleService
     public function update(Article $article, array $data): Article
     {
         return DB::transaction(function () use ($article, $data) {
+            // Sanitize HTML content before updating
+            if (isset($data['article_text'])) {
+                $data['article_text'] = Sanitizer::sanitizeHtml($data['article_text']);
+            }
+
             $article->update($data);
 
             Log::info('Article updated via ArticleService', [

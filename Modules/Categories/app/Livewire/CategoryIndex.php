@@ -5,6 +5,7 @@ namespace Modules\Categories\Livewire;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -21,7 +22,7 @@ use Modules\Categories\Services\CategoryService;
  */
 class CategoryIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, WithPagination;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     protected CategoryService $categoryService;
 
@@ -118,8 +119,10 @@ class CategoryIndex extends Component
             $this->categoryService->delete($category);
 
             $this->toastSuccess('Kategori başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError($e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Kategori silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'category_id' => $categoryId,
+            ]);
         }
     }
 

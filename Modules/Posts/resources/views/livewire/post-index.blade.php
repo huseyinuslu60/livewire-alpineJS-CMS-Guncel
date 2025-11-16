@@ -434,7 +434,8 @@
                             <td class="px-6 py-4 text-center">
                                 @php
                                     // Galeri türü için özel metod kullan
-                                    if ($post->post_type === 'gallery') {
+                                    $postTypeValue = $post->post_type instanceof \Modules\Posts\Enums\PostType ? $post->post_type->value : $post->post_type;
+                                    if ($postTypeValue === 'gallery') {
                                         $primaryFile = $post->getPrimaryFileForGallery();
                                     } else {
                                         $primaryFile = $post->primaryFile;
@@ -450,9 +451,9 @@
                                 @else
                                     <div class="flex justify-center">
                                         <div class="h-16 w-16 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-sm">
-                                            @if($post->post_type === 'gallery')
+                                            @if($postTypeValue === 'gallery')
                                                 <i class="fas fa-images text-white text-lg"></i>
-                                            @elseif($post->post_type === 'video')
+                                            @elseif($postTypeValue === 'video')
                                                 <i class="fas fa-video text-white text-lg"></i>
                                             @else
                                                 <i class="fas fa-newspaper text-white text-lg"></i>
@@ -498,26 +499,17 @@
                             @if($visibleColumns['type'] ?? true)
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @php
-                                    $typeColors = [
-                                        'news' => 'bg-blue-100 text-blue-800',
-                                        'gallery' => 'bg-purple-100 text-purple-800',
-                                        'video' => 'bg-red-100 text-red-800'
-                                    ];
-                                    $typeLabels = [
-                                        'news' => 'Haber',
-                                        'gallery' => 'Galeri',
-                                        'video' => 'Video'
-                                    ];
+                                    $postTypeValue = $post->post_type instanceof \Modules\Posts\Enums\PostType ? $post->post_type->value : $post->post_type;
                                 @endphp
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $typeColors[$post->post_type] ?? 'bg-gray-100 text-gray-800' }}">
-                                    @if($post->post_type === 'gallery')
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ \Modules\Posts\Enums\PostType::badgeClass($postTypeValue) }}">
+                                    @if($postTypeValue === 'gallery')
                                         <i class="fas fa-images mr-1"></i>
-                                    @elseif($post->post_type === 'video')
+                                    @elseif($postTypeValue === 'video')
                                         <i class="fas fa-video mr-1"></i>
                                     @else
                                         <i class="fas fa-newspaper mr-1"></i>
                                     @endif
-                                    {{ $typeLabels[$post->post_type] ?? ucfirst($post->post_type) }}
+                                    {{ \Modules\Posts\Enums\PostType::label($postTypeValue) }}
                                 </span>
                             </td>
                             @endif
@@ -532,22 +524,11 @@
                             @if($visibleColumns['status'] ?? true)
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @php
-                                    $statusColors = [
-                                        'draft' => 'bg-yellow-100 text-yellow-800',
-                                        'published' => 'bg-green-100 text-green-800',
-                                        'scheduled' => 'bg-blue-100 text-blue-800',
-                                        'archived' => 'bg-gray-100 text-gray-800'
-                                    ];
-                                    $statusLabels = [
-                                        'draft' => 'Pasif',
-                                        'published' => 'Aktif',
-                                        'scheduled' => 'Zamanlanmış',
-                                        'archived' => 'Arşivlendi'
-                                    ];
+                                    $statusValue = $post->status instanceof \Modules\Posts\Enums\PostStatus ? $post->status->value : $post->status;
                                 @endphp
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusColors[$post->status] ?? 'bg-gray-100 text-gray-800' }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ \Modules\Posts\Enums\PostStatus::badgeClass($statusValue) }}">
                                     <i class="fas fa-flag mr-1"></i>
-                                    {{ $statusLabels[$post->status] ?? ucfirst($post->status) }}
+                                    {{ \Modules\Posts\Enums\PostStatus::label($statusValue) }}
                                 </span>
                             </td>
                             @endif

@@ -5,6 +5,8 @@ namespace Tests\Feature\Modules;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Categories\Models\Category;
+use Modules\Posts\Enums\PostStatus;
+use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 use Tests\TestCase;
 
@@ -31,7 +33,7 @@ class PostModuleTest extends TestCase
             'name' => 'Test Category',
             'slug' => 'test-category',
             'status' => 'active',
-            'type' => 'news',
+            'type' => PostType::News->value,
         ]);
 
         // Post model uses user_id as author_id, not authors table
@@ -43,8 +45,8 @@ class PostModuleTest extends TestCase
             'title' => 'Test Post Title',
             'slug' => 'test-post-title',
             'content' => 'This is test content for the post.',
-            'post_type' => 'news',
-            'status' => 'published',
+            'post_type' => PostType::News->value,
+            'status' => PostStatus::Published->value,
             'author_id' => $this->user->id,
             'created_by' => $this->user->id,
         ];
@@ -53,25 +55,25 @@ class PostModuleTest extends TestCase
 
         $this->assertInstanceOf(Post::class, $post);
         $this->assertEquals('Test Post Title', $post->title);
-        $this->assertEquals('news', $post->post_type);
-        $this->assertEquals('published', $post->status);
+        $this->assertEquals(PostType::News->value, $post->post_type->value ?? $post->post_type);
+        $this->assertEquals(PostStatus::Published->value, $post->status->value ?? $post->status);
     }
 
     public function test_post_can_be_updated()
     {
         $post = Post::factory()->create([
             'title' => 'Original Title',
-            'status' => 'draft',
+            'status' => PostStatus::Draft->value,
             'created_by' => $this->user->id,
         ]);
 
         $post->update([
             'title' => 'Updated Title',
-            'status' => 'published',
+            'status' => PostStatus::Published->value,
         ]);
 
         $this->assertEquals('Updated Title', $post->fresh()->title);
-        $this->assertEquals('published', $post->fresh()->status);
+        $this->assertEquals(PostStatus::Published->value, $post->fresh()->status->value ?? $post->fresh()->status);
     }
 
     public function test_post_can_be_deleted()
@@ -143,17 +145,17 @@ class PostModuleTest extends TestCase
     public function test_post_can_be_published()
     {
         $post = Post::factory()->create([
-            'status' => 'draft',
+            'status' => PostStatus::Draft->value,
             'published_date' => null,
             'created_by' => $this->user->id,
         ]);
 
         $post->update([
-            'status' => 'published',
+            'status' => PostStatus::Published->value,
             'published_date' => now(),
         ]);
 
-        $this->assertEquals('published', $post->fresh()->status);
+        $this->assertEquals(PostStatus::Published->value, $post->fresh()->status->value ?? $post->fresh()->status);
         $this->assertNotNull($post->fresh()->published_date);
     }
 }

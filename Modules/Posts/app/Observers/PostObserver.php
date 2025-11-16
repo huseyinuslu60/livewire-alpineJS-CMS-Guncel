@@ -5,6 +5,8 @@ namespace Modules\Posts\Observers;
 use App\Traits\HandlesRequestContext;
 use Modules\Headline\Services\FeaturedService;
 use Modules\Logs\Models\UserLog;
+use Modules\Posts\Enums\PostPosition;
+use Modules\Posts\Enums\PostStatus;
 use Modules\Posts\Models\Post;
 
 class PostObserver
@@ -113,24 +115,28 @@ class PostObserver
      */
     private function syncPostPosition(Post $post)
     {
-        // Map post positions to zones
-        $positionZoneMap = [
-            'manşet' => 'manset',
-            'sürmanşet' => 'surmanset',
-            'öne çıkanlar' => 'one_cikanlar',
-        ];
-
         // Remove from all zones first
         $this->featuredService->unpin('manset', 'post', $post->post_id);
         $this->featuredService->unpin('surmanset', 'post', $post->post_id);
         $this->featuredService->unpin('one_cikanlar', 'post', $post->post_id);
 
+        // Get position value (handle both enum and string)
+        $positionValue = $post->post_position instanceof PostPosition 
+            ? $post->post_position->value 
+            : $post->post_position;
+
         // Add to appropriate zone if position is not 'normal'
-        if ($post->post_position !== 'normal' && isset($positionZoneMap[$post->post_position])) {
-            $zone = $positionZoneMap[$post->post_position];
+        if ($positionValue !== PostPosition::Normal->value) {
+            $zone = PostPosition::toZone($positionValue);
+
+            if ($zone) {
+                // Get status value (handle both enum and string)
+                $statusValue = $post->status instanceof PostStatus 
+                    ? $post->status->value 
+                    : $post->status;
 
             // Only add if post is published
-            if ($post->status === 'published' && $post->published_date && $post->published_date <= now()) {
+                if ($statusValue === PostStatus::Published->value && $post->published_date && $post->published_date <= now()) {
                 $this->featuredService->upsert(
                     $zone,
                     'post',
@@ -140,6 +146,7 @@ class PostObserver
                     null, // starts_at
                     null  // ends_at
                 );
+                }
             }
         }
     }

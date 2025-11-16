@@ -4,6 +4,7 @@ namespace Modules\User\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
+use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -13,7 +14,7 @@ use Spatie\Permission\Models\Role;
 
 class UserEdit extends Component
 {
-    use InteractsWithToast, ValidationMessages;
+    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
 
     protected UserService $userService;
 
@@ -101,9 +102,11 @@ class UserEdit extends Component
             $this->toastSuccess($this->createContextualSuccessMessage('updated', 'name', 'user'), 6000);
 
             return redirect()->route('user.index');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->isLoading = false;
-            $this->toastError('Kullanıcı güncellenirken hata oluştu: '.$e->getMessage());
+            $this->handleException($e, 'Kullanıcı güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'user_id' => $this->user->id ?? null,
+            ]);
         }
     }
 

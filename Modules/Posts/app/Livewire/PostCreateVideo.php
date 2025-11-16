@@ -10,6 +10,9 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Categories\Models\Category;
+use Modules\Posts\Enums\PostPosition;
+use Modules\Posts\Enums\PostStatus;
+use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -25,9 +28,9 @@ class PostCreateVideo extends Component
 
     public string $content = '';
 
-    public string $post_position = 'normal';
+    public string $post_position = PostPosition::Normal->value;
 
-    public string $status = 'published';
+    public string $status = PostStatus::Published->value;
 
     public string $published_date = '';
 
@@ -81,8 +84,8 @@ class PostCreateVideo extends Component
             'slug' => 'nullable|string|max:255',
             'summary' => 'required|string',
             'content' => 'required|string',
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
-            'status' => 'required|in:'.implode(',', Post::STATUSES),
+            'post_position' => ['required', \Illuminate\Validation\Rule::enum(PostPosition::class)],
+            'status' => ['required', \Illuminate\Validation\Rule::enum(PostStatus::class)],
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
             'is_mainpage' => 'boolean',
@@ -164,7 +167,7 @@ class PostCreateVideo extends Component
                 'slug' => $this->slug,
                 'summary' => $this->summary,
                 'content' => $this->content,
-                'post_type' => 'video',
+                'post_type' => PostType::Video->value,
                 'post_position' => $this->post_position,
                 'status' => $this->status,
                 'published_date' => $this->published_date,
@@ -203,12 +206,12 @@ class PostCreateVideo extends Component
     {
         // Sadece video kategorilerini getir
         $categories = Category::where('status', 'active')
-            ->where('type', 'video')
+            ->where('type', PostType::Video->value)
             ->orderBy('name')
             ->get();
 
-        $postPositions = Post::POSITIONS;
-        $postStatuses = Post::STATUSES;
+        $postPositions = PostPosition::options();
+        $postStatuses = PostStatus::options();
 
         /** @var view-string $view */
         $view = 'posts::livewire.post-create-video';

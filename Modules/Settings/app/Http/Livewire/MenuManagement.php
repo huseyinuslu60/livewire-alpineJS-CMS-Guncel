@@ -5,13 +5,14 @@ namespace Modules\Settings\Http\Livewire;
 use App\Helpers\MenuHelper;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\MenuItem;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Spatie\Permission\Models\Role;
 
 class MenuManagement extends Component
 {
-    use InteractsWithToast;
+    use InteractsWithToast, HandlesExceptionsWithToast;
 
     /** @var array<int, array{id: int, name: string, title: string, icon: string, type: string, route: string, permission: string, active_pattern: string, parent_id: int|null, sort_order: int, is_active: bool, children: array}> */
     public array $menuItems = [];
@@ -257,9 +258,9 @@ class MenuManagement extends Component
             // Validation hatası - form kapanmaz, hatalar gösterilir
             $this->isLoading = false;
             throw $e;
-        } catch (\Exception $e) {
-            $this->toastError('Bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
             $this->isLoading = false;
+            $this->handleException($e, 'Menü öğesi kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
         }
     }
 
@@ -272,8 +273,10 @@ class MenuManagement extends Component
                 $this->toastSuccess('Menü öğesi başarıyla silindi.');
                 $this->loadData();
             }
-        } catch (\Exception $e) {
-            $this->toastError('Silme işlemi sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Silme işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'item_id' => $itemId,
+            ]);
         }
     }
 
@@ -285,8 +288,10 @@ class MenuManagement extends Component
                 $item->update(['is_active' => ! $item->is_active]);
                 $this->loadData();
             }
-        } catch (\Exception $e) {
-            $this->toastError('Durum değiştirme sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Durum değiştirme sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'item_id' => $itemId,
+            ]);
         }
     }
 
@@ -327,8 +332,8 @@ class MenuManagement extends Component
 
             $this->loadData();
             $this->toastSuccess('Menü sıralaması başarıyla güncellendi.');
-        } catch (\Exception $e) {
-            $this->toastError('Sıralama güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Sıralama güncellenirken bir hata oluştu. Lütfen tekrar deneyin.');
         }
     }
 

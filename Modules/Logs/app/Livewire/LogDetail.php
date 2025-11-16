@@ -3,13 +3,14 @@
 namespace Modules\Logs\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Logs\Models\UserLog;
 
 class LogDetail extends Component
 {
-    use InteractsWithToast;
+    use InteractsWithToast, HandlesExceptionsWithToast;
 
     public ?\Modules\Logs\Models\UserLog $log = null;
 
@@ -33,8 +34,10 @@ class LogDetail extends Component
             $this->toastSuccess('Log kaydı başarıyla silindi.');
 
             return redirect()->route('logs.index');
-        } catch (\Exception $e) {
-            $this->toastError('Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Log kaydı silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'log_id' => $this->log->id ?? null,
+            ]);
         }
     }
 

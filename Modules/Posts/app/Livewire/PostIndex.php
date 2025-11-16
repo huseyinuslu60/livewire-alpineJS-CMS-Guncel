@@ -2,13 +2,16 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Livewire\Concerns\HasBulkActions;
+use App\Livewire\Concerns\HasColumnPreferences;
+use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -26,31 +29,15 @@ use Modules\Posts\Services\PostsService;
  */
 class PostIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, WithPagination;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast;
+    use HasSearchAndFilters, HasBulkActions, HasColumnPreferences;
 
     protected PostsService $postsService;
-
-    public ?string $search = null;
-
-    public ?string $post_type = null;
-
-    public ?string $status = null;
-
-    public ?string $editorFilter = null;
-
-    public ?string $categoryFilter = null;
 
     public int $perPage = 10;
 
     /** @var array<int> */
     public array $selectedPosts = [];
-
-    public bool $selectAll = false;
-
-    public string $bulkAction = '';
-
-    /** @var array<string, bool> */
-    public array $visibleColumns = [];
 
     /** @var array<int> Mevcut sayfadaki görünen post ID'leri - performans için */
     public array $visiblePostIds = [];
@@ -68,66 +55,54 @@ class PostIndex extends Component
         $this->postsService = app(PostsService::class);
     }
 
-    public function updatedSearch()
+    /**
+     * Get filter properties for HasSearchAndFilters trait
+     */
+    protected function getFilterProperties(): array
     {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedPostType()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedStatus()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedEditorFilter()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedCategoryFilter()
-    {
-        $this->resetSelection();
-        $this->resetPage();
+        return ['search', 'post_type', 'status', 'editorFilter', 'categoryFilter'];
     }
 
     /**
-     * Selection'ı sıfırla - filtre değişikliklerinde kullanılır
+     * Get selected items property name for HasBulkActions trait
      */
-    protected function resetSelection(): void
+    protected function getSelectedItemsPropertyName(): string
     {
-        $this->selectedPosts = [];
-        $this->selectAll = false;
+        return 'selectedPosts';
     }
 
-    public function updatedSelectAll($value)
+    /**
+     * Get visible item IDs for HasBulkActions trait
+     */
+    protected function getVisibleItemIds(): array
     {
-        // DB query yok - sadece visiblePostIds kullan
-        if ($value) {
-            $this->selectedPosts = $this->visiblePostIds;
-        } else {
-            $this->selectedPosts = [];
+        return $this->visiblePostIds;
+    }
+
+    /**
+     * Handle updated method - combine both traits
+     */
+    public function updated($propertyName): void
+    {
+        // Handle search and filters
+        if (in_array($propertyName, $this->getFilterProperties())) {
+            $this->onFilterUpdated($propertyName);
+        }
+
+        // Handle bulk actions
+        $selectedPropertyName = $this->getSelectedItemsPropertyName();
+        if ($propertyName === $selectedPropertyName) {
+            if (! is_array($this->$propertyName)) {
+                $this->$propertyName = [];
+            }
+
+            $visibleIds = $this->getVisibleItemIds();
+            $diff = array_diff($visibleIds, $this->$propertyName);
+            $this->selectAll = empty($diff);
         }
     }
 
-    public function updatedSelectedPosts()
-    {
-        if (! is_array($this->selectedPosts)) {
-            $this->selectedPosts = [];
-        }
-        // DB query yok - sadece visiblePostIds kullan
-        $diff = array_diff($this->visiblePostIds, $this->selectedPosts);
-        $this->selectAll = empty($diff);
-    }
-
-    public function applyBulkAction()
+    public function applyBulkAction(): void
     {
         Gate::authorize('edit posts');
 
@@ -138,13 +113,14 @@ class PostIndex extends Component
         try {
             $message = $this->postsService->applyBulkAction($this->bulkAction, $this->selectedPosts);
 
-            $this->selectedPosts = [];
-            $this->selectAll = false;
-            $this->bulkAction = '';
+            $this->clearBulkActionState();
 
             $this->toastSuccess($message);
-        } catch (\Exception $e) {
-            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'selected_ids' => $this->selectedPosts ?? null,
+                'bulk_action' => $this->bulkAction ?? null,
+            ]);
         }
     }
 
@@ -171,8 +147,10 @@ class PostIndex extends Component
             $this->postsService->delete($post);
 
             $this->toastSuccess('Haber başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Haber silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Haber silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'post_id' => $id,
+            ]);
         }
     }
 
@@ -187,8 +165,10 @@ class PostIndex extends Component
             $visibility = $newValue ? 'gösterilecek' : 'gizlenecek';
 
             $this->toastSuccess("Yazı ana sayfada {$visibility}.");
-        } catch (\Exception $e) {
-            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Ana sayfa durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'post_id' => $id,
+            ]);
         }
     }
 
@@ -215,10 +195,12 @@ class PostIndex extends Component
         $this->loadUserColumnPreferences();
     }
 
-    public function loadUserColumnPreferences()
+    /**
+     * Get default columns for HasColumnPreferences trait
+     */
+    protected function getDefaultColumns(): array
     {
-        $user = Auth::user();
-        $defaultColumns = [
+        return [
             'checkbox' => true,
             'id' => true,
             'image' => true,
@@ -232,22 +214,6 @@ class PostIndex extends Component
             'date' => true,
             'actions' => true,
         ];
-
-        if ($user && $user instanceof \App\Models\User && $user->table_columns) {
-            $userColumns = is_array($user->table_columns) ? $user->table_columns : json_decode($user->table_columns, true) ?? [];
-            $this->visibleColumns = array_merge($defaultColumns, $userColumns);
-        } else {
-            $this->visibleColumns = $defaultColumns;
-        }
-    }
-
-    public function updatedVisibleColumns()
-    {
-        // Kullanıcının tercihlerini kaydet
-        $user = Auth::user();
-        if ($user) {
-            $user->update(['table_columns' => $this->visibleColumns]);
-        }
     }
 
     public function render()

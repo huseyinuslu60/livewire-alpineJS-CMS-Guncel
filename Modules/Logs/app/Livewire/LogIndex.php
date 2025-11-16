@@ -2,12 +2,14 @@
 
 namespace Modules\Logs\Livewire;
 
+use App\Livewire\Concerns\HasBulkActions;
+use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Modules\Logs\Models\UserLog;
 use Modules\Logs\Services\LogService;
 
@@ -24,11 +26,12 @@ use Modules\Logs\Services\LogService;
  */
 class LogIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HasSearchAndFilters, HasBulkActions;
 
     protected LogService $logService;
 
-    public ?string $search = null;
+    public int $perPage = 15;
 
     public ?string $action = null;
 
@@ -38,14 +41,8 @@ class LogIndex extends Component
 
     public ?string $date_to = null;
 
-    public int $perPage = 15;
-
     /** @var array<int> */
     public array $selectedLogs = [];
-
-    public bool $selectAll = false;
-
-    public string $bulkAction = '';
 
     /** @var array<int> Mevcut sayfadaki görünen log ID'leri - performans için */
     public array $visibleLogIds = [];
@@ -69,72 +66,54 @@ class LogIndex extends Component
         Gate::authorize('view logs');
     }
 
-    public function updatedSearch()
+    /**
+     * Get filter properties for HasSearchAndFilters trait
+     */
+    protected function getFilterProperties(): array
     {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedPerPage()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedAction()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedUserId()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedDateFrom()
-    {
-        $this->resetSelection();
-        $this->resetPage();
-    }
-
-    public function updatedDateTo()
-    {
-        $this->resetSelection();
-        $this->resetPage();
+        return ['search', 'action', 'user_id', 'date_from', 'date_to', 'perPage'];
     }
 
     /**
-     * Selection'ı sıfırla - filtre değişikliklerinde kullanılır
+     * Get selected items property name for HasBulkActions trait
      */
-    protected function resetSelection(): void
+    protected function getSelectedItemsPropertyName(): string
     {
-        $this->selectedLogs = [];
-        $this->selectAll = false;
+        return 'selectedLogs';
     }
 
-    public function updatedSelectAll($value)
+    /**
+     * Get visible item IDs for HasBulkActions trait
+     */
+    protected function getVisibleItemIds(): array
     {
-        // DB query yok - sadece visibleLogIds kullan
-        if ($value) {
-            $this->selectedLogs = $this->visibleLogIds;
-        } else {
-            $this->selectedLogs = [];
+        return $this->visibleLogIds;
+    }
+
+    /**
+     * Handle updated method - combine both traits
+     */
+    public function updated($propertyName): void
+    {
+        // Handle search and filters
+        if (in_array($propertyName, $this->getFilterProperties())) {
+            $this->onFilterUpdated($propertyName);
+        }
+
+        // Handle bulk actions
+        $selectedPropertyName = $this->getSelectedItemsPropertyName();
+        if ($propertyName === $selectedPropertyName) {
+            if (! is_array($this->$propertyName)) {
+                $this->$propertyName = [];
+            }
+
+            $visibleIds = $this->getVisibleItemIds();
+            $diff = array_diff($visibleIds, $this->$propertyName);
+            $this->selectAll = empty($diff);
         }
     }
 
-    public function updatedSelectedLogs()
-    {
-        if (! is_array($this->selectedLogs)) {
-            $this->selectedLogs = [];
-        }
-        // DB query yok - sadece visibleLogIds kullan
-        $diff = array_diff($this->visibleLogIds, $this->selectedLogs);
-        $this->selectAll = empty($diff);
-    }
-
-    public function applyBulkAction()
+    public function applyBulkAction(): void
     {
         Gate::authorize('delete logs');
 
@@ -145,13 +124,14 @@ class LogIndex extends Component
         try {
             $message = $this->logService->applyBulkAction($this->bulkAction, $this->selectedLogs);
 
-            $this->selectedLogs = [];
-            $this->selectAll = false;
-            $this->bulkAction = '';
+            $this->clearBulkActionState();
 
             $this->toastSuccess($message);
-        } catch (\Exception $e) {
-            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'selected_ids' => $this->selectedLogs ?? null,
+                'bulk_action' => $this->bulkAction ?? null,
+            ]);
         }
     }
 
@@ -164,8 +144,10 @@ class LogIndex extends Component
             $this->logService->delete($log);
 
             $this->toastSuccess('Log kaydı başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Log kaydı silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'log_id' => $id,
+            ]);
         }
     }
 
@@ -176,8 +158,8 @@ class LogIndex extends Component
         try {
             $this->logService->clearAll();
             $this->toastSuccess('Tüm log kayıtları başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Log kayıtları silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Log kayıtları silinirken bir hata oluştu. Lütfen tekrar deneyin.');
         }
     }
 
@@ -187,7 +169,20 @@ class LogIndex extends Component
 
         try {
             // Aynı filtreleri kullanarak pagination olmadan tüm logları al
-            $query = UserLog::query()->with(['user']);
+            // Optimize: Export için de sadece gerekli kolonları seç
+            $query = UserLog::query()
+                ->select([
+                    'log_id',
+                    'user_id',
+                    'action',
+                    'description',
+                    'model_type',
+                    'model_id',
+                    'ip_address',
+                    'user_agent',
+                    'created_at',
+                ])
+                ->with(['user:id,name,email']);
 
             if ($this->search !== null) {
                 $query->search($this->search);
@@ -250,8 +245,8 @@ class LogIndex extends Component
             // JavaScript indirme için veri hazırla
             $this->dispatch('download-csv', data: $csvData, filename: $filename);
 
-        } catch (\Exception $e) {
-            $this->dispatch('show-error', 'Log kayıtları dışa aktarılırken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Log kayıtları dışa aktarılırken bir hata oluştu. Lütfen tekrar deneyin.');
         }
     }
 

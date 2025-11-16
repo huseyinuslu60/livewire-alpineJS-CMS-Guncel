@@ -6,6 +6,7 @@ use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -24,7 +25,7 @@ use Modules\Newsletters\Services\NewsletterService;
  */
 class NewsletterIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, WithPagination;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     protected NewsletterService $newsletterService;
 
@@ -130,8 +131,10 @@ class NewsletterIndex extends Component
             $this->newsletterService->delete($newsletter);
 
             $this->toastSuccess('Newsletter başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Newsletter silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Newsletter silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'newsletter_id' => $newsletterId,
+            ]);
         }
     }
 
@@ -148,8 +151,10 @@ class NewsletterIndex extends Component
             $this->newsletterService->toggleStatus($newsletter);
 
             $this->toastSuccess('Newsletter durumu güncellendi.');
-        } catch (\Exception $e) {
-            $this->toastError('Newsletter durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Newsletter durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'newsletter_id' => $newsletterId,
+            ]);
         }
     }
 

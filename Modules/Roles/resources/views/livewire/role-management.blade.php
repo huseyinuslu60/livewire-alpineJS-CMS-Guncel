@@ -1,7 +1,7 @@
 <div>
     @push('module-scripts')
         @once
-            @vite(['Modules/Roles/resources/assets/sass/app.scss', 'Modules/Roles/resources/assets/js/app.js'])
+    @vite(['Modules/Roles/resources/assets/sass/app.scss', 'Modules/Roles/resources/assets/js/app.js'])
         @endonce
     @endpush
 

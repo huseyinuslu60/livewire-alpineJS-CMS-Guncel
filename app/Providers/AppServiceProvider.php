@@ -27,5 +27,14 @@ class AppServiceProvider extends ServiceProvider
 
         // Register custom Blade directives for permissions
         \App\Helpers\PermissionHelper::registerBladeDirectives();
+
+        // Register model observers for HTML sanitization
+        \Modules\Posts\Models\Post::observe(\App\Observers\PostObserver::class);
+        \Modules\Articles\Models\Article::observe(\App\Observers\ArticleObserver::class);
+        \Modules\AgencyNews\Models\AgencyNews::observe(\App\Observers\AgencyNewsObserver::class);
+
+        // Register file observers for XSS protection (title, alt_text, caption)
+        \Modules\Files\Models\File::observe(\App\Observers\FileObserver::class);
+        \Modules\Posts\Models\File::observe(\App\Observers\PostFileObserver::class);
     }
 }

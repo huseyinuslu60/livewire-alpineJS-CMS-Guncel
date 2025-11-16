@@ -2,24 +2,21 @@
 
 namespace Modules\Lastminutes\Livewire;
 
+use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Modules\Lastminutes\Models\Lastminute;
 use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteIndex extends Component
 {
-    use InteractsWithToast, ValidationMessages, WithPagination;
+    use InteractsWithToast, ValidationMessages;
+    use HasSearchAndFilters;
 
     protected LastminuteService $lastminuteService;
-
-    public string $search = '';
-
-    public string $status = 'all';
 
     public int $perPage = 10;
 
@@ -39,24 +36,12 @@ class LastminuteIndex extends Component
         Gate::authorize('view lastminutes');
     }
 
-    public function updatedSearch()
+    /**
+     * Get filter properties for HasSearchAndFilters trait
+     */
+    protected function getFilterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function updatedStatus()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedPerPage()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedSortBy()
-    {
-        $this->resetPage();
+        return ['search', 'status', 'perPage', 'sortBy'];
     }
 
     public function sortBy($field)

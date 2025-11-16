@@ -3,6 +3,7 @@
 namespace Modules\Settings\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -10,7 +11,7 @@ use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component
 {
-    use InteractsWithToast, WithFileUploads;
+    use InteractsWithToast, HandlesExceptionsWithToast, WithFileUploads;
 
     protected SettingsService $settingsService;
 
@@ -63,8 +64,10 @@ class SiteSettings extends Component
                 'key' => $setting->key,
                 'value' => $setting->value,
             ]);
-        } catch (\Exception $e) {
-            $this->addError('settings', 'Ayar güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Ayar güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'setting_id' => $settingId,
+            ]);
         }
     }
 
@@ -80,8 +83,8 @@ class SiteSettings extends Component
 
             // Ayarları yeniden yükle ki güncel değerler görünsün
             $this->loadSettings();
-        } catch (\Exception $e) {
-            $this->toastError('Ayarlar kaydedilirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Ayarlar kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
         } finally {
             $this->isLoading = false;
         }

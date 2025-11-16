@@ -11,6 +11,9 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\AgencyNews\Models\AgencyNews;
 use Modules\Categories\Models\Category;
+use Modules\Posts\Enums\PostPosition;
+use Modules\Posts\Enums\PostStatus;
+use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -26,11 +29,11 @@ class PostCreateNews extends Component
 
     public string $content = '';
 
-    public string $post_type = 'news'; // Fixed type
+    public string $post_type = PostType::News->value; // Fixed type
 
-    public string $post_position = 'normal';
+    public string $post_position = PostPosition::Normal->value;
 
-    public string $status = 'published';
+    public string $status = PostStatus::Published->value;
 
     public string $published_date = '';
 
@@ -129,9 +132,9 @@ class PostCreateNews extends Component
                     $fail('Yazı içeriği zorunludur.');
                 }
             }],
-            'post_type' => 'required|in:'.implode(',', Post::TYPES),
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
-            'status' => 'required|in:'.implode(',', Post::STATUSES),
+            'post_type' => ['required', \Illuminate\Validation\Rule::enum(PostType::class)],
+            'post_position' => ['required', \Illuminate\Validation\Rule::enum(PostPosition::class)],
+            'status' => ['required', \Illuminate\Validation\Rule::enum(PostStatus::class)],
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
             'is_mainpage' => 'boolean',
@@ -256,12 +259,12 @@ class PostCreateNews extends Component
     {
         // Sadece news kategorilerini getir
         $categories = Category::where('status', 'active')
-            ->where('type', 'news')
+            ->where('type', PostType::News->value)
             ->orderBy('name')
             ->get();
 
-        $postPositions = Post::POSITIONS;
-        $postStatuses = Post::STATUSES;
+        $postPositions = PostPosition::options();
+        $postStatuses = PostStatus::options();
 
         /** @var view-string $view */
         $view = 'posts::livewire.post-create-news';

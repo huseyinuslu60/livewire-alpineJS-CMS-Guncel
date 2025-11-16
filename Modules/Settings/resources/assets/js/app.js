@@ -88,7 +88,7 @@ function getWireForElement(element) {
 
     // 2) Fallback: eski global yöntem (en kötü ihtimal)
     return getLivewireWire();
-}
+        }
 
 /**
  * Extract sort order from sortable list
@@ -203,7 +203,7 @@ function createSortable(list, $wire) {
                 try {
                     if (evt.item) {
                         evt.item.classList.add('dragging');
-                    }
+        }
                 } catch (e) {
                     console.warn('[Settings] Error in onStart:', e);
                 }
@@ -215,7 +215,7 @@ function createSortable(list, $wire) {
                     try {
                         if (evt.item) {
                             evt.item.classList.remove('dragging');
-                        }
+}
 
                         const toList = evt.to;
                         if (!toList || !document.contains(toList)) {
@@ -281,7 +281,7 @@ registerModuleInit('settings', initSettingsModule);
 
 // DOM ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
         setTimeout(initSettingsModule, 300);
     });
 } else {
@@ -344,8 +344,8 @@ if (typeof MutationObserver !== 'undefined') {
                 childList: true,
                 subtree: true
             });
-        });
-    }
+    });
+}
 }
 
 // ============================================================================

@@ -3,28 +3,22 @@
 namespace Modules\AgencyNews\Livewire;
 
 use App\Helpers\SystemHelper;
+use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Livewire\WithPagination;
 use Modules\AgencyNews\Models\AgencyNews;
 use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, WithPagination;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast;
+    use HasSearchAndFilters;
 
     protected AgencyNewsService $agencyNewsService;
-
-    public string $search = '';
-
-    public string $agencyFilter = '';
-
-    public string $categoryFilter = '';
-
-    public string $imageFilter = '';
 
     public int $perPage = 10;
 
@@ -46,33 +40,12 @@ class AgencyNewsIndex extends Component
         $this->agencyNewsService = $agencyNewsService;
     }
 
-    public function updatedSearch()
+    /**
+     * Get filter properties for HasSearchAndFilters trait
+     */
+    protected function getFilterProperties(): array
     {
-        $this->resetPage();
-    }
-
-    public function updatedAgencyFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedCategoryFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function updatedImageFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function clearFilters()
-    {
-        $this->search = '';
-        $this->agencyFilter = '';
-        $this->categoryFilter = '';
-        $this->imageFilter = '';
-        $this->resetPage();
+        return ['search', 'agencyFilter', 'categoryFilter', 'imageFilter'];
     }
 
     public function sortBy($field)
@@ -112,8 +85,10 @@ class AgencyNewsIndex extends Component
             $this->agencyNewsService->delete($agencyNews);
 
             $this->toastSuccess('Agency news başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Agency news silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Agency news silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'agency_news_id' => $agencyNewsId,
+            ]);
         }
     }
 

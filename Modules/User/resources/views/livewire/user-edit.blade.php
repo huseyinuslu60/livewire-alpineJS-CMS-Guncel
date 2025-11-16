@@ -152,7 +152,7 @@
     {{-- User modülü asset dosyalarını dahil et --}}
     @push('module-scripts')
         @once
-            @vite(['Modules/User/resources/assets/sass/app.scss', 'Modules/User/resources/assets/js/app.js'])
+    @vite(['Modules/User/resources/assets/sass/app.scss', 'Modules/User/resources/assets/js/app.js'])
         @endonce
     @endpush
 </div>

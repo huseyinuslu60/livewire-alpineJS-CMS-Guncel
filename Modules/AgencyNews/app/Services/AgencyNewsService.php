@@ -18,7 +18,17 @@ class AgencyNewsService
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
-        $query = AgencyNews::query();
+        // Optimize: Sadece listing için gerekli kolonları seç
+        $query = AgencyNews::query()
+            ->select([
+                'record_id',
+                'title',
+                'summary',
+                'agency_id',
+                'category',
+                'has_image',
+                'created_at',
+            ]);
 
         // Arama filtresi
         if (! empty($filters['search'])) {

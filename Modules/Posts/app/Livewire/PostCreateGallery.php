@@ -4,6 +4,7 @@ namespace Modules\Posts\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Services\FileUploadService;
+use App\Support\Sanitizer;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -12,6 +13,9 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Categories\Models\Category;
+use Modules\Posts\Enums\PostPosition;
+use Modules\Posts\Enums\PostStatus;
+use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -31,9 +35,9 @@ class PostCreateGallery extends Component
 
     public string $content = '';
 
-    public string $post_position = 'normal';
+    public string $post_position = PostPosition::Normal->value;
 
-    public string $status = 'published';
+    public string $status = PostStatus::Published->value;
 
     public string $published_date = '';
 
@@ -115,8 +119,8 @@ class PostCreateGallery extends Component
             'slug' => 'nullable|string|max:255',
             'summary' => 'required|string',
             'content' => 'nullable|string',
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
-            'status' => 'required|in:'.implode(',', Post::STATUSES),
+            'post_position' => ['required', \Illuminate\Validation\Rule::enum(PostPosition::class)],
+            'status' => ['required', \Illuminate\Validation\Rule::enum(PostStatus::class)],
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
             'is_mainpage' => 'boolean',
@@ -249,15 +253,16 @@ class PostCreateGallery extends Component
                     // uploadedFiles array'indeki sıralama = order değeri
                     $index = array_search($fileId, $fileKeys);
 
+                    // Sanitize: getClientOriginalName(), description ve alt_text XSS riskine karşı koruma
                     $galleryData[] = [
                         'order' => $index, // Index direkt olarak order değeri
-                        'filename' => $file->getClientOriginalName(),
+                        'filename' => Sanitizer::escape($file->getClientOriginalName()),
                         'file_path' => '', // Bu PostsService'de doldurulacak
                         'type' => $file->getMimeType(),
                         'is_primary' => $this->primaryFileId === $fileId,
                         'uploaded_at' => now()->toISOString(),
-                        'description' => $fileData['description'],
-                        'alt_text' => $fileData['alt_text'] ?? '',
+                        'description' => Sanitizer::escape($fileData['description'] ?? ''),
+                        'alt_text' => Sanitizer::escape($fileData['alt_text'] ?? ''),
                     ];
                 }
             }
@@ -266,7 +271,7 @@ class PostCreateGallery extends Component
                 'title' => $this->title,
                 'slug' => $this->slug,
                 'summary' => $this->summary,
-                'post_type' => 'gallery',
+                'post_type' => PostType::Gallery->value,
                 'post_position' => $this->post_position,
                 'status' => $this->status,
                 'published_date' => $this->published_date,
@@ -754,12 +759,12 @@ class PostCreateGallery extends Component
     {
         // Sadece gallery kategorilerini getir
         $categories = Category::where('status', 'active')
-            ->where('type', 'gallery')
+            ->where('type', PostType::Gallery->value)
             ->orderBy('name')
             ->get();
 
-        $postPositions = Post::POSITIONS;
-        $postStatuses = Post::STATUSES;
+        $postPositions = PostPosition::options();
+        $postStatuses = PostStatus::options();
 
         /** @var view-string $view */
         $view = 'posts::livewire.post-create-gallery';

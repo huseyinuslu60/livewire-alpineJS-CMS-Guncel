@@ -5,6 +5,7 @@ namespace Modules\Newsletters\Livewire;
 use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,7 +13,7 @@ use Modules\Newsletters\Models\NewsletterLog;
 
 class NewsletterLogIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     public ?string $search = null;
 
@@ -108,8 +109,10 @@ class NewsletterLogIndex extends Component
             $log->delete();
 
             $this->toastSuccess('Log kaydı başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Log kaydı silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'log_id' => $id,
+            ]);
         }
     }
 

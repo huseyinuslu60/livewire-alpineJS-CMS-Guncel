@@ -7,6 +7,7 @@ use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -25,7 +26,7 @@ use Modules\Articles\Services\ArticleService;
  */
 class ArticleIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, WithPagination;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     protected ArticleService $articleService;
 
@@ -157,8 +158,10 @@ class ArticleIndex extends Component
             $this->articleService->delete($article);
 
             $this->toastSuccess('Makale başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Makale silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Makale silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'article_id' => $articleId,
+            ]);
         }
     }
 
@@ -175,8 +178,10 @@ class ArticleIndex extends Component
             $this->articleService->toggleStatus($article);
 
             $this->toastSuccess('Makale durumu güncellendi.');
-        } catch (\Exception $e) {
-            $this->toastError('Makale durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Makale durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'article_id' => $articleId,
+            ]);
         }
     }
 
@@ -193,8 +198,10 @@ class ArticleIndex extends Component
             $this->articleService->toggleMainPage($article);
 
             $this->toastSuccess('Ana sayfa durumu güncellendi.');
-        } catch (\Exception $e) {
-            $this->toastError('Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Ana sayfa durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'article_id' => $articleId,
+            ]);
         }
     }
 

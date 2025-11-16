@@ -147,6 +147,13 @@ class PostsServiceProvider extends ServiceProvider
         Livewire::component('posts.post-create-gallery', \Modules\Posts\Livewire\PostCreateGallery::class);
         Livewire::component('posts.post-create-video', \Modules\Posts\Livewire\PostCreateVideo::class);
         Livewire::component('posts.post-edit', \Modules\Posts\Livewire\PostEdit::class);
+
+        // PostEdit sub-components
+        Livewire::component('posts.post-edit-meta-form', \Modules\Posts\Livewire\PostEditMetaForm::class);
+        Livewire::component('posts.post-edit-meta-form-sidebar', \Modules\Posts\Livewire\PostEditMetaFormSidebar::class);
+        Livewire::component('posts.post-edit-content-form', \Modules\Posts\Livewire\PostEditContentForm::class);
+        Livewire::component('posts.post-edit-media-manager', \Modules\Posts\Livewire\PostEditMediaManager::class);
+        Livewire::component('posts.post-edit-relations-form', \Modules\Posts\Livewire\PostEditRelationsForm::class);
     }
 
     /**

@@ -3,13 +3,14 @@
 namespace Modules\Banks\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionAnswer extends Component
 {
-    use InteractsWithToast;
+    use InteractsWithToast, HandlesExceptionsWithToast;
 
     public ?\Modules\Banks\Models\InvestorQuestion $question = null;
 
@@ -65,8 +66,10 @@ class InvestorQuestionAnswer extends Component
             }
 
             return redirect()->route('banks.investor-questions.index');
-        } catch (\Exception $e) {
-            $this->toastError('İşlem sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'İşlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'question_id' => $this->question->id ?? null,
+            ]);
         }
     }
 
@@ -82,8 +85,10 @@ class InvestorQuestionAnswer extends Component
             $this->toastSuccess('Soru reddedildi.', 6000);
 
             return redirect()->route('banks.investor-questions.index');
-        } catch (\Exception $e) {
-            $this->toastError('Soru reddedilirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Soru reddedilirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'question_id' => $this->question->id ?? null,
+            ]);
         }
     }
 

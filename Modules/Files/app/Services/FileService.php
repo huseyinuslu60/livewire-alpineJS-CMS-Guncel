@@ -2,6 +2,7 @@
 
 namespace Modules\Files\Services;
 
+use App\Support\Sanitizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -42,6 +43,17 @@ class FileService
     public function update(File $file, array $data): File
     {
         return DB::transaction(function () use ($file, $data) {
+            // Sanitize: title, alt_text, caption XSS riskine karşı koruma
+            if (isset($data['title'])) {
+                $data['title'] = Sanitizer::escape($data['title']);
+            }
+            if (isset($data['alt_text'])) {
+                $data['alt_text'] = Sanitizer::escape($data['alt_text']);
+            }
+            if (isset($data['caption'])) {
+                $data['caption'] = Sanitizer::escape($data['caption']);
+            }
+
             $file->update($data);
 
             Log::info('File updated via FileService', [

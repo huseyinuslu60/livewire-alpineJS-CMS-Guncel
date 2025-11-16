@@ -2,6 +2,9 @@
 
 namespace Modules\Posts\Models;
 
+use Modules\Posts\Enums\PostPosition;
+use Modules\Posts\Enums\PostStatus;
+use Modules\Posts\Enums\PostType;
 use App\Traits\AuditFields;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -50,26 +53,32 @@ class Post extends Model
 
     protected $primaryKey = 'post_id';
 
-    // Constants
+    // Deprecated: Use PostType::options(), PostStatus::options(), PostPosition::options() instead
+    /** @deprecated Use PostType::options() */
     public const TYPES = ['news', 'gallery', 'video'];
 
+    /** @deprecated Use PostPosition::options() */
     public const POSITIONS = ['normal', 'manşet', 'sürmanşet', 'öne çıkanlar'];
 
+    /** @deprecated Use PostStatus::options() */
     public const STATUSES = ['draft', 'published', 'scheduled'];
 
-    // Türkçe etiketler
+    // Deprecated: Use PostType::options(), PostStatus::options(), PostPosition::options() instead
+    /** @deprecated Use PostType::options() */
     public const TYPE_LABELS = [
         'news' => 'Haber',
         'gallery' => 'Galeri',
         'video' => 'Video',
     ];
 
+    /** @deprecated Use PostStatus::options() */
     public const STATUS_LABELS = [
         'draft' => 'Pasif',
         'published' => 'Aktif',
         'scheduled' => 'Zamanlanmış',
     ];
 
+    /** @deprecated Use PostPosition::options() */
     public const POSITION_LABELS = [
         'normal' => 'Normal',
         'manşet' => 'Manşet',
@@ -112,6 +121,9 @@ class Post extends Model
         'no_ads' => 'boolean',
         'view_count' => 'integer',
         'post_order' => 'integer',
+        'status' => PostStatus::class,
+        'post_type' => PostType::class,
+        'post_position' => PostPosition::class,
     ];
 
     protected $dates = [
@@ -156,7 +168,7 @@ class Post extends Model
     public function primaryFile(): HasOne
     {
         // Galeri için primary=true olan dosyayı al
-        if ($this->post_type === 'gallery') {
+        if ($this->post_type === PostType::Gallery) {
             return $this->hasOne(File::class, 'post_id', 'post_id')->where('primary', true);
         }
 
@@ -169,7 +181,7 @@ class Post extends Model
      */
     public function getPrimaryFileForGallery()
     {
-        if ($this->post_type !== 'gallery') {
+        if ($this->post_type !== PostType::Gallery) {
             return null;
         }
 
@@ -242,28 +254,30 @@ class Post extends Model
     // Scopes
     public function scopePublished($query)
     {
-        return $query->where('status', 'published')
+        return $query->where('status', PostStatus::Published)
             ->where('published_date', '<=', now());
     }
 
     public function scopeDraft($query)
     {
-        return $query->where('status', 'draft');
+        return $query->where('status', PostStatus::Draft);
     }
 
     public function scopeArchived($query)
     {
-        return $query->where('status', 'archived');
+        return $query->where('status', PostStatus::Archived);
     }
 
     public function scopeByType($query, $type)
     {
-        return $query->where('post_type', $type);
+        $typeValue = $type instanceof PostType ? $type->value : $type;
+        return $query->where('post_type', $typeValue);
     }
 
     public function scopeByPosition($query, $position)
     {
-        return $query->where('post_position', $position);
+        $positionValue = $position instanceof PostPosition ? $position->value : $position;
+        return $query->where('post_position', $positionValue);
     }
 
     public function scopeMainPage($query)
@@ -301,12 +315,20 @@ class Post extends Model
 
     public function scopeOfType($query, $type)
     {
-        return (is_null($type) || $type === '') ? $query : $query->where('post_type', $type);
+        if (is_null($type) || $type === '') {
+            return $query;
+        }
+        $typeValue = $type instanceof PostType ? $type->value : $type;
+        return $query->where('post_type', $typeValue);
     }
 
     public function scopeOfStatus($query, $status)
     {
-        return (is_null($status) || $status === '') ? $query : $query->where('status', $status);
+        if (is_null($status) || $status === '') {
+            return $query;
+        }
+        $statusValue = $status instanceof PostStatus ? $status->value : $status;
+        return $query->where('status', $statusValue);
     }
 
     public function scopeOfEditor($query, $editorId)
@@ -355,7 +377,7 @@ class Post extends Model
 
     public function getIsPublishedAttribute()
     {
-        return $this->status === 'published' &&
+        return $this->status === PostStatus::Published &&
                $this->published_date &&
                $this->published_date <= now();
     }
@@ -376,7 +398,7 @@ class Post extends Model
      */
     public function getGalleryDataAttribute()
     {
-        if ($this->post_type !== 'gallery') {
+        if ($this->post_type !== PostType::Gallery) {
             return [];
         }
 
@@ -401,7 +423,7 @@ class Post extends Model
      */
     public function setGalleryDataAttribute($value)
     {
-        if ($this->post_type === 'gallery') {
+        if ($this->post_type === PostType::Gallery) {
             $this->content = json_encode($value, JSON_UNESCAPED_UNICODE);
         }
     }
@@ -415,14 +437,14 @@ class Post extends Model
     public function publish()
     {
         $this->update([
-            'status' => 'published',
+            'status' => PostStatus::Published,
             'published_date' => now(),
         ]);
     }
 
     public function archive()
     {
-        $this->update(['status' => 'archived']);
+        $this->update(['status' => PostStatus::Archived]);
     }
 
     public function setMainPage($value = true)
@@ -433,22 +455,26 @@ class Post extends Model
     // Türkçe etiket metodları
     public function getTypeLabel()
     {
-        return self::TYPE_LABELS[$this->post_type] ?? ucfirst($this->post_type);
+        $type = $this->post_type instanceof PostType ? $this->post_type->value : $this->post_type;
+        return PostType::label($type);
     }
 
     public function getStatusLabel()
     {
-        return self::STATUS_LABELS[$this->status] ?? ucfirst($this->status);
+        $status = $this->status instanceof PostStatus ? $this->status->value : $this->status;
+        return PostStatus::label($status);
     }
 
+    /** @deprecated Use PostType::options() */
     public static function getTypeLabels()
     {
-        return self::TYPE_LABELS;
+        return PostType::options();
     }
 
+    /** @deprecated Use PostStatus::options() */
     public static function getStatusLabels()
     {
-        return self::STATUS_LABELS;
+        return PostStatus::options();
     }
 
     /**

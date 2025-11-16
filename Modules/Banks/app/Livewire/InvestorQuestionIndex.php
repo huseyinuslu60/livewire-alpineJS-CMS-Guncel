@@ -4,6 +4,7 @@ namespace Modules\Banks\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -11,7 +12,7 @@ use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     public ?string $search = null;
 
@@ -53,7 +54,7 @@ class InvestorQuestionIndex extends Component
         $this->selectAll = count($this->selectedQuestions) === $this->getQuestions()->count();
     }
 
-    public function applyBulkAction()
+    public function applyBulkAction(): void
     {
         if (! Auth::user()->can('edit investor_questions')) {
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
@@ -86,8 +87,11 @@ class InvestorQuestionIndex extends Component
             $this->bulkAction = '';
 
             $this->toastSuccess($message);
-        } catch (\Exception $e) {
-            $this->toastError('Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
+                'selected_ids' => $this->selectedQuestions ?? null,
+                'bulk_action' => $this->bulkAction ?? null,
+            ]);
         }
     }
 
@@ -105,8 +109,10 @@ class InvestorQuestionIndex extends Component
             ]);
 
             $this->toastSuccess('Soru başarıyla reddedildi.');
-        } catch (\Exception $e) {
-            $this->toastError('Soru reddedilirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Soru reddedilirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'question_id' => $id,
+            ]);
         }
     }
 
@@ -121,8 +127,10 @@ class InvestorQuestionIndex extends Component
             $question->delete();
 
             $this->toastSuccess('Soru başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Soru silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Soru silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'question_id' => $id,
+            ]);
         }
     }
 

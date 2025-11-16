@@ -16,7 +16,20 @@ class LogService
      */
     public function getFilteredQuery(array $filters = []): Builder
     {
-        $query = UserLog::query()->with(['user']);
+        // Optimize: Sadece listing için gerekli kolonları seç
+        $query = UserLog::query()
+            ->select([
+                'log_id',
+                'user_id',
+                'action',
+                'description',
+                'model_type',
+                'model_id',
+                'ip_address',
+                'created_at',
+            ])
+            // Optimize: User relation'ında sadece name ve email yükle
+            ->with(['user:id,name,email']);
 
         if (! empty($filters['search'])) {
             $query->search($filters['search']);

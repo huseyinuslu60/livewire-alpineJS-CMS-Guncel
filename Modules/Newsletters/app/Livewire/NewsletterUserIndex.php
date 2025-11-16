@@ -5,6 +5,7 @@ namespace Modules\Newsletters\Livewire;
 use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,7 +13,7 @@ use Modules\Newsletters\Models\NewsletterUser;
 
 class NewsletterUserIndex extends Component
 {
-    use InteractsWithToast, WithPagination;
+    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
 
     public ?string $search = null;
 
@@ -108,8 +109,10 @@ class NewsletterUserIndex extends Component
             $user->delete();
 
             $this->toastSuccess('Kullanıcı başarıyla silindi.');
-        } catch (\Exception $e) {
-            $this->toastError('Kullanıcı silinirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Kullanıcı silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'user_id' => $userId,
+            ]);
         }
     }
 
@@ -132,8 +135,10 @@ class NewsletterUserIndex extends Component
             $user->update(['status' => $newStatus]);
 
             $this->toastSuccess('Kullanıcı durumu güncellendi.');
-        } catch (\Exception $e) {
-            $this->toastError('Kullanıcı durumu güncellenirken bir hata oluştu: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Kullanıcı durumu güncellenirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'user_id' => $userId,
+            ]);
         }
     }
 

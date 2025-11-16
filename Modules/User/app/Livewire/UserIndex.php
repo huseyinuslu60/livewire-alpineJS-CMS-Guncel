@@ -6,6 +6,7 @@ use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +25,7 @@ use Spatie\Permission\Models\Role;
  */
 class UserIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, ValidationMessages, WithPagination;
+    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages, WithPagination;
 
     protected UserService $userService;
 
@@ -115,8 +116,10 @@ class UserIndex extends Component
             $this->userService->delete($user, Auth::user());
 
             $this->toastSuccess($this->createContextualSuccessMessage('deleted', 'name', 'user'));
-        } catch (\Exception $e) {
-            $this->toastError($e->getMessage());
+        } catch (\Throwable $e) {
+            $this->handleException($e, 'Kullanıcı silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
+                'user_id' => $userId,
+            ]);
         }
     }
 

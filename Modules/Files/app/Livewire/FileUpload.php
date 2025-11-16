@@ -4,6 +4,8 @@ namespace Modules\Files\Livewire;
 
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Services\FileUploadService;
+use App\Support\Sanitizer;
+use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -12,7 +14,7 @@ use Modules\Files\Models\File;
 
 class FileUpload extends Component
 {
-    use InteractsWithToast, ValidationMessages, WithFileUploads;
+    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages, WithFileUploads;
 
     protected FileUploadService $fileUploadService;
 
@@ -112,23 +114,29 @@ class FileUpload extends Component
                 $description = $this->allDescriptions[$index] ?? ['alt_text' => '', 'caption' => ''];
                 $originalName = $file->getClientOriginalName();
 
+                // Sanitize: getClientOriginalName() XSS riskine karşı koruma
+                // Observer'da da sanitize ediliyor ama defense in depth için burada da yapıyoruz
+                $sanitizedTitle = Sanitizer::escape($originalName);
+                $sanitizedAltText = Sanitizer::escape($description['alt_text'] ?? '');
+                $sanitizedCaption = Sanitizer::escape($description['caption'] ?? '');
+
                 // Post ID'yi URL'den al (medya kütüphanesi için)
                 $postId = request()->get('post_id'); // Null olabilir
 
                 // Veritabanına kaydet
                 File::create([
                     'post_id' => $postId, // Null olabilir
-                    'title' => $originalName,
+                    'title' => $sanitizedTitle,
                     'file_path' => str_replace('storage/', '', $path),
                     'type' => $file->getMimeType(),
-                    'alt_text' => $description['alt_text'] ?? '',
-                    'caption' => $description['caption'] ?? '',
+                    'alt_text' => $sanitizedAltText,
+                    'caption' => $sanitizedCaption,
                     'primary' => false, // Ana dosya seçeneği kaldırıldı
                 ]);
 
                 $uploadedCount++;
-            } catch (\Exception $e) {
-                $this->errorMessage = 'Dosya yüklenirken hata oluştu: '.$e->getMessage();
+            } catch (\Throwable $e) {
+                $this->handleException($e, 'Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.');
                 $this->showErrorMessage = true;
 
                 return;

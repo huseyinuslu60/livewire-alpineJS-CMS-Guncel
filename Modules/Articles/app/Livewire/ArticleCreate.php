@@ -13,7 +13,7 @@ use Modules\Articles\Services\ArticleService;
 
 class ArticleCreate extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     protected ArticleService $articleService;
 

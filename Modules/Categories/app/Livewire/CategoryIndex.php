@@ -22,7 +22,7 @@ use Modules\Categories\Services\CategoryService;
  */
 class CategoryIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected CategoryService $categoryService;
 

@@ -64,4 +64,3 @@ trait HasColumnPreferences
         }
     }
 }
-

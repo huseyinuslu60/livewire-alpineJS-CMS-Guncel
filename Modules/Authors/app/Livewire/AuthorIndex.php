@@ -18,7 +18,7 @@ use Modules\Authors\Services\AuthorService;
  */
 class AuthorIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 
     protected AuthorService $authorService;
 

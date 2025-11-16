@@ -11,7 +11,7 @@ use Modules\Posts\Models\Post;
 
 class PostEditContentForm extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     public Post $post;
 
@@ -32,7 +32,7 @@ class PostEditContentForm extends Component
     public function loadFromPost()
     {
         $postTypeValue = $this->post->post_type instanceof PostType ? $this->post->post_type->value : $this->post->post_type;
-        
+
         if ($postTypeValue === PostType::Gallery->value) {
             // Galeri için JSON formatında content
             $this->content = $this->post->content ?? '';
@@ -81,9 +81,11 @@ class PostEditContentForm extends Component
 
         try {
             $this->validate($rules);
+
             return true;
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->dispatch('validationFailed', ['component' => 'content', 'errors' => $e->errors()]);
+
             return false;
         }
     }
@@ -103,4 +105,3 @@ class PostEditContentForm extends Component
         return view('posts::livewire.post-edit-content-form', compact('isGallery'));
     }
 }
-

@@ -12,7 +12,7 @@ use Modules\Posts\Models\Post;
 
 class PostEditRelationsForm extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     public Post $post;
 
@@ -36,9 +36,11 @@ class PostEditRelationsForm extends Component
     public function loadFromPost()
     {
         $this->categoryIds = $this->post->categories->pluck('category_id')->toArray();
-        
+
         // Tags'i string'e çevir
-        $tags = $this->post->tags->pluck('name')->toArray();
+        /** @var \Illuminate\Database\Eloquent\Collection $tagsCollection */
+        $tagsCollection = $this->post->tags;
+        $tags = $tagsCollection->pluck('name')->toArray();
         $this->tagsInput = implode(', ', $tags);
     }
 
@@ -66,9 +68,11 @@ class PostEditRelationsForm extends Component
 
         try {
             $this->validate($rules);
+
             return true;
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->dispatch('validationFailed', ['component' => 'relations', 'errors' => $e->errors()]);
+
             return false;
         }
     }
@@ -89,7 +93,7 @@ class PostEditRelationsForm extends Component
     public function render()
     {
         $postTypeValue = $this->post->post_type instanceof PostType ? $this->post->post_type->value : $this->post->post_type;
-        
+
         $categories = Category::where('status', 'active')
             ->where('type', $postTypeValue)
             ->orderBy('name')
@@ -98,4 +102,3 @@ class PostEditRelationsForm extends Component
         return view('posts::livewire.post-edit-relations-form', compact('categories'));
     }
 }
-

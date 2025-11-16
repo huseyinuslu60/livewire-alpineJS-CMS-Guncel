@@ -57,9 +57,6 @@ class Sanitizer
 
     /**
      * HTML içeriğini sanitize et
-     *
-     * @param string|null $html
-     * @return string
      */
     public static function sanitizeHtml(?string $html): string
     {
@@ -127,6 +124,7 @@ class Sanitizer
                 if (in_array($tagName, self::ALLOWED_TAGS)) {
                     return '<'.$tagName.'>';
                 }
+
                 return '';
             },
             $html

@@ -3,8 +3,8 @@
 namespace Modules\Banks\Livewire;
 
 use App\Livewire\Concerns\HasBulkActions;
-use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\HasColumnPreferences;
+use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\HandlesExceptionsWithToast;
@@ -15,8 +15,8 @@ use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
-    use HasSearchAndFilters, HasBulkActions, HasColumnPreferences;
+    use HandlesExceptionsWithToast, InteractsWithToast;
+    use HasBulkActions, HasColumnPreferences, HasSearchAndFilters;
 
     protected StockService $stockService;
 

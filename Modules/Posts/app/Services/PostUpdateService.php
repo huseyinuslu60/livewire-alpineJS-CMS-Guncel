@@ -170,4 +170,3 @@ class PostUpdateService
         return $slug;
     }
 }
-

@@ -26,9 +26,6 @@ enum PostStatus: string
 
     /**
      * Get label for a status value
-     *
-     * @param string $value
-     * @return string
      */
     public static function label(string $value): string
     {
@@ -37,9 +34,6 @@ enum PostStatus: string
 
     /**
      * Get badge class for a status value
-     *
-     * @param string $value
-     * @return string
      */
     public static function badgeClass(string $value): string
     {
@@ -52,4 +46,3 @@ enum PostStatus: string
         };
     }
 }
-

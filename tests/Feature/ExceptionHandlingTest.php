@@ -21,7 +21,7 @@ class ExceptionHandlingTest extends TestCase
         {
             use HandlesExceptionsWithToast;
 
-            public function testMethod()
+            public function test_method()
             {
                 try {
                     throw new \RuntimeException('Test exception message');
@@ -127,4 +127,3 @@ class TestComponent extends Component
         return '<div>Test Component</div>';
     }
 }
-

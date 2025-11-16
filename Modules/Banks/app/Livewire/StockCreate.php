@@ -10,7 +10,7 @@ use Modules\Banks\Services\StockService;
 
 class StockCreate extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HandlesExceptionsWithToast, InteractsWithToast;
 
     protected StockService $stockService;
 

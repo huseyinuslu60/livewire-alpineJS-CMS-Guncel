@@ -77,4 +77,3 @@ class PostEnumsTest extends TestCase
         $this->assertNull(PostPosition::toZone('normal'));
     }
 }
-

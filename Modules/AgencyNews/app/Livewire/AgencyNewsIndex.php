@@ -15,7 +15,7 @@ use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast;
     use HasSearchAndFilters;
 
     protected AgencyNewsService $agencyNewsService;
@@ -25,6 +25,12 @@ class AgencyNewsIndex extends Component
     public string $sortBy = 'created_at';
 
     public string $sortDirection = 'desc';
+
+    public ?string $agencyFilter = null;
+
+    public ?string $categoryFilter = null;
+
+    public ?string $imageFilter = null;
 
     protected $queryString = [
         'search' => ['except' => ''],

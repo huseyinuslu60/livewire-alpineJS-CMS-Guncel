@@ -12,7 +12,7 @@ use Modules\Banks\Services\StockService;
 
 class StockEdit extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HandlesExceptionsWithToast, InteractsWithToast;
 
     protected StockService $stockService;
 

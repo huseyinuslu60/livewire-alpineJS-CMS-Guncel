@@ -14,7 +14,7 @@ use Spatie\Permission\Models\Role;
 
 class RoleManagement extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, ValidationMessages;
 
     protected RoleService $roleService;
 

@@ -26,9 +26,6 @@ enum PostPosition: string
 
     /**
      * Get label for a position value
-     *
-     * @param string $value
-     * @return string
      */
     public static function label(string $value): string
     {
@@ -37,9 +34,6 @@ enum PostPosition: string
 
     /**
      * Map position to zone name for FeaturedService
-     *
-     * @param string $value
-     * @return string|null
      */
     public static function toZone(string $value): ?string
     {
@@ -51,4 +45,3 @@ enum PostPosition: string
         };
     }
 }
-

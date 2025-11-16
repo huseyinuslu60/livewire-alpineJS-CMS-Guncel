@@ -37,7 +37,7 @@ class PostQueryService
                 'categories:category_id,name', // View'de sadece name kullanılıyor
                 'primaryFile:file_id,file_path,alt_text,is_image', // View'de bu alanlar kullanılıyor
             ]);
-            // Kaldırılan: 'author' (view'de kullanılmıyor), 'tags' (view'de kullanılmıyor)
+        // Kaldırılan: 'author' (view'de kullanılmıyor), 'tags' (view'de kullanılmıyor)
 
         // Arama filtresi
         if (! empty($filters['search'])) {
@@ -77,4 +77,3 @@ class PostQueryService
         return $query;
     }
 }
-

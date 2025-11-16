@@ -2,9 +2,6 @@
 
 namespace Modules\Posts\Models;
 
-use Modules\Posts\Enums\PostPosition;
-use Modules\Posts\Enums\PostStatus;
-use Modules\Posts\Enums\PostType;
 use App\Traits\AuditFields;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Posts\Enums\PostPosition;
+use Modules\Posts\Enums\PostStatus;
+use Modules\Posts\Enums\PostType;
 
 /**
  * @property int $post_id
@@ -271,12 +271,14 @@ class Post extends Model
     public function scopeByType($query, $type)
     {
         $typeValue = $type instanceof PostType ? $type->value : $type;
+
         return $query->where('post_type', $typeValue);
     }
 
     public function scopeByPosition($query, $position)
     {
         $positionValue = $position instanceof PostPosition ? $position->value : $position;
+
         return $query->where('post_position', $positionValue);
     }
 
@@ -319,6 +321,7 @@ class Post extends Model
             return $query;
         }
         $typeValue = $type instanceof PostType ? $type->value : $type;
+
         return $query->where('post_type', $typeValue);
     }
 
@@ -328,6 +331,7 @@ class Post extends Model
             return $query;
         }
         $statusValue = $status instanceof PostStatus ? $status->value : $status;
+
         return $query->where('status', $statusValue);
     }
 
@@ -456,12 +460,14 @@ class Post extends Model
     public function getTypeLabel()
     {
         $type = $this->post_type instanceof PostType ? $this->post_type->value : $this->post_type;
+
         return PostType::label($type);
     }
 
     public function getStatusLabel()
     {
         $status = $this->status instanceof PostStatus ? $this->status->value : $this->status;
+
         return PostStatus::label($status);
     }
 

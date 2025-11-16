@@ -12,7 +12,7 @@ use Spatie\Permission\Models\Role;
 
 class MenuManagement extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HandlesExceptionsWithToast, InteractsWithToast;
 
     /** @var array<int, array{id: int, name: string, title: string, icon: string, type: string, route: string, permission: string, active_pattern: string, parent_id: int|null, sort_order: int, is_active: bool, children: array}> */
     public array $menuItems = [];

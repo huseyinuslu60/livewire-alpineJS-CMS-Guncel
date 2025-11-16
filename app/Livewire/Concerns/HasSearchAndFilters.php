@@ -98,4 +98,3 @@ trait HasSearchAndFilters
         $this->resetPage();
     }
 }
-

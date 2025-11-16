@@ -14,7 +14,7 @@ use Modules\Files\Models\File;
 
 class FileUpload extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages, WithFileUploads;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages, WithFileUploads;
 
     protected FileUploadService $fileUploadService;
 

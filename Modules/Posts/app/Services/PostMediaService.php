@@ -33,7 +33,7 @@ class PostMediaService
                 $sanitizedAltText = Sanitizer::escape($altText);
                 $sanitizedCaption = Sanitizer::escape($description);
 
-                $typeValue = $type instanceof PostType ? $type->value : ($type ?? PostType::News->value);
+                $typeValue = ($type instanceof PostType) ? $type->value : (is_string($type) ? $type : PostType::News->value);
                 $uploadedFiles[] = [
                     'post_id' => $post->post_id,
                     'title' => $sanitizedTitle,
@@ -45,16 +45,16 @@ class PostMediaService
                     'alt_text' => $sanitizedAltText,
                 ];
 
-            $galleryData[] = [
-                'order' => $index,
-                'filename' => $sanitizedTitle, // Sanitize edilmiş filename
-                'file_path' => $path,
-                'type' => $file->getMimeType(),
-                'is_primary' => $primaryIndex === $index,
-                'uploaded_at' => now()->toISOString(),
-                'description' => $sanitizedCaption, // Sanitize edilmiş caption
-                'alt_text' => $sanitizedAltText, // Sanitize edilmiş alt_text
-            ];
+                $galleryData[] = [
+                    'order' => $index,
+                    'filename' => $sanitizedTitle, // Sanitize edilmiş filename
+                    'file_path' => $path,
+                    'type' => $file->getMimeType(),
+                    'is_primary' => $primaryIndex === $index,
+                    'uploaded_at' => now()->toISOString(),
+                    'description' => $sanitizedCaption, // Sanitize edilmiş caption
+                    'alt_text' => $sanitizedAltText, // Sanitize edilmiş alt_text
+                ];
             }
         }
 
@@ -357,4 +357,3 @@ class PostMediaService
         }
     }
 }
-

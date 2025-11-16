@@ -13,7 +13,7 @@ use Modules\Categories\Services\CategoryService;
 
 class CategoryEdit extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     protected CategoryService $categoryService;
 

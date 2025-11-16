@@ -9,7 +9,6 @@ use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\HandlesExceptionsWithToast;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Modules\Posts\Models\Post;
@@ -29,8 +28,8 @@ use Modules\Posts\Services\PostsService;
  */
 class PostIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast;
-    use HasSearchAndFilters, HasBulkActions, HasColumnPreferences;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast;
+    use HasBulkActions, HasColumnPreferences, HasSearchAndFilters;
 
     protected PostsService $postsService;
 

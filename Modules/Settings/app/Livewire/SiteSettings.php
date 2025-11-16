@@ -11,7 +11,7 @@ use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, WithFileUploads;
+    use HandlesExceptionsWithToast, InteractsWithToast, WithFileUploads;
 
     protected SettingsService $settingsService;
 

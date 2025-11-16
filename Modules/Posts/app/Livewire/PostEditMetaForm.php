@@ -5,17 +5,14 @@ namespace Modules\Posts\Livewire;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
-use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Livewire\Component;
-use Modules\Posts\Enums\PostPosition;
-use Modules\Posts\Enums\PostStatus;
 use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 
 class PostEditMetaForm extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     public Post $post;
 
@@ -27,7 +24,6 @@ class PostEditMetaForm extends Component
 
     public string $post_type = 'news';
 
-
     public bool $is_photo = false;
 
     public ?string $agency_name = null;
@@ -35,7 +31,6 @@ class PostEditMetaForm extends Component
     public ?int $agency_id = null;
 
     public ?string $embed_code = null;
-
 
     protected $listeners = [
         'postUpdated' => 'refreshFromPost',
@@ -79,7 +74,6 @@ class PostEditMetaForm extends Component
         $this->dispatch('postTypeChanged', $value);
     }
 
-
     public function getData(): array
     {
         return [
@@ -113,9 +107,11 @@ class PostEditMetaForm extends Component
 
         try {
             $this->validate($rules);
+
             return true;
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->dispatch('validationFailed', ['component' => 'meta', 'errors' => $e->errors()]);
+
             return false;
         }
     }
@@ -137,4 +133,3 @@ class PostEditMetaForm extends Component
         return view('posts::livewire.post-edit-meta-form');
     }
 }
-

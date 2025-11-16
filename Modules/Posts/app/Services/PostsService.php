@@ -3,7 +3,6 @@
 namespace Modules\Posts\Services;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\UploadedFile;
 use Modules\Posts\Models\Post;
 
 /**

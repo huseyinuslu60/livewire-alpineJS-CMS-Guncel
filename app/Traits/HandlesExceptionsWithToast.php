@@ -10,10 +10,9 @@ trait HandlesExceptionsWithToast
     /**
      * Handle exception with logging and user-friendly message
      *
-     * @param \Throwable $e The exception to handle
-     * @param string $userMessage User-friendly message to show (default: generic error message)
-     * @param array $context Additional context for logging (e.g., ['selected_ids' => [1,2,3]])
-     * @return void
+     * @param  \Throwable  $e  The exception to handle
+     * @param  string  $userMessage  User-friendly message to show (default: generic error message)
+     * @param  array  $context  Additional context for logging (e.g., ['selected_ids' => [1,2,3]])
      */
     public function handleException(\Throwable $e, string $userMessage = 'İşlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', array $context = []): void
     {
@@ -55,4 +54,3 @@ trait HandlesExceptionsWithToast
         }
     }
 }
-

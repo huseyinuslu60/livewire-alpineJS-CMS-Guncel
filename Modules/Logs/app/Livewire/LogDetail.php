@@ -10,7 +10,7 @@ use Modules\Logs\Models\UserLog;
 
 class LogDetail extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HandlesExceptionsWithToast, InteractsWithToast;
 
     public ?\Modules\Logs\Models\UserLog $log = null;
 

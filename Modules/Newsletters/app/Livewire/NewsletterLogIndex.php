@@ -13,7 +13,7 @@ use Modules\Newsletters\Models\NewsletterLog;
 
 class NewsletterLogIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 
     public ?string $search = null;
 
@@ -111,7 +111,7 @@ class NewsletterLogIndex extends Component
             $this->toastSuccess('Log kaydı başarıyla silindi.');
         } catch (\Throwable $e) {
             $this->handleException($e, 'Log kaydı silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
-                'log_id' => $id,
+                'log_id' => $logId,
             ]);
         }
     }

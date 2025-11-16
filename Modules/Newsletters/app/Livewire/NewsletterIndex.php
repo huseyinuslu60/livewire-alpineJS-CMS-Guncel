@@ -25,7 +25,7 @@ use Modules\Newsletters\Services\NewsletterService;
  */
 class NewsletterIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected NewsletterService $newsletterService;
 

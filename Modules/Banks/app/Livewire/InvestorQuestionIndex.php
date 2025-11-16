@@ -12,7 +12,7 @@ use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 
     public ?string $search = null;
 

@@ -26,8 +26,8 @@ use Modules\Logs\Services\LogService;
  */
 class LogIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
-    use HasSearchAndFilters, HasBulkActions;
+    use HandlesExceptionsWithToast, InteractsWithToast;
+    use HasBulkActions, HasSearchAndFilters;
 
     protected LogService $logService;
 

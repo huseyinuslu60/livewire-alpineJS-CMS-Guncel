@@ -24,9 +24,6 @@ enum PostType: string
 
     /**
      * Get label for a type value
-     *
-     * @param string $value
-     * @return string
      */
     public static function label(string $value): string
     {
@@ -35,9 +32,6 @@ enum PostType: string
 
     /**
      * Get badge class for a type value
-     *
-     * @param string $value
-     * @return string
      */
     public static function badgeClass(string $value): string
     {
@@ -49,4 +43,3 @@ enum PostType: string
         };
     }
 }
-

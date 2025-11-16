@@ -202,13 +202,12 @@ class PostCreateGallery extends Component
         try {
             // Slug'ı mutlaka unique yap - validation'dan ÖNCE
             // Eğer slug boşsa veya unique değilse, yeni bir unique slug oluştur
-            $postsService = new PostsService;
             if (empty($this->slug)) {
-                $this->slug = $postsService->makeUniqueSlug($this->title);
+                $this->slug = $this->postsService->makeUniqueSlug($this->title);
             } else {
                 // Slug varsa ama unique değilse, unique yap
                 if (Post::where('slug', $this->slug)->exists()) {
-                    $this->slug = $postsService->makeUniqueSlug($this->title);
+                    $this->slug = $this->postsService->makeUniqueSlug($this->title);
                 }
             }
 
@@ -308,8 +307,7 @@ class PostCreateGallery extends Component
                 }
             }
 
-            $postsService = new PostsService;
-            $post = $postsService->create(
+            $post = $this->postsService->create(
                 $formData,
                 $orderedFiles,
                 $this->categoryIds,
@@ -348,7 +346,7 @@ class PostCreateGallery extends Component
                 // primaryFileId'ye göre index bul
                 $primaryIndex = array_search($this->primaryFileId, array_keys($this->uploadedFiles));
                 if ($primaryIndex !== false) {
-                    $postsService->setPrimaryFile($post, $primaryIndex);
+                    $this->postsService->setPrimaryFile($post, $primaryIndex);
                 }
             }
 

@@ -30,8 +30,6 @@ trait HasBulkActions
      * Get the property name for selected items
      * Override this in component if different from 'selectedItems'
      * Examples: 'selectedPosts', 'selectedLogs', 'selectedStocks'
-     *
-     * @return string
      */
     protected function getSelectedItemsPropertyName(): string
     {
@@ -93,8 +91,6 @@ trait HasBulkActions
     /**
      * Apply bulk action
      * Component must implement this method to define action logic
-     *
-     * @return void
      */
     abstract public function applyBulkAction(): void;
 
@@ -109,4 +105,3 @@ trait HasBulkActions
         $this->bulkAction = '';
     }
 }
-

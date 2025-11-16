@@ -121,8 +121,8 @@ class PostObserver
         $this->featuredService->unpin('one_cikanlar', 'post', $post->post_id);
 
         // Get position value (handle both enum and string)
-        $positionValue = $post->post_position instanceof PostPosition 
-            ? $post->post_position->value 
+        $positionValue = $post->post_position instanceof PostPosition
+            ? $post->post_position->value
             : $post->post_position;
 
         // Add to appropriate zone if position is not 'normal'
@@ -131,21 +131,21 @@ class PostObserver
 
             if ($zone) {
                 // Get status value (handle both enum and string)
-                $statusValue = $post->status instanceof PostStatus 
-                    ? $post->status->value 
+                $statusValue = $post->status instanceof PostStatus
+                    ? $post->status->value
                     : $post->status;
 
-            // Only add if post is published
+                // Only add if post is published
                 if ($statusValue === PostStatus::Published->value && $post->published_date && $post->published_date <= now()) {
-                $this->featuredService->upsert(
-                    $zone,
-                    'post',
-                    $post->post_id,
-                    null, // slot - will be assigned later
-                    $post->post_order ?? 0, // priority
-                    null, // starts_at
-                    null  // ends_at
-                );
+                    $this->featuredService->upsert(
+                        $zone,
+                        'post',
+                        $post->post_id,
+                        null, // slot - will be assigned later
+                        $post->post_order ?? 0, // priority
+                        null, // starts_at
+                        null  // ends_at
+                    );
                 }
             }
         }

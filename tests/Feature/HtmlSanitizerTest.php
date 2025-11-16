@@ -1,8 +1,8 @@
 <?php
 
 use App\Support\Sanitizer;
-use Modules\Articles\Models\Article;
 use Modules\AgencyNews\Models\AgencyNews;
+use Modules\Articles\Models\Article;
 use Modules\Posts\Models\Post;
 
 use function Pest\Laravel\actingAs;
@@ -217,4 +217,3 @@ describe('AgencyNews Model Sanitization', function () {
             ->toContain('<p>Updated</p>');
     });
 });
-

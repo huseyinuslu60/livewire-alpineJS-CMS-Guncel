@@ -12,7 +12,7 @@ use Modules\Posts\Models\Post;
 
 class PostEditMetaFormSidebar extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     public Post $post;
 
@@ -106,4 +106,3 @@ class PostEditMetaFormSidebar extends Component
         return view('posts::livewire.post-edit-meta-form-sidebar', compact('postPositions', 'postStatuses'));
     }
 }
-

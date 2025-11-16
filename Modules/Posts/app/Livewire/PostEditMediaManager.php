@@ -7,7 +7,6 @@ use App\Services\FileUploadService;
 use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Posts\Enums\PostType;
@@ -17,7 +16,7 @@ use Modules\Posts\Services\PostsService;
 
 class PostEditMediaManager extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages, WithFileUploads;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages, WithFileUploads;
 
     public Post $post;
 
@@ -119,6 +118,7 @@ class PostEditMediaManager extends Component
                 foreach ($result['errors'] as $error) {
                     $this->addError('newFiles', $error);
                 }
+
                 return;
             }
 
@@ -225,6 +225,7 @@ class PostEditMediaManager extends Component
             if (isset($file['file_id']) && (string) $file['file_id'] === (string) $fileId) {
                 $this->existingFiles[$index][$field] = $value;
                 $this->dispatch('fileUpdated', ['fileId' => $fileId, 'field' => $field, 'value' => $value]);
+
                 return;
             }
         }
@@ -291,6 +292,7 @@ class PostEditMediaManager extends Component
                 $this->dispatch('order-update-failed', [
                     'message' => 'Geçersiz sıralama verisi. Lütfen sayfayı yenileyip tekrar deneyin.',
                 ]);
+
                 return;
             }
 
@@ -458,4 +460,3 @@ class PostEditMediaManager extends Component
         return view('posts::livewire.post-edit-media-manager', compact('isGallery'));
     }
 }
-

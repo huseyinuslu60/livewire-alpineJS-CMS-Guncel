@@ -30,8 +30,8 @@ use Modules\Files\Services\FileService;
  */
 class FileIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
-    use HasSearchAndFilters, HasBulkActions;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
+    use HasBulkActions, HasSearchAndFilters;
 
     protected FileService $fileService;
 

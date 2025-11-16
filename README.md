@@ -45,15 +45,20 @@ Modern Laravel 12 tabanlı, tam modüler haber ve içerik yönetim sistemi. Live
 - **Efficient Selection Management** - Selection change event'lerinde DB query'siz çalışma
 - **Array-based Calculations** - `array_diff()` ile selectAll hesaplamaları
 - **Automatic Selection Reset** - Filtre değişikliklerinde otomatik selection temizleme
+- **Eloquent Query Optimization** - Listing sorgularında `select()` ve `with()` projection ile gereksiz kolon yüklemelerini azaltma
+- **Column Projection** - İlişkilerde sadece gerekli kolonları yükleme (`with(['author:id,name'])`)
+- **Optimized Services** - PostQueryService, LogService, AgencyNewsService, LastminuteService optimizasyonları
 
 ### 🧱 Geliştirme Araçları
 - **CI/CD entegrasyonu** - GitHub Actions ile otomatik test ve deploy
 - **Code Quality** - Laravel Pint, PHPStan ile kod kalitesi
-- **Test Coverage** - Pest/PHPUnit ile kapsamlı testler
+- **Test Coverage** - Pest/PHPUnit ile kapsamlı testler (HtmlSanitizerTest, ExceptionHandlingTest)
 - **Type Safety** - Livewire component'lerinde type declarations ve PHPDoc
 - **Docker desteği** - Kolay geliştirme ortamı kurulumu
 - **Editor Support** - Trumbowyg WYSIWYG editör entegrasyonu
 - **Drag & Drop** - SortableJS ile sıralanabilir listeler
+- **Model Observers** - Otomatik sanitization ve business logic için observer pattern
+- **Service Layer** - Business logic'in servis katmanında merkezi yönetimi
 
 ## 📦 Modüller
 
@@ -310,12 +315,22 @@ Proje `spatie/laravel-permission` paketini kullanır:
 Proje aşağıdaki güvenlik önlemlerini içerir:
 
 - **CSRF Protection** - Tüm formlarda CSRF koruması
-- **XSS Protection** - Input sanitization ve output escaping
+- **XSS Protection** - Kapsamlı HTML sanitization ve output escaping
+  - **HTML Content Sanitization** - Post, Article, AgencyNews içeriklerinde whitelist tabanlı HTML temizleme
+  - **File Meta Protection** - Dosya adları (`getClientOriginalName()`), alt_text ve caption alanlarında XSS koruması
+  - **Model Observers** - Otomatik sanitization için PostObserver, ArticleObserver, AgencyNewsObserver, FileObserver
+  - **Service Layer Sanitization** - PostCreationService, PostUpdateService, ArticleService, FileService katmanında ek koruma
+  - **Gallery Meta Protection** - Gallery JSON içindeki filename, description, alt_text sanitization
 - **SQL Injection Protection** - Eloquent ORM kullanımı ile parametreli sorgular
 - **File Upload Security** - Güvenli dosya yükleme kontrolleri ve validasyon
+  - **MIME Type Validation** - Çift katmanlı MIME type kontrolü (getMimeType + finfo)
+  - **Content Scanning** - Dosya içeriğinde zararlı pattern taraması
+  - **Extension Whitelist** - Sadece izin verilen dosya uzantıları
+  - **UUID Filenames** - Güvenli dosya adlandırma (UUID tabanlı)
 - **Role-based Access Control** - Rol tabanlı erişim kontrolü
 - **Policy-based Authorization** - Model bazlı yetkilendirme
 - **Secure File Storage** - Private ve public dosya yönetimi
+- **Defense in Depth** - Observer, Service ve Livewire katmanlarında çoklu koruma
 
 ## 🤝 Katkıda Bulunma
 
@@ -336,8 +351,37 @@ Projeye katkıda bulunmak için:
 
 ## 📝 Changelog
 
-### Son Güncellemeler
+### Son Güncellemeler (2025)
 
+#### 🔒 Güvenlik İyileştirmeleri
+- ✅ **XSS Koruması - HTML Sanitization** - Post, Article, AgencyNews içeriklerinde whitelist tabanlı HTML temizleme
+- ✅ **XSS Koruması - Dosya Meta** - `getClientOriginalName()`, `alt_text`, `caption` alanlarında XSS koruması
+- ✅ **Model Observers** - PostObserver, ArticleObserver, AgencyNewsObserver, FileObserver, PostFileObserver eklendi
+- ✅ **Service Layer Sanitization** - PostCreationService, PostUpdateService, ArticleService, FileService katmanında sanitization
+- ✅ **Gallery Meta Protection** - Gallery JSON içindeki filename, description, alt_text sanitization
+- ✅ **Sanitizer Service** - `app/Support/Sanitizer.php` ile merkezi HTML sanitization servisi
+- ✅ **Test Coverage** - HtmlSanitizerTest ile XSS saldırı senaryoları test edildi
+
+#### ⚡ Performans İyileştirmeleri
+- ✅ **Query Optimization - PostQueryService** - Listing sorgularında sadece gerekli kolonlar yükleniyor
+- ✅ **Query Optimization - LogService** - Log listing'de column projection uygulandı
+- ✅ **Query Optimization - AgencyNewsService** - Gereksiz kolon yüklemeleri kaldırıldı
+- ✅ **Query Optimization - LastminuteService** - Optimize edilmiş select() ve with() kullanımı
+- ✅ **Relation Projection** - `with(['author:id,name', 'primaryFile:id,file_path'])` ile sadece gerekli ilişki kolonları
+- ✅ **Export Optimization** - LogIndex exportLogs() metodunda da optimizasyon uygulandı
+
+#### 🐛 Bug Fix'ler
+- ✅ **Livewire Property Fixes** - FileIndex (`mimeType`), StockIndex (`status`), LogIndex (`action`, `user_id`, `date_from`, `date_to`) property'leri eklendi
+- ✅ **HasBulkActions Compatibility** - `applyBulkAction(): void` return type uyumluluğu sağlandı
+- ✅ **HasSearchAndFilters Integration** - Tüm listing component'lerinde trait entegrasyonu tamamlandı
+
+#### 🏗️ Mimari İyileştirmeleri
+- ✅ **Yeni Servisler** - PostCreationService, PostUpdateService, PostQueryService, PostMediaService, PostBulkActionService
+- ✅ **Trait'ler** - HasBulkActions, HasSearchAndFilters, HasColumnPreferences trait'leri eklendi
+- ✅ **Exception Handling** - HandlesExceptionsWithToast trait'i ile merkezi hata yönetimi
+- ✅ **Post Enums** - PostType, PostStatus, PostPosition enum'ları eklendi
+
+#### 📊 Önceki Güncellemeler
 - ✅ **Livewire Performans Optimizasyonları** - LogIndex, PostIndex, ArticleIndex component'lerinde gereksiz DB sorguları kaldırıldı
 - ✅ **visibleIds Pattern** - Selection yönetimi için DB query'siz çalışma
 - ✅ **Array-based Calculations** - `array_diff()` ile selectAll hesaplamaları

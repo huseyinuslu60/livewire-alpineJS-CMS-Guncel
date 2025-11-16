@@ -169,13 +169,13 @@ class FileUploadService
                 'message' => $e->getMessage(),
                 'exception' => $e,
                 'user_id' => optional(auth()->user())->id,
-                'file_name' => $file->getClientOriginalName() ?? null,
+                'file_name' => $file->getClientOriginalName(),
             ]);
-            
+
             if (function_exists('report')) {
                 report($e);
             }
-            
+
             return [
                 'success' => false,
                 'message' => 'Resim yüklenirken bir hata oluştu. Lütfen tekrar deneyin.',
@@ -221,11 +221,11 @@ class FileUploadService
                     'user_id' => optional(auth()->user())->id,
                     'file_name' => $file->getClientOriginalName() ?? null,
                 ]);
-                
+
                 if (function_exists('report')) {
                     report($e);
                 }
-                
+
                 $errors[] = 'Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin.';
             }
         }

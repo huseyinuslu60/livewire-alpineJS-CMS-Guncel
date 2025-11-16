@@ -6,19 +6,16 @@ use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Sanitizer;
 use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Modules\Headline\Services\FeaturedService;
 use Modules\Posts\Enums\PostPosition;
-use Modules\Posts\Enums\PostStatus;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
 class PostEdit extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages;
+    use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 
     public Post $post;
 
@@ -102,8 +99,11 @@ class PostEdit extends Component
     }
 
     private $metaData = null;
+
     private $contentData = null;
+
     private $mediaData = null;
+
     private $relationsData = null;
 
     private function checkAllDataReady()
@@ -154,6 +154,7 @@ class PostEdit extends Component
                             $originalName = $file['original_name'];
                             $description = $file['description'] ?? '';
 
+                            /** @var \Modules\Posts\Models\File $postFile */
                             foreach ($postFiles as $postFile) {
                                 if ($postFile->title === $originalName) {
                                     $file['path'] = $postFile->file_path;

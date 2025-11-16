@@ -25,7 +25,7 @@ use Spatie\Permission\Models\Role;
  */
 class UserIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, ValidationMessages, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, ValidationMessages, WithPagination;
 
     protected UserService $userService;
 

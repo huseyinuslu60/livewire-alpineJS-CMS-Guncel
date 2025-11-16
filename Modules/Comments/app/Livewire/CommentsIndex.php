@@ -22,7 +22,7 @@ use Modules\Comments\Services\CommentService;
  */
 class CommentsIndex extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 
     protected CommentService $commentService;
 

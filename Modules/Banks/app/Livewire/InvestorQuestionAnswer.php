@@ -10,7 +10,7 @@ use Modules\Banks\Models\InvestorQuestion;
 
 class InvestorQuestionAnswer extends Component
 {
-    use InteractsWithToast, HandlesExceptionsWithToast;
+    use HandlesExceptionsWithToast, InteractsWithToast;
 
     public ?\Modules\Banks\Models\InvestorQuestion $question = null;
 

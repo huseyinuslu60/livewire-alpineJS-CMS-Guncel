@@ -26,7 +26,7 @@ use Modules\Articles\Services\ArticleService;
  */
 class ArticleIndex extends Component
 {
-    use InteractsWithModal, InteractsWithToast, HandlesExceptionsWithToast, WithPagination;
+    use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, WithPagination;
 
     protected ArticleService $articleService;
 

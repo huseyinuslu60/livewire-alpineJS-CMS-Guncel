@@ -5,6 +5,7 @@ namespace Modules\Newsletters\Livewire;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Newsletters\Models\NewsletterTemplate;
+use Modules\Newsletters\Services\NewsletterTemplateService;
 
 class TemplateCreate extends Component
 {
@@ -31,6 +32,13 @@ class TemplateCreate extends Component
     public bool $is_active = true;
 
     public int $sort_order = 0;
+
+    protected NewsletterTemplateService $templateService;
+
+    public function boot()
+    {
+        $this->templateService = app(NewsletterTemplateService::class);
+    }
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -101,7 +109,7 @@ class TemplateCreate extends Component
     {
         $this->validate();
 
-        $template = NewsletterTemplate::create([
+        $data = [
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
@@ -116,7 +124,9 @@ class TemplateCreate extends Component
             ],
             'is_active' => $this->is_active,
             'sort_order' => $this->sort_order,
-        ]);
+        ];
+
+        $this->templateService->create($data);
 
         session()->flash('success', 'Template başarıyla oluşturuldu!');
 

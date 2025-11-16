@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -35,6 +36,13 @@ class UserIndex extends Component
 
     // Başarı mesajı için
     public string $successMessage = '';
+
+    protected UserService $userService;
+
+    public function boot()
+    {
+        $this->userService = app(UserService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -96,7 +104,7 @@ class UserIndex extends Component
             }
 
             $userName = $user->name;
-            $user->delete();
+            $this->userService->delete($user);
 
             $this->successMessage = $this->createContextualSuccessMessage('deleted', 'name', 'user');
         } catch (\Exception $e) {

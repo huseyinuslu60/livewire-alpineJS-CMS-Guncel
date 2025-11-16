@@ -6,6 +6,7 @@ use App\Support\Pagination;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\NewsletterTemplate;
+use Modules\Newsletters\Services\NewsletterTemplateService;
 
 class TemplateIndex extends Component
 {
@@ -18,6 +19,13 @@ class TemplateIndex extends Component
     public string $sortField = 'created_at';
 
     public string $sortDirection = 'desc';
+
+    protected NewsletterTemplateService $templateService;
+
+    public function boot()
+    {
+        $this->templateService = app(NewsletterTemplateService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -44,7 +52,7 @@ class TemplateIndex extends Component
     {
         $template = NewsletterTemplate::find($templateId);
         if ($template) {
-            $template->update(['is_active' => ! $template->is_active]);
+            $this->templateService->toggleActive($template);
             session()->flash('success', 'Template durumu güncellendi!');
         }
     }
@@ -53,7 +61,7 @@ class TemplateIndex extends Component
     {
         $template = NewsletterTemplate::find($templateId);
         if ($template) {
-            $template->delete();
+            $this->templateService->delete($template);
             session()->flash('success', 'Template başarıyla silindi!');
         }
     }

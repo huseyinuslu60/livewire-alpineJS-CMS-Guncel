@@ -73,6 +73,29 @@ class PostEdit extends Component
 
     public ?string $successMessage = null; // Ana görsel ID'si
 
+    // Spot data properties for image editing
+    public ?string $originalImagePath = null;
+    public ?int $originalImageWidth = null;
+    public ?int $originalImageHeight = null;
+    public ?string $originalImageHash = null;
+    /** @var array<string, mixed> */
+    public array $desktopCrop = [];
+    /** @var array<string, mixed> */
+    public array $mobileCrop = [];
+    public string $desktopFocus = 'center';
+    public string $mobileFocus = 'center';
+    /** @var array<string, mixed> */
+    public array $imageEffects = [];
+    /** @var array<string, mixed> */
+    public array $imageMeta = [];
+    /** @var array<int, array<string, mixed>> */
+    public array $imageTextObjects = [];
+
+    /**
+     * Flag to track if image editor was used (to avoid saving empty spot_data)
+     */
+    protected bool $imageEditorUsed = false;
+
     // Diğer
     /** @var array<int> */
     public array $categoryIds = [];
@@ -156,7 +179,13 @@ class PostEdit extends Component
         $this->no_ads = $this->post->no_ads;
 
         $this->categoryIds = $this->post->categories ? $this->post->categories->pluck('category_id')->toArray() : [];
-        $this->tagsInput = $this->post->tags && is_object($this->post->tags) ? $this->post->tags->pluck('name')->implode(', ') : '';
+        // Ensure tagsInput is always a string
+        if ($this->post->tags && is_object($this->post->tags) && method_exists($this->post->tags, 'pluck')) {
+            $tags = $this->post->tags->pluck('name')->toArray();
+            $this->tagsInput = is_array($tags) ? implode(', ', array_filter($tags)) : '';
+        } else {
+            $this->tagsInput = '';
+        }
 
         // Mevcut dosyaları content'den yükle (gallery için)
         $this->existingFiles = [];
@@ -231,10 +260,182 @@ class PostEdit extends Component
                 \Log::info('Primary file ID set to:', ['id' => $this->primaryFileId, 'galleryData' => $galleryData]);
                 \Log::info('Existing files loaded:', ['count' => count($this->existingFiles)]);
             }
+        } elseif ($this->post->primaryFile) {
+            // News/Video post'ları için primary file'ı existingFiles'a ekle
+            $primaryFile = $this->post->primaryFile;
+            $this->existingFiles[0] = [
+                'file_id' => (string) $primaryFile->file_id,
+                'path' => $primaryFile->file_path,
+                'original_name' => $primaryFile->original_name ?? basename($primaryFile->file_path),
+                'description' => '',
+                'primary' => true,
+                'type' => $primaryFile->mime_type ?? 'image/jpeg',
+                'order' => 0,
+                'uploaded_at' => $primaryFile->created_at ? $primaryFile->created_at->toISOString() : now()->toISOString(),
+            ];
+            $this->primaryFileId = (string) $primaryFile->file_id;
+            \Log::info('Primary file loaded for news/video post:', [
+                'file_id' => $this->primaryFileId,
+                'path' => $primaryFile->file_path,
+            ]);
         }
 
         // Temiz dosya sistemi başlat
         $this->uploadedFiles = [];
+
+        // Initialize spot_data properties to avoid Livewire serialization issues
+        $this->desktopCrop = [];
+        $this->mobileCrop = [];
+        $this->desktopFocus = 'center';
+        $this->mobileFocus = 'center';
+        $this->imageEffects = [];
+        $this->imageMeta = [];
+
+        // Load spot_data if exists, otherwise migrate from legacy data
+        $this->loadSpotData();
+    }
+
+    /**
+     * Load spot_data from post or migrate from legacy data
+     * Note: Migration is done lazily on save, not during mount to avoid Livewire checksum issues
+     */
+    protected function loadSpotData(): void
+    {
+        // Get spot_data - ensure it's an array
+        $spotData = $this->post->spot_data;
+        if (!is_array($spotData)) {
+            $spotData = [];
+        }
+
+        // Load spot_data to properties if exists
+        if (!empty($spotData) && isset($spotData['image']) && is_array($spotData['image'])) {
+            $image = $spotData['image'];
+
+            // Original image data
+            $this->originalImagePath = $image['original']['path'] ?? null;
+            $this->originalImageWidth = isset($image['original']['width']) ? (int) $image['original']['width'] : null;
+            $this->originalImageHeight = isset($image['original']['height']) ? (int) $image['original']['height'] : null;
+            $this->originalImageHash = $image['original']['hash'] ?? null;
+
+            // Variants (desktop, mobile) - ensure arrays are always arrays
+            if (isset($image['variants']['desktop']['crop']) && is_array($image['variants']['desktop']['crop'])) {
+                $this->desktopCrop = $image['variants']['desktop']['crop'];
+            }
+            $this->desktopFocus = $image['variants']['desktop']['focus'] ?? 'center';
+
+            if (isset($image['variants']['mobile']['crop']) && is_array($image['variants']['mobile']['crop'])) {
+                $this->mobileCrop = $image['variants']['mobile']['crop'];
+            }
+            $this->mobileFocus = $image['variants']['mobile']['focus'] ?? 'center';
+
+            // Effects - ensure array
+            if (isset($image['effects']) && is_array($image['effects'])) {
+                $this->imageEffects = $image['effects'];
+            }
+
+            // Meta - ensure array
+            if (isset($image['meta']) && is_array($image['meta'])) {
+                $this->imageMeta = $image['meta'];
+            }
+
+            // Text objects - ensure array
+            if (isset($image['textObjects']) && is_array($image['textObjects'])) {
+                $this->imageTextObjects = $image['textObjects'];
+            }
+
+            // If spot_data exists, mark that image editor was used (to preserve existing data)
+            $this->imageEditorUsed = true;
+        } else {
+            // Initialize with primaryFile if available (for display, migration happens on save)
+            $primaryFile = $this->post->primaryFile;
+            if ($primaryFile) {
+                $this->originalImagePath = $primaryFile->file_path;
+                $this->imageMeta = [
+                    'alt' => $primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+            }
+        }
+    }
+
+    /**
+     * Build spot_data array from properties
+     * Also migrates legacy data if needed
+     */
+    protected function buildSpotData(): void
+    {
+        // Migrate legacy data if spot_data is empty (lazy migration on save)
+        $spotData = $this->post->spot_data;
+        if (!is_array($spotData) || empty($spotData) || !isset($spotData['image'])) {
+            $this->post->migrateLegacyImageDataToSpotData();
+            $this->post->refresh();
+            // Reload spot_data after migration
+            $spotData = $this->post->spot_data;
+            if (is_array($spotData) && isset($spotData['image'])) {
+                $image = $spotData['image'];
+                if (empty($this->originalImagePath) && isset($image['original']['path'])) {
+                    $this->originalImagePath = $image['original']['path'];
+                }
+            }
+        }
+
+        // If originalImagePath is not set but primaryFile exists, use it
+        if (empty($this->originalImagePath)) {
+            $primaryFile = $this->post->primaryFile;
+            if ($primaryFile) {
+                $this->originalImagePath = $primaryFile->file_path;
+            }
+        }
+    }
+
+    /**
+     * Build spot_data array for saving
+     * Only contains image data, not post information
+     */
+    protected function buildSpotDataArray(): array
+    {
+        // Start with empty array - only store image data, not post information
+        $spotData = [];
+
+        // Only update if we have image data
+        if (!empty($this->originalImagePath)) {
+            // Ensure all arrays are properly formatted
+            $desktopCrop = is_array($this->desktopCrop) ? $this->desktopCrop : [];
+            $mobileCrop = is_array($this->mobileCrop) ? $this->mobileCrop : [];
+            $imageEffects = is_array($this->imageEffects) ? $this->imageEffects : [];
+            $imageMeta = is_array($this->imageMeta) ? $this->imageMeta : [];
+            $textObjects = is_array($this->imageTextObjects) ? $this->imageTextObjects : [];
+
+            \Log::info('PostEdit buildSpotDataArray - textObjects:', [
+                'count' => count($textObjects),
+                'textObjects' => $textObjects,
+            ]);
+
+            $spotData['image'] = [
+                'original' => [
+                    'path' => $this->originalImagePath,
+                    'width' => $this->originalImageWidth,
+                    'height' => $this->originalImageHeight,
+                    'hash' => $this->originalImageHash,
+                ],
+                'variants' => [
+                    'desktop' => [
+                        'crop' => $desktopCrop,
+                        'focus' => $this->desktopFocus ?? 'center',
+                    ],
+                    'mobile' => [
+                        'crop' => $mobileCrop,
+                        'focus' => $this->mobileFocus ?? 'center',
+                    ],
+                ],
+                'effects' => $imageEffects,
+                'meta' => $imageMeta,
+                'textObjects' => $textObjects,
+            ];
+        }
+
+        return $spotData;
     }
 
     protected function rules(): array
@@ -341,6 +542,22 @@ class PostEdit extends Component
     }
 
     // Livewire defer kullanılıyor, ek metod gerekmiyor
+
+    /**
+     * Ensure tagsInput is always a string when updated
+     * This method is called automatically by Livewire when tagsInput property changes
+     */
+    public function updatedTagsInput($value)
+    {
+        // Ensure tagsInput is always a string to prevent Livewire serialization issues
+        if (!is_string($value)) {
+            $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
+        } else {
+            // Clean up the string: remove extra spaces, ensure proper comma separation
+            $this->tagsInput = trim($value);
+        }
+    }
+
 
     public function updatedIsMainpage($value)
     {
@@ -710,59 +927,299 @@ class PostEdit extends Component
         }
     }
 
-    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    /**
+     * Update file preview after image editing
+     *
+     * @param string|int $identifier File index or file_id
+     * @param string $imageUrl Edited image URL
+     * @param string|null $tempPath Temporary file path
+     * @param array|string|null $editorData Image editor data (crop, effects, meta) - can be array or JSON string
+     */
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null, $editorData = null)
     {
+        \Log::info('PostEdit updateFilePreview - Method called:', [
+            'identifier' => $identifier,
+            'identifier_type' => gettype($identifier),
+            'imageUrl' => $imageUrl,
+            'editorData_type' => gettype($editorData),
+            'editorData_is_null' => $editorData === null,
+            'editorData_is_string' => is_string($editorData),
+            'editorData_is_array' => is_array($editorData),
+            'editorData_length' => is_string($editorData) ? strlen($editorData) : null,
+        ]);
+
+        // Extract path from URL
+        $path = str_replace(asset('storage/'), '', $imageUrl);
+        $path = str_replace(asset(''), '', $path);
+        if (strpos($path, 'storage/') === 0) {
+            $path = substr($path, 8); // Remove 'storage/' prefix
+        }
+
+        // Update image editor data if provided and this is primary file
+        $isPrimaryFile = false;
+
         // identifier file_id (string) veya index (integer) olabilir
         if (is_string($identifier)) {
             // file_id ile güncelle
             foreach ($this->existingFiles as $index => $file) {
                 if (isset($file['file_id']) && (string) $file['file_id'] === (string) $identifier) {
                     // Path'i güncelle (storage/ ile başlayan path)
-                    $path = str_replace(asset('storage/'), '', $imageUrl);
                     $this->existingFiles[$index]['path'] = $path;
                     $this->existingFiles[$index]['is_new'] = false;
-                    
+
+                    // Update spot_data if this is primary file
+                    if ($this->primaryFileId === (string) $identifier) {
+                        $this->originalImagePath = $path;
+                        $isPrimaryFile = true;
+                        \Log::info('PostEdit updateFilePreview - Primary file detected (file_id):', [
+                            'identifier' => $identifier,
+                            'primaryFileId' => $this->primaryFileId,
+                        ]);
+                    }
+
                     // Post'u refresh et ki değişiklikler görünsün
                     $this->post->refresh();
-                    
+
                     // Livewire'a güncelleme bildir
                     $this->dispatch('image-updated', [
                         'file_id' => $identifier,
                         'image_url' => $imageUrl,
                     ]);
-                    
+
+                    // Always process editorData if provided
+                    if ($editorData !== null) {
+                        // If editorData is a JSON string, decode it
+                        if (is_string($editorData)) {
+                            $decoded = json_decode($editorData, true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                $editorData = $decoded;
+                            } else {
+                                \Log::warning('PostEdit updateFilePreview - Failed to decode JSON editorData (file_id):', [
+                                    'json_error' => json_last_error_msg(),
+                                ]);
+                                $editorData = null;
+                            }
+                        }
+
+                        if ($editorData !== null && is_array($editorData)) {
+                            \Log::info('PostEdit updateFilePreview - editorData received (file_id):', [
+                                'file_id' => $identifier,
+                                'isPrimaryFile' => $isPrimaryFile,
+                                'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                                'textObjects' => $editorData['textObjects'] ?? [],
+                                'editorData_keys' => array_keys($editorData),
+                            ]);
+                            $this->updateImageEditorData($editorData);
+                        }
+                    }
+
                     return;
                 }
             }
-            
+
             // Eğer Posts modülündeki File model'inde varsa güncelle
             $file = \Modules\Posts\Models\File::find($identifier);
             if ($file) {
-                $path = str_replace(asset('storage/'), '', $imageUrl);
                 $file->update(['file_path' => $path]);
+
+                // Update spot_data if this is primary file
+                if ($this->post->primaryFile && $this->post->primaryFile->file_id == $identifier) {
+                    $this->originalImagePath = $path;
+                    $isPrimaryFile = true;
+                    \Log::info('PostEdit updateFilePreview - Primary file detected (file model):', [
+                        'identifier' => $identifier,
+                        'primaryFile_id' => $this->post->primaryFile->file_id,
+                    ]);
+                }
+
                 $this->post->refresh();
-                
+
                 $this->dispatch('image-updated', [
                     'file_id' => $identifier,
                     'image_url' => $imageUrl,
                 ]);
+
+                // Always process editorData if provided
+                if ($editorData !== null) {
+                    // If editorData is a JSON string, decode it
+                    if (is_string($editorData)) {
+                        $decoded = json_decode($editorData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $editorData = $decoded;
+                        } else {
+                            \Log::warning('PostEdit updateFilePreview - Failed to decode JSON editorData (file model):', [
+                                'json_error' => json_last_error_msg(),
+                            ]);
+                            $editorData = null;
+                        }
+                    }
+
+                    if ($editorData !== null && is_array($editorData)) {
+                        \Log::info('PostEdit updateFilePreview - editorData received (file model):', [
+                            'file_id' => $identifier,
+                            'isPrimaryFile' => $isPrimaryFile,
+                            'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                            'textObjects' => $editorData['textObjects'] ?? [],
+                            'editorData_keys' => array_keys($editorData),
+                        ]);
+                        $this->updateImageEditorData($editorData);
+                    }
+                }
             }
         } elseif (is_numeric($identifier)) {
-            // index ile güncelle
+            // index ile güncelle veya file_id ile eşleştir
             $index = (int) $identifier;
+            \Log::info('PostEdit updateFilePreview - Processing numeric identifier:', [
+                'identifier' => $identifier,
+                'index' => $index,
+                'existingFiles_count' => count($this->existingFiles),
+                'existingFiles_keys' => array_keys($this->existingFiles),
+                'primaryFileId' => $this->primaryFileId,
+            ]);
+
+            // Önce index ile kontrol et
+            $fileFound = false;
             if (isset($this->existingFiles[$index])) {
-                $path = str_replace(asset('storage/'), '', $imageUrl);
+                $fileFound = true;
+            } else {
+                // Index ile bulunamadıysa, file_id ile eşleştirmeyi dene
+                foreach ($this->existingFiles as $idx => $file) {
+                    if (isset($file['file_id']) && (string) $file['file_id'] === (string) $identifier) {
+                        $index = $idx;
+                        $fileFound = true;
+                        \Log::info('PostEdit updateFilePreview - Found file by file_id:', [
+                            'identifier' => $identifier,
+                            'matched_index' => $index,
+                            'file_id' => $file['file_id'],
+                        ]);
+                        break;
+                    }
+                }
+            }
+
+            if ($fileFound && isset($this->existingFiles[$index])) {
                 $this->existingFiles[$index]['path'] = $path;
                 $this->existingFiles[$index]['is_new'] = false;
-                
+
+                // Update spot_data if this is primary file
+                if ($this->primaryFileId === (string) $this->existingFiles[$index]['file_id']) {
+                    $this->originalImagePath = $path;
+                    $isPrimaryFile = true;
+                    \Log::info('PostEdit updateFilePreview - Primary file detected (index):', [
+                        'index' => $index,
+                        'primaryFileId' => $this->primaryFileId,
+                        'file_id' => $this->existingFiles[$index]['file_id'],
+                    ]);
+                } else {
+                    \Log::info('PostEdit updateFilePreview - Not primary file (index):', [
+                        'index' => $index,
+                        'primaryFileId' => $this->primaryFileId,
+                        'file_id' => $this->existingFiles[$index]['file_id'],
+                        'isPrimaryFile' => false,
+                    ]);
+                }
+
                 $this->post->refresh();
-                
+
                 $this->dispatch('image-updated', [
                     'index' => $index,
                     'image_url' => $imageUrl,
                 ]);
+
+                // Always process editorData if provided (for all files, not just primary)
+                if ($editorData !== null) {
+                    \Log::info('PostEdit updateFilePreview - Processing editorData (index):', [
+                        'index' => $index,
+                        'isPrimaryFile' => $isPrimaryFile,
+                        'editorData_type' => gettype($editorData),
+                    ]);
+
+                    // If editorData is a JSON string, decode it
+                    if (is_string($editorData)) {
+                        $decoded = json_decode($editorData, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                            $editorData = $decoded;
+                            \Log::info('PostEdit updateFilePreview - JSON decoded successfully (index):', [
+                                'textObjects_count' => isset($decoded['textObjects']) ? count($decoded['textObjects']) : 0,
+                            ]);
+                        } else {
+                            \Log::warning('PostEdit updateFilePreview - Failed to decode JSON editorData (index):', [
+                                'json_error' => json_last_error_msg(),
+                                'editorData_preview' => substr($editorData, 0, 200),
+                            ]);
+                            $editorData = null;
+                        }
+                    }
+
+                    if ($editorData !== null && is_array($editorData)) {
+                        // Always update image editor data (will be saved to spot_data if primary file)
+                        \Log::info('PostEdit updateFilePreview - editorData received (index):', [
+                            'index' => $index,
+                            'isPrimaryFile' => $isPrimaryFile,
+                            'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                            'textObjects' => $editorData['textObjects'] ?? [],
+                            'editorData_keys' => array_keys($editorData),
+                        ]);
+                        $this->updateImageEditorData($editorData);
+                    }
+                } else {
+                    \Log::warning('PostEdit updateFilePreview - editorData is null (index):', [
+                        'index' => $index,
+                    ]);
+                }
             }
         }
+    }
+
+    /**
+     * Update image editor data from editor response
+     */
+    protected function updateImageEditorData(array $editorData): void
+    {
+        // Extract crop data
+        if (isset($editorData['crop']) && is_array($editorData['crop'])) {
+            $this->desktopCrop = $editorData['crop']['desktop'] ?? [];
+            $this->mobileCrop = $editorData['crop']['mobile'] ?? [];
+        } elseif (isset($editorData['desktopCrop'])) {
+            $this->desktopCrop = $editorData['desktopCrop'];
+            $this->mobileCrop = $editorData['mobileCrop'] ?? [];
+        }
+
+        // Extract focus data
+        if (isset($editorData['focus']) && is_array($editorData['focus'])) {
+            $this->desktopFocus = $editorData['focus']['desktop'] ?? 'center';
+            $this->mobileFocus = $editorData['focus']['mobile'] ?? 'center';
+        } elseif (isset($editorData['desktopFocus'])) {
+            $this->desktopFocus = $editorData['desktopFocus'];
+            $this->mobileFocus = $editorData['mobileFocus'] ?? 'center';
+        }
+
+        // Extract effects
+        if (isset($editorData['effects']) && is_array($editorData['effects'])) {
+            $this->imageEffects = $editorData['effects'];
+        }
+
+        // Extract meta
+        if (isset($editorData['meta']) && is_array($editorData['meta'])) {
+            $this->imageMeta = array_merge($this->imageMeta, $editorData['meta']);
+        }
+
+        // Extract text objects (store in a property for later use in buildSpotDataArray)
+        if (isset($editorData['textObjects']) && is_array($editorData['textObjects'])) {
+            \Log::info('PostEdit updateImageEditorData - textObjects received:', [
+                'count' => count($editorData['textObjects']),
+                'textObjects' => $editorData['textObjects'],
+            ]);
+            $this->imageTextObjects = $editorData['textObjects'];
+        } else {
+            \Log::warning('PostEdit updateImageEditorData - textObjects not found:', [
+                'editorData_keys' => array_keys($editorData),
+                'has_textObjects' => isset($editorData['textObjects']),
+            ]);
+        }
+
+        // Mark that image editor was used
+        $this->imageEditorUsed = true;
     }
 
     public function updatePost()
@@ -882,6 +1339,9 @@ class PostEdit extends Component
             }
         }
 
+        // Build spot_data from properties before saving
+        $this->buildSpotData();
+
         $postsService = new PostsService;
         $postsService->update(
             $this->post,
@@ -891,6 +1351,12 @@ class PostEdit extends Component
             $tagIds,
             $fileDescriptions
         );
+
+        // Save spot_data after post update only if image editor was used
+        if ($this->imageEditorUsed) {
+            $this->post->spot_data = $this->buildSpotDataArray();
+            $this->post->save();
+        }
 
         // Galeri için content'i güncelle (açıklamalar dahil)
         if ($this->post_type === 'gallery') {

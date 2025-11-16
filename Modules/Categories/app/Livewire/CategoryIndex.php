@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
 
 /**
  * @property string|null $search
@@ -31,6 +32,13 @@ class CategoryIndex extends Component
     public string $sortField = 'weight';
 
     public string $sortDirection = 'asc';
+
+    protected CategoryService $categoryService;
+
+    public function boot()
+    {
+        $this->categoryService = app(CategoryService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -91,15 +99,12 @@ class CategoryIndex extends Component
 
         $category = Category::findOrFail($categoryId);
 
-        // Alt kategorileri kontrol et
-        if ($category->children()->count() > 0) {
-            session()->flash('error', 'Bu kategorinin alt kategorileri bulunuyor. Önce alt kategorileri silin.');
-
-            return;
+        try {
+            $this->categoryService->delete($category);
+            session()->flash('success', 'Kategori başarıyla silindi.');
+        } catch (\Exception $e) {
+            session()->flash('error', $e->getMessage());
         }
-
-        $category->delete();
-        session()->flash('success', 'Kategori başarıyla silindi.');
     }
 
     public function render()

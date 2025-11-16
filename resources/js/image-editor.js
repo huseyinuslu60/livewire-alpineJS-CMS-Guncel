@@ -302,6 +302,19 @@ export function registerImageEditor() {
       saturation: 100,
       hue: 0,
       exposure: 0,
+
+      // Crop data for desktop and mobile
+      desktopCrop: [],
+      mobileCrop: [],
+      desktopFocus: 'center',
+      mobileFocus: 'center',
+
+      // Original image dimensions (before any crop operations)
+      originalImageWidth: 0,
+      originalImageHeight: 0,
+
+      // Image metadata
+      imageMeta: {},
       gamma: 1,
       blur: 0,
       sharpen: 0,
@@ -434,9 +447,36 @@ export function registerImageEditor() {
           return;
         }
 
+        console.log('Image Editor - openEditor called:', {
+          identifier: identifier,
+          identifier_type: typeof identifier,
+          url: url,
+        });
+
         this.isOpen = true;
-        this.currentIndex = typeof identifier === 'string' ? null : identifier;
-        this.currentFileId = typeof identifier === 'string' ? identifier : null;
+        // If identifier is a number or numeric string, treat as index
+        // Otherwise treat as fileId (string)
+        if (identifier !== null && identifier !== undefined && identifier !== '') {
+          const numIdentifier = typeof identifier === 'string' ? parseInt(identifier, 10) : identifier;
+          if (!isNaN(numIdentifier) && numIdentifier.toString() === String(identifier)) {
+            // It's a number, use as index
+            this.currentIndex = numIdentifier;
+            this.currentFileId = null;
+          } else {
+            // It's a string (fileId)
+            this.currentFileId = String(identifier);
+            this.currentIndex = null;
+          }
+        } else {
+          this.currentIndex = null;
+          this.currentFileId = null;
+        }
+
+        console.log('Image Editor - openEditor set:', {
+          currentIndex: this.currentIndex,
+          currentFileId: this.currentFileId,
+        });
+
         this.imageUrl = url;
         this.zoom = 1;
         this.panX = 0;
@@ -469,6 +509,11 @@ export function registerImageEditor() {
         this.currentFileId = null;
         this.imageUrl = null;
         this.editingText = false;
+        // Reset crop data and original dimensions
+        this.desktopCrop = [];
+        this.mobileCrop = [];
+        this.originalImageWidth = 0;
+        this.originalImageHeight = 0;
       },
 
       initCanvas() {
@@ -486,6 +531,14 @@ export function registerImageEditor() {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
+          // Save original image dimensions (before any crop operations)
+          this.originalImageWidth = img.width;
+          this.originalImageHeight = img.height;
+
+          // Reset crop data when loading new image
+          this.desktopCrop = [];
+          this.mobileCrop = [];
+
           // Calculate canvas size to fit image
           const maxWidth = 1000;
           const maxHeight = 700;
@@ -1601,10 +1654,36 @@ export function registerImageEditor() {
         const sw = w / this.zoom * scaleX;
         const sh = h / this.zoom * scaleY;
 
+        // Save crop coordinates relative to original image dimensions
+        // Store as [x, y, width, height] format
+        // Use originalImageWidth/Height if available, otherwise use current image dimensions
+        const originalWidth = this.originalImageWidth || this.image.width;
+        const originalHeight = this.originalImageHeight || this.image.height;
+
+        // Calculate crop coordinates relative to original image
+        // sx, sy, sw, sh are already in original image coordinates (scaled)
+        const cropX = Math.round(sx);
+        const cropY = Math.round(sy);
+        const cropWidth = Math.round(sw);
+        const cropHeight = Math.round(sh);
+
+        // Save crop data for both desktop and mobile (same crop for now, can be different later)
+        this.desktopCrop = [cropX, cropY, cropWidth, cropHeight];
+        this.mobileCrop = [cropX, cropY, cropWidth, cropHeight];
+
+        console.log('Image Editor - Crop applied:', {
+          desktopCrop: this.desktopCrop,
+          mobileCrop: this.mobileCrop,
+          originalImageSize: { width: originalWidth, height: originalHeight },
+          cropCoordinates: { x: cropX, y: cropY, width: cropWidth, height: cropHeight },
+        });
+
         tempCtx.drawImage(this.image, sx, sy, sw, sh, 0, 0, w, h);
 
         const croppedImg = new Image();
         croppedImg.onload = () => {
+          // Update image but keep original dimensions for crop calculations
+          // Don't update originalImageWidth/Height because we need them for future crops
           this.image = croppedImg;
           this.layers[0].image = croppedImg;
           this.canvasWidth = w;
@@ -1615,6 +1694,14 @@ export function registerImageEditor() {
           this.panX = 0;
           this.panY = 0;
           this.isCropping = false;
+
+          // Log that crop was applied and crop data is saved
+          console.log('Image Editor - Crop applied, crop data saved:', {
+            desktopCrop: this.desktopCrop,
+            mobileCrop: this.mobileCrop,
+            originalImageSize: { width: this.originalImageWidth, height: this.originalImageHeight },
+          });
+
           this.draw();
           this.saveState();
         };
@@ -1675,6 +1762,12 @@ export function registerImageEditor() {
       },
 
       updateTextProperty(property, value) {
+        // Ensure numeric properties are stored as numbers
+        const numericProperties = ['fontSize', 'letterSpacing', 'lineHeight', 'brushSize', 'brushOpacity', 'brushHardness'];
+        if (numericProperties.includes(property)) {
+          value = parseFloat(value) || (property === 'lineHeight' ? 1.2 : 0);
+        }
+
         if (this.activeTextIndex !== null) {
           this.textObjects[this.activeTextIndex][property] = value;
           this.draw();
@@ -2109,17 +2202,128 @@ export function registerImageEditor() {
               }
             }
 
-            // Call updateFilePreview on parent component
+            // Collect image editor data (crop, effects, meta, text objects)
+            // Serialize textObjects without image references (to avoid circular references)
+            console.log('Image Editor - textObjects before serialize:', this.textObjects);
+            const textObjectsData = (this.textObjects || []).map(textObj => {
+              // Ensure we have all required properties
+              const serialized = {
+                text: textObj.text || '',
+                x: textObj.x || 0,
+                y: textObj.y || 0,
+                color: textObj.color || textObj.textColor || '#000000',
+                backgroundColor: textObj.backgroundColor || 'transparent',
+                fontSize: textObj.fontSize || 32,
+                fontFamily: textObj.fontFamily || 'Arial',
+                fontWeight: textObj.fontWeight || (textObj.textBold ? 'bold' : 'normal'),
+                textBold: textObj.textBold || false,
+                textItalic: textObj.textItalic || false,
+                textUnderline: textObj.textUnderline || false,
+                textStrikethrough: textObj.textStrikethrough || false,
+                textAlign: textObj.textAlign || 'left',
+                letterSpacing: textObj.letterSpacing || 0,
+                lineHeight: textObj.lineHeight || 1.2,
+                textShadow: textObj.textShadow || { enabled: false, color: '#000000', blur: 0, offsetX: 0, offsetY: 0 },
+                textStroke: textObj.textStroke || { enabled: false, color: '#000000', width: 1 },
+                textTransform: textObj.textTransform || 'none',
+                padding: textObj.padding || 0,
+              };
+              return serialized;
+            });
+            console.log('Image Editor - textObjectsData after serialize:', textObjectsData);
+
+            // Log crop data before creating editorData
+            console.log('Image Editor - Crop data before sending:', {
+              desktopCrop: this.desktopCrop,
+              mobileCrop: this.mobileCrop,
+              desktopCrop_type: Array.isArray(this.desktopCrop) ? 'array' : typeof this.desktopCrop,
+              mobileCrop_type: Array.isArray(this.mobileCrop) ? 'array' : typeof this.mobileCrop,
+              desktopCrop_length: Array.isArray(this.desktopCrop) ? this.desktopCrop.length : 0,
+              mobileCrop_length: Array.isArray(this.mobileCrop) ? this.mobileCrop.length : 0,
+            });
+
+            const editorData = {
+              effects: {
+                brightness: this.brightness,
+                contrast: this.contrast,
+                saturation: this.saturation,
+                hue: this.hue || 0,
+                exposure: this.exposure || 0,
+                blur: this.blur || 0,
+              },
+              crop: {
+                desktop: Array.isArray(this.desktopCrop) && this.desktopCrop.length > 0 ? this.desktopCrop : [],
+                mobile: Array.isArray(this.mobileCrop) && this.mobileCrop.length > 0 ? this.mobileCrop : [],
+              },
+              focus: {
+                desktop: this.desktopFocus || 'center',
+                mobile: this.mobileFocus || 'center',
+              },
+              meta: this.imageMeta || {},
+              textObjects: textObjectsData,
+            };
+
+            console.log('Image Editor - editorData before sending to Livewire:', {
+              textObjects_count: textObjectsData.length,
+              textObjects: textObjectsData,
+              crop_desktop: editorData.crop.desktop,
+              crop_mobile: editorData.crop.mobile,
+              editorData_keys: Object.keys(editorData),
+              editorData: editorData
+            });
+
+            // Call updateFilePreview on parent component with editor data
+            console.log('Image Editor - Looking for parentWire:', {
+              parentWire_exists: !!parentWire,
+              parentWire_has_call: parentWire && typeof parentWire.call === 'function',
+              currentFileId: this.currentFileId,
+              currentIndex: this.currentIndex,
+              textObjects_count: textObjectsData.length,
+            });
+
             if (parentWire && typeof parentWire.call === 'function') {
               try {
-                if (this.currentFileId) {
-                  parentWire.call('updateFilePreview', this.currentFileId, result.image_url, result.temp_path || null);
-                } else if (this.currentIndex !== null) {
-                  parentWire.call('updateFilePreview', this.currentIndex, result.image_url, result.temp_path || null);
+                // Livewire call() may have issues with complex nested arrays
+                // Convert to JSON string to ensure proper serialization
+                const editorDataJson = JSON.stringify(editorData);
+
+                console.log('Image Editor - editorDataJson length:', editorDataJson.length);
+                console.log('Image Editor - editorDataJson preview:', editorDataJson.substring(0, 500));
+                console.log('Image Editor - serializedEditorData:', {
+                  textObjects_count: editorData.textObjects?.length || 0,
+                  textObjects: editorData.textObjects,
+                });
+
+                // Call updateFilePreview - identifier can be fileId (string) or index (number)
+                // Even if currentFileId is empty string, we should still call it
+                if (this.currentFileId !== null && this.currentFileId !== undefined) {
+                  console.log('Image Editor - Calling updateFilePreview with fileId:', this.currentFileId);
+                  parentWire.call('updateFilePreview', this.currentFileId, result.image_url, result.temp_path || null, editorDataJson);
+                } else if (this.currentIndex !== null && this.currentIndex !== undefined) {
+                  console.log('Image Editor - Calling updateFilePreview with index:', this.currentIndex);
+                  parentWire.call('updateFilePreview', this.currentIndex, result.image_url, result.temp_path || null, editorDataJson);
+                } else {
+                  console.warn('Image Editor - No currentFileId or currentIndex available', {
+                    currentFileId: this.currentFileId,
+                    currentIndex: this.currentIndex,
+                  });
+                  // Try to call with empty string as fallback
+                  console.log('Image Editor - Attempting to call updateFilePreview with empty identifier');
+                  parentWire.call('updateFilePreview', '', result.image_url, result.temp_path || null, editorDataJson);
                 }
               } catch (e) {
-                console.warn('Could not call updateFilePreview on parent component:', e);
+                console.error('Could not call updateFilePreview on parent component:', e);
+                console.error('Error details:', {
+                  error: e.message,
+                  stack: e.stack,
+                  editorData: editorData
+                });
               }
+            } else {
+              console.warn('Image Editor - parentWire not found or call method not available', {
+                parentWire: parentWire,
+                hasCall: parentWire && typeof parentWire.call === 'function',
+              });
             }
 
             // Dispatch event for any listeners

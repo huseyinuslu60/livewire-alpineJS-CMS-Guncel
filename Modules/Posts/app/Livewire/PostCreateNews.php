@@ -58,6 +58,23 @@ class PostCreateNews extends Component
      */
     protected array $editedFilePaths = [];
 
+    /**
+     * Temporary storage for edited file URLs (for display)
+     * Key: file index, Value: edited image URL
+     */
+    public array $editedFileUrls = [];
+
+    /**
+     * Image editor data storage
+     * Key: file index, Value: array with crop, effects, meta data
+     */
+    protected array $imageEditorData = [];
+
+    /**
+     * Flag to track if image editor was used (to avoid saving empty spot_data)
+     */
+    protected bool $imageEditorUsed = false;
+
     /** @var array<int> */
     public array $categoryIds = [];
 
@@ -274,16 +291,8 @@ class PostCreateNews extends Component
     {
         // Skip render to avoid checksum issues
         $this->skipRender();
-        $this->content = $content ?? '';
-    }
-
-    /**
-     * Handle content updates from Trumbowyg editor
-     */
-    public function updatedContent($value)
-    {
         // Ensure content is always a string
-        $this->content = (string) ($value ?? '');
+        $this->content = (string) ($content ?? '');
     }
 
     public function removeFile($index)
@@ -299,8 +308,13 @@ class PostCreateNews extends Component
      * Update file preview after image editing
      * Note: We don't replace the UploadedFile object to avoid serialization issues.
      * Instead, we store the edited image path temporarily and use it during save.
+     *
+     * @param string|int $identifier File index or file_id
+     * @param string $imageUrl Edited image URL
+     * @param string|null $tempPath Temporary file path
+     * @param array|string|null $editorData Image editor data (crop, effects, meta) - can be array or JSON string
      */
-    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null, $editorData = null)
     {
         // Skip render to avoid checksum issues
         $this->skipRender();
@@ -310,6 +324,41 @@ class PostCreateNews extends Component
             $index = (int) $identifier;
             // Store the edited path - we'll use this during save
             $this->editedFilePaths[$index] = $imageUrl;
+            // Store the edited URL for display
+            $this->editedFileUrls[$index] = $imageUrl;
+
+            // Store image editor data if provided
+            if ($editorData !== null) {
+                // If editorData is a JSON string, decode it
+                if (is_string($editorData)) {
+                    $decoded = json_decode($editorData, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                        $editorData = $decoded;
+                    } else {
+                        \Log::warning('PostCreateNews updateFilePreview - Failed to decode JSON editorData:', [
+                            'json_error' => json_last_error_msg(),
+                            'editorData_string' => substr($editorData, 0, 200),
+                        ]);
+                        $editorData = null;
+                    }
+                }
+
+                    if ($editorData !== null && is_array($editorData)) {
+                        \Log::info('PostCreateNews updateFilePreview - editorData received:', [
+                            'index' => $index,
+                            'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                            'textObjects' => $editorData['textObjects'] ?? [],
+                            'editorData_keys' => array_keys($editorData),
+                            'editorData_type' => gettype($editorData),
+                        ]);
+                        $this->imageEditorData[$index] = $editorData;
+                        $this->imageEditorUsed = true; // Mark that image editor was used
+                    }
+            } else {
+                \Log::warning('PostCreateNews updateFilePreview - editorData is null', [
+                    'index' => $index,
+                ]);
+            }
         }
 
         $this->dispatch('image-updated', [
@@ -413,34 +462,126 @@ class PostCreateNews extends Component
                 $tagIds
             );
 
-            // Build and save spot_data if we have image files
-            if (!empty($this->files) && $post->primaryFile) {
-                $spotData = [
-                    'image' => [
-                        'original' => [
-                            'path' => $post->primaryFile->file_path,
-                            'width' => null,
-                            'height' => null,
-                            'hash' => null,
+            // Build and save spot_data with image data only
+            // Only save spot_data if image editor was actually used
+            $spotData = [];
+
+            // Add image data if we have image files AND image editor was used
+            if ($this->imageEditorUsed && !empty($this->files) && $post->primaryFile) {
+                // Get image dimensions and hash
+                $imagePath = public_path('storage/' . $post->primaryFile->file_path);
+                $width = null;
+                $height = null;
+                $hash = null;
+
+                if (file_exists($imagePath)) {
+                    // Get image dimensions
+                    $imageInfo = @getimagesize($imagePath);
+                    if ($imageInfo !== false) {
+                        $width = $imageInfo[0];
+                        $height = $imageInfo[1];
+                    }
+
+                    // Calculate file hash
+                    $hash = md5_file($imagePath);
+                }
+
+                // Get image editor data if available (from image editor modal)
+                $primaryFileIndex = $this->primaryFileIndex;
+                $editorData = $this->imageEditorData[$primaryFileIndex] ?? null;
+
+                // Extract crop, effects, and meta from editor data
+                $desktopCrop = [];
+                $mobileCrop = [];
+                $desktopFocus = 'center';
+                $mobileFocus = 'center';
+                $imageEffects = [];
+                $imageMeta = [
+                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+
+                if ($editorData !== null && is_array($editorData)) {
+                    // Extract crop data
+                    if (isset($editorData['crop']) && is_array($editorData['crop'])) {
+                        $desktopCrop = $editorData['crop']['desktop'] ?? [];
+                        $mobileCrop = $editorData['crop']['mobile'] ?? [];
+                    } elseif (isset($editorData['desktopCrop'])) {
+                        $desktopCrop = $editorData['desktopCrop'];
+                        $mobileCrop = $editorData['mobileCrop'] ?? [];
+                    }
+
+                    // Extract focus data
+                    if (isset($editorData['focus']) && is_array($editorData['focus'])) {
+                        $desktopFocus = $editorData['focus']['desktop'] ?? 'center';
+                        $mobileFocus = $editorData['focus']['mobile'] ?? 'center';
+                    } elseif (isset($editorData['desktopFocus'])) {
+                        $desktopFocus = $editorData['desktopFocus'];
+                        $mobileFocus = $editorData['mobileFocus'] ?? 'center';
+                    }
+
+                    // Extract effects
+                    if (isset($editorData['effects']) && is_array($editorData['effects'])) {
+                        $imageEffects = $editorData['effects'];
+                    }
+
+                    // Extract meta
+                    if (isset($editorData['meta']) && is_array($editorData['meta'])) {
+                        $imageMeta = array_merge($imageMeta, $editorData['meta']);
+                    }
+                }
+
+                // Extract text objects (textObjects will be added to spot_data separately)
+                $textObjects = [];
+                if ($editorData !== null && isset($editorData['textObjects']) && is_array($editorData['textObjects'])) {
+                    $textObjects = $editorData['textObjects'];
+                    \Log::info('PostCreateNews savePost - textObjects extracted:', [
+                        'count' => count($textObjects),
+                        'textObjects' => $textObjects,
+                    ]);
+                } else {
+                    \Log::warning('PostCreateNews savePost - textObjects not found in editorData:', [
+                        'editorData_keys' => $editorData !== null ? array_keys($editorData) : [],
+                        'has_textObjects' => $editorData !== null && isset($editorData['textObjects']),
+                    ]);
+                }
+
+                // Ensure arrays are properly formatted
+                $desktopCrop = is_array($desktopCrop) ? $desktopCrop : [];
+                $mobileCrop = is_array($mobileCrop) ? $mobileCrop : [];
+                $imageEffects = is_array($imageEffects) ? $imageEffects : [];
+                $imageMeta = is_array($imageMeta) ? $imageMeta : [
+                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+
+                $spotData['image'] = [
+                    'original' => [
+                        'path' => $post->primaryFile->file_path,
+                        'width' => $width,
+                        'height' => $height,
+                        'hash' => $hash,
+                    ],
+                    'variants' => [
+                        'desktop' => [
+                            'crop' => $desktopCrop,
+                            'focus' => $desktopFocus,
                         ],
-                        'variants' => [
-                            'desktop' => [
-                                'crop' => [],
-                                'focus' => 'center',
-                            ],
-                            'mobile' => [
-                                'crop' => [],
-                                'focus' => 'center',
-                            ],
-                        ],
-                        'effects' => [],
-                        'meta' => [
-                            'alt' => $post->primaryFile->alt_text ?? null,
-                            'credit' => null,
-                            'source' => null,
+                        'mobile' => [
+                            'crop' => $mobileCrop,
+                            'focus' => $mobileFocus,
                         ],
                     ],
+                    'effects' => $imageEffects,
+                    'meta' => $imageMeta,
+                    'textObjects' => $textObjects,
                 ];
+            }
+
+            // Only save spot_data if image editor was used
+            if ($this->imageEditorUsed) {
                 $post->spot_data = $spotData;
                 $post->save();
             }
@@ -482,3 +623,4 @@ class PostCreateNews extends Component
             ->section('content');
     }
 }
+

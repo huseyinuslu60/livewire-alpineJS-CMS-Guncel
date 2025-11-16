@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Files\Models\File;
+use Modules\Files\Services\FileService;
 
 /**
  * @property string|null $search
@@ -62,6 +63,13 @@ class FileIndex extends Component
         'mimeType' => ['except' => ''],
     ];
 
+    protected FileService $fileService;
+
+    public function boot()
+    {
+        $this->fileService = app(FileService::class);
+    }
+
     protected $listeners = [
         'filesUploaded' => 'refreshFilesList',
         'closeUploadModal' => 'closeUploadModal',
@@ -112,19 +120,9 @@ class FileIndex extends Component
     public function deleteSelectedFiles()
     {
         try {
-            $files = File::whereIn('file_id', $this->selectedFiles)->get();
+            $deletedCount = $this->fileService->bulkDelete($this->selectedFiles);
 
-            foreach ($files as $file) {
-                // Fiziksel dosyayı sil
-                if (file_exists(public_path('storage/'.$file->file_path))) {
-                    unlink(public_path('storage/'.$file->file_path));
-                }
-
-                // Veritabanından sil
-                $file->delete();
-            }
-
-            session()->flash('success', count($files).' dosya başarıyla silindi.');
+            session()->flash('success', $deletedCount.' dosya başarıyla silindi.');
             $this->selectedFiles = [];
             $this->selectAll = false;
             $this->resetPage();
@@ -147,12 +145,7 @@ class FileIndex extends Component
                 return;
             }
 
-            // Fiziksel dosyayı sil
-            if (file_exists(public_path('storage/'.$file->file_path))) {
-                unlink(public_path('storage/'.$file->file_path));
-            }
-
-            $file->delete();
+            $this->fileService->delete($file);
 
             session()->flash('success', $this->createContextualSuccessMessage('deleted', 'name', 'file'));
             $this->resetPage();
@@ -178,7 +171,7 @@ class FileIndex extends Component
 
         try {
             if ($this->editingFile) {
-                $this->editingFile->update([
+                $this->fileService->update($this->editingFile, [
                     'alt_text' => $this->editAltText,
                     'caption' => $this->editCaption,
                 ]);

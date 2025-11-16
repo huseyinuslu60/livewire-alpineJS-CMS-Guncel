@@ -173,11 +173,11 @@ const initTrumbowyg = () => {
         'tbwchange': function() {
           const element = this;
           // Livewire entegrasyonu - dispatch input event for wire:model bindings
-          if (element.hasAttribute('wire:model') || element.hasAttribute('wire:change')) {
+          if (element.hasAttribute('wire:model') || element.hasAttribute('wire:change') || element.hasAttribute('wire:model.live')) {
             element.dispatchEvent(new Event('input', { bubbles: true }));
           }
 
-          // Also sync directly to Livewire component if needed (for non-wire:model cases)
+          // Always sync directly to Livewire component (wire:ignore içinde wire:model çalışmayabilir)
           const wireId = element.closest('[wire\\:id]')?.getAttribute('wire:id');
           if (wireId && window.Livewire && window.jQuery) {
             const livewireComponent = window.Livewire.find(wireId);
@@ -186,7 +186,13 @@ const initTrumbowyg = () => {
               // Only update if content actually changed (avoid infinite loops)
               const currentValue = livewireComponent.get('content');
               if (content !== currentValue) {
-                livewireComponent.set('content', content, false);
+                // Use call() method to trigger contentUpdated listener (more reliable than set())
+                try {
+                  livewireComponent.call('contentUpdated', content);
+                } catch (e) {
+                  // Fallback to set() if call() fails
+                  livewireComponent.set('content', content, false);
+                }
               }
             }
           }

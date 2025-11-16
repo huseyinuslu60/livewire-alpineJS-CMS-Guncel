@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
+use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
 class UserCreate extends Component
@@ -28,6 +29,13 @@ class UserCreate extends Component
     public ?string $successMessage = null;
 
     public bool $isLoading = false;
+
+    protected UserService $userService;
+
+    public function boot()
+    {
+        $this->userService = app(UserService::class);
+    }
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -67,17 +75,13 @@ class UserCreate extends Component
                 }
             }
 
-            $user = User::create([
+            $data = [
                 'name' => $this->name,
                 'email' => $this->email,
-                'password' => Hash::make($this->password),
-            ]);
+                'password' => $this->password,
+            ];
 
-            // Spatie ile roller ata
-            $roles = Role::whereIn('id', $this->role_ids)->get();
-            if ($roles->count() > 0) {
-                $user->assignRole($roles);
-            }
+            $this->userService->create($data, $this->role_ids);
 
             $this->isLoading = false;
             $this->dispatch('user-created');

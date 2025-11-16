@@ -1,7 +1,7 @@
 <div x-data="postsForm()">
     <!-- Success Message -->
     <x-success-message :message="$successMessage" />
-    
+
     <!-- Modern Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
@@ -30,7 +30,7 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('posts.index') }}" 
+                    <a href="{{ route('posts.index') }}"
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Geri Dön
@@ -42,7 +42,7 @@
 
     <!-- Flash Messages -->
     @if (session()->has('success'))
-        <div x-data="{ show: true }" 
+        <div x-data="{ show: true }"
              x-show="show"
              x-init="setTimeout(() => show = false, 5000)"
              x-transition:enter="transition ease-out duration-300"
@@ -69,8 +69,8 @@
     @endif
 
     @if (session()->has('error'))
-        <div x-data="{ showError: true }" 
-             x-show="showError" 
+        <div x-data="{ showError: true }"
+             x-show="showError"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -107,10 +107,10 @@
                                 <i class="fas fa-heading mr-1 text-orange-500"></i>
                                 Başlık *
                             </label>
-                            <input type="text" 
-                                   wire:model.live="title" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('title') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                   id="title" 
+                            <input type="text"
+                                   wire:model.live="title"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('title') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   id="title"
                                    placeholder="Haber başlığını girin..."
                                    required>
                             @error('title')
@@ -124,10 +124,10 @@
                                 <i class="fas fa-link mr-1 text-orange-500"></i>
                                 Slug
                             </label>
-                            <input type="text" 
-                                   wire:model.live="slug" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('slug') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                   id="slug" 
+                            <input type="text"
+                                   wire:model.live="slug"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('slug') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   id="slug"
                                    placeholder="URL slug'ı (otomatik oluşturulur)">
                             @error('slug')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -140,10 +140,10 @@
                                 <i class="fas fa-file-alt mr-1 text-orange-500"></i>
                                 Özet
                             </label>
-                            <textarea wire:model.live="summary" 
-                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('summary') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                      id="summary" 
-                                      rows="3" 
+                            <textarea wire:model.live="summary"
+                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('summary') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                      id="summary"
+                                      rows="3"
                                       placeholder="Haber özetini girin..."></textarea>
                             @error('summary')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -157,14 +157,14 @@
                                     <i class="fas fa-images mr-1 text-orange-500"></i>
                                     Galeri Görselleri
                                 </label>
-                                
+
                                 <!-- Yeni Resim Ekleme - Create Sayfası Tasarımı -->
                                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 transition-colors duration-200 relative">
-                                    <input type="file" 
-                                           wire:model.live="newFiles" 
+                                    <input type="file"
+                                           wire:model.live="newFiles"
                                            multiple
-                                           class="hidden" 
-                                           id="files" 
+                                           class="hidden"
+                                           id="files"
                                            accept="image/*">
                                     <label for="files" class="cursor-pointer">
                                         <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
@@ -180,7 +180,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 @error('newFiles')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -196,7 +196,7 @@
                                                 <i class="fas fa-eye mr-2 text-orange-500"></i>
                                                 Galeri Görselleri ({{ count($existingFiles) }} adet)
                                             </h6>
-                                            <button type="button" 
+                                            <button type="button"
                                                     class="inline-flex items-center px-3 py-2 border border-orange-300 rounded-lg text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 transition-colors duration-150"
                                                     @click="$refs.galleryFileInput.click()">
                                                 <i class="fas fa-plus mr-2"></i>
@@ -211,19 +211,19 @@
                                                         <i class="fas fa-grip-vertical mr-1"></i>
                                                         {{ $index + 1 }}
                                                     </div>
-                                                    
+
                                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                                         <!-- Sol taraf: Resim -->
                                                         <div class="lg:col-span-1">
                                                             <div class="relative">
                                                                 <div class="relative group">
                                                                     <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
-                                                                        <img src="{{ asset('storage/' . $file['path']) }}" 
-                                                                             class="w-full h-full object-cover" 
+                                                                        <img src="{{ asset('storage/' . $file['path']) }}"
+                                                                             class="w-full h-full object-cover"
                                                                              alt="{{ $file['alt_text'] ?? 'Gallery Image' }}">
                                                                         {{-- Hover overlay with edit button --}}
                                                                         <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
-                                                                            <button type="button" 
+                                                                            <button type="button"
                                                                                     class="opacity-0 group-hover:opacity-100 bg-blue-500 text-white rounded-lg px-3 py-2 flex items-center gap-2 text-sm font-medium hover:bg-blue-600 transition-all duration-200 shadow-lg"
                                                                                     onclick="if (window.openImageEditor) { window.openImageEditor('{{ $file['file_id'] }}', '{{ asset('storage/' . $file['path']) }}'); }"
                                                                                     title="Resmi Düzenle">
@@ -234,15 +234,15 @@
                                                                     </div>
                                                                     {{-- Top right corner buttons --}}
                                                                     <div class="absolute top-2 right-2 flex gap-2">
-                                                                        <button type="button" 
+                                                                        <button type="button"
                                                                                 class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
                                                                                 onclick="if (window.openImageEditor) { window.openImageEditor('{{ $file['file_id'] }}', '{{ asset('storage/' . $file['path']) }}'); }"
                                                                                 title="Düzenle">
                                                                             <i class="fas fa-edit"></i>
                                                                         </button>
-                                                                        <button type="button" 
+                                                                        <button type="button"
                                                                                 class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-red-600 transition-colors duration-200 shadow-md"
-                                                                                wire:click="removeExistingFile({{ $index }})" 
+                                                                                wire:click="removeExistingFile({{ $index }})"
                                                                                 title="Kaldır">
                                                                             <i class="fas fa-times"></i>
                                                                         </button>
@@ -255,14 +255,14 @@
                                                                     </div>
                                                                 @endif
                                                             </div>
-                                                            
+
                                                             <!-- Ana Görsel Seçimi -->
                                                             <div class="mt-3">
                                                                 <label class="flex items-center">
-                                                                    <input type="radio" 
-                                                                           name="primaryFile" 
-                                                                           id="primaryFile{{ $index }}" 
-                                                                           wire:model.live="primaryFileId" 
+                                                                    <input type="radio"
+                                                                           name="primaryFile"
+                                                                           id="primaryFile{{ $index }}"
+                                                                           wire:model.live="primaryFileId"
                                                                            value="{{ $file['file_id'] }}"
                                                                            class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300">
                                                                     <span class="ml-2 text-sm text-gray-700">
@@ -271,14 +271,14 @@
                                                                     </span>
                                                                 </label>
                                                             </div>
-                                                            
-                                                            
+
+
                                                             <div class="mt-2 text-xs text-gray-500">
                                                                 <i class="fas fa-file mr-1"></i>
                                                                 {{ $file['original_name'] ?? 'Unknown' }}
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <!-- Sağ taraf: Açıklama (Create sayfasındaki gibi) -->
                                                         <div class="lg:col-span-2">
                                                             <div>
@@ -287,9 +287,9 @@
                                                                     Resim Açıklaması
                                                                 </label>
                                                                 <div wire:ignore>
-                                                                    <trix-editor 
-                                                                         id="description-editor-{{ $file['file_id'] }}" 
-                                                                         class="trix-editor block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
+                                                                    <trix-editor
+                                                                         id="description-editor-{{ $file['file_id'] }}"
+                                                                         class="trix-editor block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                                                                          placeholder="Bu resim için detaylı açıklama yazın..."
                                                                          data-description="{{ $file['description'] ?? '' }}"></trix-editor>
                                                                 </div>
@@ -298,11 +298,11 @@
                                                     </div>
                                                 </div>
                                             @endforeach
-                                            
+
                                             {{-- Galeri Altında Daha Fazla Resim Ekle Butonu --}}
                                             <div class="mt-4 p-4 border-2 border-dashed border-orange-300 rounded-lg bg-orange-50">
                                                 <div class="text-center">
-                                                    <button type="button" 
+                                                    <button type="button"
                                                             class="inline-flex items-center px-4 py-2 border border-orange-300 rounded-lg text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 transition-colors duration-150"
                                                             @click="$refs.galleryFileInput.click()"
                                                             wire:loading.attr="disabled"
@@ -333,7 +333,7 @@
                                         <i class="fas fa-image mr-1 text-orange-500"></i>
                                         Resim Güncelle
                                     </label>
-                                    
+
                                     <!-- Resim Ön İzlemesi -->
                                     <div class="mb-4">
                                         <div class="flex items-center justify-between mb-2">
@@ -347,14 +347,14 @@
                                                 @endif
                                             </span>
                                             @if($this->post->primaryFile && empty($newFiles))
-                                                <button type="button" 
+                                                <button type="button"
                                                         wire:click="removePrimaryFile"
                                                         class="text-red-600 hover:text-red-800 text-sm">
                                                     <i class="fas fa-trash mr-1"></i>
                                                     Kaldır
                                                 </button>
                                             @elseif(!empty($newFiles))
-                                                <button type="button" 
+                                                <button type="button"
                                                         wire:click="$set('newFiles', [])"
                                                         wire:loading.attr="disabled"
                                                         wire:target="newFiles"
@@ -371,30 +371,21 @@
                                                     $latestFile = collect($newFiles)->last();
                                                 @endphp
                                                 @if($latestFile)
-                                                    <img src="{{ $latestFile->temporaryUrl() }}" 
-                                                         class="w-full h-full object-cover" 
+                                                    <img src="{{ $latestFile->temporaryUrl() }}"
+                                                         class="w-full h-full object-cover"
                                                          alt="Yeni seçilen resim">
                                                 @endif
                                             @elseif($this->post->primaryFile)
                                                 <div class="relative w-full h-full group">
-                                                    <img src="{{ asset('storage/' . $this->post->primaryFile->file_path) }}" 
-                                                         class="w-full h-full object-cover" 
+                                                    <img src="{{ asset('storage/' . $this->post->primaryFile->file_path) }}"
+                                                         class="w-full h-full object-cover"
                                                          alt="{{ $this->post->primaryFile->alt_text ?? 'Current Image' }}">
-                                                    {{-- Hover overlay with edit button --}}
-                                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
-                                                        <button type="button" 
-                                                                class="opacity-0 group-hover:opacity-100 bg-blue-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 text-sm font-medium hover:bg-blue-600 transition-all duration-200 shadow-lg"
-                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $this->post->primaryFile->id }}', '{{ asset('storage/' . $this->post->primaryFile->file_path) }}'); }"
-                                                                title="Resmi Düzenle">
-                                                            <i class="fas fa-edit"></i>
-                                                            <span>Düzenle</span>
-                                                        </button>
-                                                    </div>
+
                                                     {{-- Top right corner button --}}
                                                     <div class="absolute top-2 right-2">
-                                                        <button type="button" 
+                                                        <button type="button"
                                                                 class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $this->post->primaryFile->id }}', '{{ asset('storage/' . $this->post->primaryFile->file_path) }}'); }"
+                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $this->post->primaryFile->file_id }}', '{{ asset('storage/' . $this->post->primaryFile->file_path) }}'); }"
                                                                 title="Düzenle">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
@@ -407,13 +398,13 @@
                                             @endif
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Yeni Resim Yükleme -->
                                     <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 transition-colors duration-200 relative">
-                                        <input type="file" 
-                                               wire:model.live="newFiles" 
-                                               class="hidden" 
-                                               id="imageFile" 
+                                        <input type="file"
+                                               wire:model.live="newFiles"
+                                               class="hidden"
+                                               id="imageFile"
                                                accept="image/*">
                                         <label for="imageFile" class="cursor-pointer">
                                             <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
@@ -437,8 +428,8 @@
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    
+
+
                                     @error('newFiles')
                                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                     @enderror
@@ -447,7 +438,7 @@
                                     @enderror
                                 </div>
                             @endif
-                            
+
                             <!-- Normal İçerik (Galeri Değilse) -->
                         <div class="mb-6">
                             <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
@@ -455,10 +446,10 @@
                                 İçerik *
                             </label>
                             <div wire:ignore>
-                                <textarea wire:model.live="content" 
-                                          class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                          id="content" 
-                                          rows="8" 
+                                <textarea wire:model.live="content"
+                                          class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                          id="content"
+                                          rows="8"
                                           placeholder="Haber içeriğini girin..."
                                           required></textarea>
                             </div>
@@ -475,10 +466,10 @@
                                     <i class="fas fa-code mr-1 text-orange-500"></i>
                                     Video Embed Kodu *
                                 </label>
-                                <textarea wire:model.live="embed_code" 
-                                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('embed_code') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                          id="embed_code" 
-                                          rows="4" 
+                                <textarea wire:model.live="embed_code"
+                                          class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm @error('embed_code') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                          id="embed_code"
+                                          rows="4"
                                           placeholder="<iframe src='...' width='630' height='354'></iframe>"
                                           required></textarea>
                                 @error('embed_code')
@@ -486,7 +477,7 @@
                                 @enderror
                                 <p class="mt-2 text-xs text-gray-500">
                                     <i class="fas fa-info-circle mr-1"></i>
-                                    YouTube, Vimeo veya diğer video platformlarından embed kodunu yapıştırın. 
+                                    YouTube, Vimeo veya diğer video platformlarından embed kodunu yapıştırın.
                                     Düzgün görünmesi için width="630" ve height="354" olarak düzenleyin.
                                 </p>
                             </div>
@@ -494,7 +485,7 @@
 
                         <!-- Form Actions -->
                         <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-                            <button type="submit" 
+                            <button type="submit"
                                     class="inline-flex items-center px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 shadow-lg hover:shadow-xl transition-all duration-200">
                                 <i class="fas fa-save mr-2"></i>
                                 Değişiklikleri Kaydet
@@ -521,9 +512,9 @@
                                 <i class="fas fa-flag mr-1 text-orange-500"></i>
                                 Durum *
                         </label>
-                            <select wire:model.live="status" 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
-                                    id="status" 
+                            <select wire:model.live="status"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                                    id="status"
                                     required>
                                 <option value="draft">Pasif</option>
                                 <option value="published">Aktif</option>
@@ -537,9 +528,9 @@
                                 <i class="fas fa-layers mr-1 text-orange-500"></i>
                                 Pozisyon *
                         </label>
-                            <select wire:model.live="post_position" 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
-                                    id="post_position" 
+                            <select wire:model.live="post_position"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                                    id="post_position"
                                     required>
                                 @foreach($postPositions as $position)
                                     <option value="{{ $position }}">{{ \Modules\Posts\Models\Post::POSITION_LABELS[$position] ?? ucfirst($position) }}</option>
@@ -553,9 +544,9 @@
                                 <i class="fas fa-calendar mr-1 text-orange-500"></i>
                                 Yayın Tarihi
                         </label>
-                            <input type="datetime-local" 
-                                   wire:model.live="published_date" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
+                            <input type="datetime-local"
+                                   wire:model.live="published_date"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                                    id="published_date">
                         </div>
                     </div>
@@ -570,9 +561,9 @@
                         Kategoriler
                     </h3>
                     <div wire:ignore>
-                        <select wire:model.live="categoryIds" 
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
-                                id="categoryIds" 
+                        <select wire:model.live="categoryIds"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                                id="categoryIds"
                                 multiple>
                         @foreach($categories as $category)
                                 <option value="{{ $category->category_id }}">{{ $category->name }}</option>
@@ -593,10 +584,10 @@
                         <label for="redirect_url" class="block text-sm font-medium text-gray-700 mb-2">
                             URL
                         </label>
-                        <input type="url" 
-                               wire:model.live="redirect_url" 
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
-                               id="redirect_url" 
+                        <input type="url"
+                               wire:model.live="redirect_url"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                               id="redirect_url"
                                placeholder="https://example.com">
                         <p class="mt-2 text-xs text-gray-500">
                             <i class="fas fa-info-circle mr-1"></i>
@@ -613,13 +604,13 @@
                         <i class="fas fa-tag mr-2 text-orange-500"></i>
                         Etiketler
                     </h3>
-                    <div x-data="tagsInput()" class="space-y-3">
+                    <div x-data="tagsInput($wire.tagsInput || '')" class="space-y-3">
                         <!-- Mevcut Etiketler -->
                         <div class="flex flex-wrap gap-2" x-show="tags.length > 0">
                             <template x-for="(tag, index) in tags" :key="index">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-200">
                                     <span x-text="tag"></span>
-                                    <button type="button" 
+                                    <button type="button"
                                             @click="removeTag(index)"
                                             class="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-orange-200 transition-colors">
                                         <i class="fas fa-times text-xs"></i>
@@ -627,21 +618,21 @@
                                 </span>
                             </template>
                         </div>
-                        
+
                         <!-- Yeni Etiket Ekleme -->
                         <div class="flex space-x-2">
-                    <input type="text" 
+                    <input type="text"
                                    x-model="newTag"
                                    @keydown="keydown($event)"
-                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm" 
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                                    placeholder="Etiket ekle...">
-                            <button type="button" 
+                            <button type="button"
                                     @click="addTag()"
                                     class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
-                        
+
                         <p class="text-xs text-gray-500">
                             <i class="fas fa-info-circle mr-1"></i>
                             Etiketleri virgülle ayırın veya Enter tuşuna basın.
@@ -661,8 +652,8 @@
                     <div class="space-y-4">
                         <!-- Yorumlara izin ver -->
                         <label for="is_comment" class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="is_comment" 
+                            <input type="checkbox"
+                                   wire:model.live="is_comment"
                                    id="is_comment"
                                    class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
@@ -673,8 +664,8 @@
 
                         <!-- Ana sayfada göster -->
                         <label for="is_mainpage" class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="is_mainpage" 
+                            <input type="checkbox"
+                                   wire:model.live="is_mainpage"
                                    id="is_mainpage"
                                    class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
@@ -685,8 +676,8 @@
 
                         <!-- Bülten'de göster -->
                         <label for="in_newsletter" class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="in_newsletter" 
+                            <input type="checkbox"
+                                   wire:model.live="in_newsletter"
                                    id="in_newsletter"
                                    class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
@@ -697,8 +688,8 @@
 
                         <!-- Reklam gösterme -->
                         <label for="no_ads" class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="no_ads" 
+                            <input type="checkbox"
+                                   wire:model.live="no_ads"
                                    id="no_ads"
                                    class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
@@ -741,7 +732,7 @@
                         <i class="fas fa-clock mr-2 text-orange-500"></i>
                         Vitrin Zamanlama
                     </h3>
-                    
+
                     <p class="text-sm text-gray-600 mb-4">
                         <i class="fas fa-info-circle mr-1"></i>
                         Pozisyon "Normal" dışında seçildiğinde otomatik olarak vitrine eklenir.
@@ -753,8 +744,8 @@
                             <label for="featuredStartsAt" class="block text-sm font-medium text-gray-700 mb-2">
                                 Başlangıç Tarihi
                             </label>
-                            <input type="datetime-local" 
-                                   wire:model.live="featuredStartsAt" 
+                            <input type="datetime-local"
+                                   wire:model.live="featuredStartsAt"
                                    id="featuredStartsAt"
                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
                         </div>
@@ -762,8 +753,8 @@
                             <label for="featuredEndsAt" class="block text-sm font-medium text-gray-700 mb-2">
                                 Bitiş Tarihi
                             </label>
-                            <input type="datetime-local" 
-                                   wire:model.live="featuredEndsAt" 
+                            <input type="datetime-local"
+                                   wire:model.live="featuredEndsAt"
                                    id="featuredEndsAt"
                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
                         </div>
@@ -779,11 +770,11 @@
     </div>
 
     {{-- Hidden File Input for Gallery --}}
-    <input type="file" 
-           x-ref="galleryFileInput" 
-           wire:model="newFiles" 
-           multiple 
-           accept="image/*" 
+    <input type="file"
+           x-ref="galleryFileInput"
+           wire:model="newFiles"
+           multiple
+           accept="image/*"
            class="hidden">
 
     {{-- Posts modülü asset dosyalarını dahil et --}}

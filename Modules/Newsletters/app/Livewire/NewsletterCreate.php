@@ -8,6 +8,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Models\NewsletterTemplate;
+use Modules\Newsletters\Services\NewsletterService;
 use Modules\Posts\Models\Post;
 
 class NewsletterCreate extends Component
@@ -286,18 +287,26 @@ class NewsletterCreate extends Component
         }
     }
 
+    protected NewsletterService $newsletterService;
+
+    public function boot()
+    {
+        $this->newsletterService = app(NewsletterService::class);
+    }
+
     public function store()
     {
         $this->validate();
 
-        $newsletter = Newsletter::create([
+        $data = [
             'name' => $this->name,
             'mail_subject' => $this->mail_subject,
             'mail_body' => $this->mail_body,
             'status' => $this->status,
             'reklam' => $this->reklam,
-            // Audit fields (created_by, updated_by) are handled by AuditFields trait
-        ]);
+        ];
+
+        $this->newsletterService->create($data, $this->selectedPosts);
 
         session()->flash('success', 'Newsletter başarıyla oluşturuldu!');
 

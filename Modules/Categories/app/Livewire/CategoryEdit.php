@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
 
 class CategoryEdit extends Component
 {
@@ -39,6 +40,13 @@ class CategoryEdit extends Component
     public bool $isLoading = false;
 
     public ?string $successMessage = null;
+
+    protected CategoryService $categoryService;
+
+    public function boot()
+    {
+        $this->categoryService = app(CategoryService::class);
+    }
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -108,7 +116,7 @@ class CategoryEdit extends Component
 
             $this->validate();
 
-            $this->category->update([
+            $data = [
                 'name' => $this->name,
                 'slug' => $this->slug ?: Str::slug($this->name),
                 'meta_title' => $this->meta_title,
@@ -119,7 +127,9 @@ class CategoryEdit extends Component
                 'show_in_menu' => $this->show_in_menu,
                 'weight' => $this->weight,
                 'parent_id' => $this->parent_id,
-            ]);
+            ];
+
+            $this->categoryService->update($this->category, $data);
 
             // Toast mesajı göster
             $this->isLoading = false;

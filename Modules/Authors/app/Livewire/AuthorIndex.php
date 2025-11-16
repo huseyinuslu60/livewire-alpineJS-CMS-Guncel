@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Authors\Models\Author;
+use Modules\Authors\Services\AuthorService;
 
 /**
  * @property string|null $search
@@ -22,6 +23,13 @@ class AuthorIndex extends Component
     public ?string $statusFilter = null;
 
     public ?string $mainpageFilter = null;
+
+    protected AuthorService $authorService;
+
+    public function boot()
+    {
+        $this->authorService = app(AuthorService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -40,7 +48,7 @@ class AuthorIndex extends Component
 
         try {
             $author = Author::findOrFail($authorId);
-            $author->update(['show_on_mainpage' => ! $author->show_on_mainpage]);
+            $this->authorService->toggleMainpage($author);
 
             $visibility = $author->show_on_mainpage ? 'gösterilecek' : 'gizlenecek';
             session()->flash('success', "Yazar ana sayfada {$visibility}.");
@@ -55,7 +63,7 @@ class AuthorIndex extends Component
 
         try {
             $author = Author::findOrFail($authorId);
-            $author->update(['status' => ! $author->status]);
+            $this->authorService->toggleStatus($author);
 
             $status = $author->status ? 'aktif' : 'pasif';
             session()->flash('success', "Yazar durumu {$status} olarak güncellendi.");
@@ -93,7 +101,7 @@ class AuthorIndex extends Component
 
         try {
             $author = Author::findOrFail($authorId);
-            $author->delete();
+            $this->authorService->delete($author);
 
             session()->flash('success', 'Yazar başarıyla silindi.');
         } catch (\Exception $e) {

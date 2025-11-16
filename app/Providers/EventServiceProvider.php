@@ -32,7 +32,33 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register sanitization observers
+        $this->registerSanitizationObservers();
+    }
+
+    /**
+     * Register sanitization observers for content sanitization
+     */
+    protected function registerSanitizationObservers(): void
+    {
+        // Post content sanitization
+        \Modules\Posts\Models\Post::observe(\App\Observers\PostObserver::class);
+
+        // Article content sanitization
+        \Modules\Articles\Models\Article::observe(\App\Observers\ArticleObserver::class);
+
+        // AgencyNews content sanitization
+        if (class_exists(\Modules\AgencyNews\Models\AgencyNews::class)) {
+            \Modules\AgencyNews\Models\AgencyNews::observe(\App\Observers\AgencyNewsObserver::class);
+        }
+
+        // File sanitization (Files module)
+        if (class_exists(\Modules\Files\Models\File::class)) {
+            \Modules\Files\Models\File::observe(\App\Observers\FileObserver::class);
+        }
+
+        // Post File sanitization (Posts module File model)
+        \Modules\Posts\Models\File::observe(\App\Observers\PostFileObserver::class);
     }
 
     /**

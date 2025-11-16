@@ -60,6 +60,24 @@ class PostCreateVideo extends Component
 
     public bool $isSaving = false;
 
+    /**
+     * Image editor data storage
+     * Key: file index, Value: array with crop, effects, meta data
+     */
+    protected array $imageEditorData = [];
+
+    /**
+     * Flag to track if image editor was used (to avoid saving empty spot_data)
+     */
+    protected bool $imageEditorUsed = false;
+
+    protected PostsService $postsService;
+
+    public function boot()
+    {
+        $this->postsService = app(PostsService::class);
+    }
+
     protected $listeners = ['contentUpdated'];
 
     protected function messages()
@@ -99,6 +117,20 @@ class PostCreateVideo extends Component
         ];
     }
 
+    /**
+     * Ensure tagsInput is always a string when updated
+     */
+    public function updatedTagsInput($value)
+    {
+        // Ensure tagsInput is always a string to prevent Livewire serialization issues
+        if (!is_string($value)) {
+            $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
+        } else {
+            // Clean up the string: remove extra spaces, ensure proper comma separation
+            $this->tagsInput = trim($value);
+        }
+    }
+
     public function updatedTitle($value)
     {
         // Slug'ı her zaman güncelle, sadece boş değilse
@@ -129,8 +161,41 @@ class PostCreateVideo extends Component
         }
     }
 
-    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null, $editorData = null)
     {
+        $this->skipRender();
+
+        // Store image editor data if provided
+        if ($editorData !== null) {
+            // If editorData is a JSON string, decode it
+            if (is_string($editorData)) {
+                $decoded = json_decode($editorData, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $editorData = $decoded;
+                } else {
+                    \Log::warning('PostCreateVideo updateFilePreview - Failed to decode JSON editorData:', [
+                        'json_error' => json_last_error_msg(),
+                    ]);
+                    $editorData = null;
+                }
+            }
+
+            if ($editorData !== null && is_array($editorData)) {
+                \Log::info('PostCreateVideo updateFilePreview - editorData received:', [
+                    'identifier' => $identifier,
+                    'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                    'editorData_keys' => array_keys($editorData),
+                ]);
+                // Store editorData by identifier (index)
+                if (is_numeric($identifier)) {
+                    $this->imageEditorData[(int) $identifier] = $editorData;
+                } else {
+                    $this->imageEditorData[$identifier] = $editorData;
+                }
+                $this->imageEditorUsed = true; // Mark that image editor was used
+            }
+        }
+
         // identifier index (integer) olabilir
         if (is_numeric($identifier)) {
             $index = (int) $identifier;
@@ -148,17 +213,17 @@ class PostCreateVideo extends Component
                         if ($imageContent === false) {
                             throw new \Exception('Could not download image from URL');
                         }
-                        
+
                         // Create temporary file in Livewire's temp directory
                         $tempDir = sys_get_temp_dir();
                         $tempFileName = 'livewire-' . uniqid() . '-' . $this->files[$index]->getClientOriginalName();
                         $tempFilePath = $tempDir . '/' . $tempFileName;
                         file_put_contents($tempFilePath, $imageContent);
-                        
+
                         // Get original file info
                         $originalName = $this->files[$index]->getClientOriginalName();
                         $mimeType = $this->files[$index]->getMimeType() ?: 'image/jpeg';
-                        
+
                         // Create new UploadedFile
                         $newFile = new \Illuminate\Http\UploadedFile(
                             $tempFilePath,
@@ -167,25 +232,25 @@ class PostCreateVideo extends Component
                             null,
                             true // test mode
                         );
-                        
+
                         // Replace the file in the array
                         $this->files[$index] = $newFile;
-                        
+
                         $this->dispatch('image-updated', [
                             'index' => $index,
                             'image_url' => $imageUrl,
                         ]);
-                        
+
                         return;
                     } else {
                         $filePath = $imageUrl;
                     }
-                    
+
                     // If we have a local file path
                     if (file_exists($filePath)) {
                         $originalName = $this->files[$index]->getClientOriginalName();
                         $mimeType = $this->files[$index]->getMimeType() ?: mime_content_type($filePath) ?: 'image/jpeg';
-                        
+
                         $newFile = new \Illuminate\Http\UploadedFile(
                             $filePath,
                             $originalName,
@@ -193,9 +258,9 @@ class PostCreateVideo extends Component
                             null,
                             true
                         );
-                        
+
                         $this->files[$index] = $newFile;
-                        
+
                         $this->dispatch('image-updated', [
                             'index' => $index,
                             'image_url' => $imageUrl,
@@ -226,13 +291,12 @@ class PostCreateVideo extends Component
         try {
             // Slug'ı mutlaka unique yap - validation'dan ÖNCE
             // Eğer slug boşsa veya unique değilse, yeni bir unique slug oluştur
-            $postsService = new PostsService;
             if (empty($this->slug)) {
-                $this->slug = $postsService->makeUniqueSlug($this->title);
+                $this->slug = $this->postsService->makeUniqueSlug($this->title);
             } else {
                 // Slug varsa ama unique değilse, unique yap
                 if (Post::where('slug', $this->slug)->exists()) {
-                    $this->slug = $postsService->makeUniqueSlug($this->title);
+                    $this->slug = $this->postsService->makeUniqueSlug($this->title);
                 }
             }
 
@@ -261,13 +325,128 @@ class PostCreateVideo extends Component
                 'no_ads' => $this->no_ads,
             ];
 
-            $postsService = new PostsService;
-            $post = $postsService->create(
+            $post = $this->postsService->create(
                 $formData,
                 $this->files,
                 $this->categoryIds,
                 $tagIds
             );
+
+            // Build and save spot_data with image data only
+            // Only save spot_data if image editor was actually used
+            $spotData = [];
+
+            // Add image data if we have image files AND image editor was used
+            if ($this->imageEditorUsed && !empty($this->files) && $post->primaryFile) {
+                // Get image dimensions and hash
+                $imagePath = public_path('storage/' . $post->primaryFile->file_path);
+                $width = null;
+                $height = null;
+                $hash = null;
+
+                if (file_exists($imagePath)) {
+                    // Get image dimensions
+                    $imageInfo = @getimagesize($imagePath);
+                    if ($imageInfo !== false) {
+                        $width = $imageInfo[0];
+                        $height = $imageInfo[1];
+                    }
+
+                    // Calculate file hash
+                    $hash = md5_file($imagePath);
+                }
+
+                // Get image editor data if available (from image editor modal)
+                $primaryFileIndex = 0; // Video'da genelde tek dosya var, index 0
+                $editorData = $this->imageEditorData[$primaryFileIndex] ?? null;
+
+                // Extract crop, effects, and meta from editor data
+                $desktopCrop = [];
+                $mobileCrop = [];
+                $desktopFocus = 'center';
+                $mobileFocus = 'center';
+                $imageEffects = [];
+                $imageMeta = [
+                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+                $textObjects = [];
+
+                if ($editorData !== null && is_array($editorData)) {
+                    // Extract crop data
+                    if (isset($editorData['crop']) && is_array($editorData['crop'])) {
+                        $desktopCrop = $editorData['crop']['desktop'] ?? [];
+                        $mobileCrop = $editorData['crop']['mobile'] ?? [];
+                    } elseif (isset($editorData['desktopCrop'])) {
+                        $desktopCrop = $editorData['desktopCrop'];
+                        $mobileCrop = $editorData['mobileCrop'] ?? [];
+                    }
+
+                    // Extract focus data
+                    if (isset($editorData['focus']) && is_array($editorData['focus'])) {
+                        $desktopFocus = $editorData['focus']['desktop'] ?? 'center';
+                        $mobileFocus = $editorData['focus']['mobile'] ?? 'center';
+                    } elseif (isset($editorData['desktopFocus'])) {
+                        $desktopFocus = $editorData['desktopFocus'];
+                        $mobileFocus = $editorData['mobileFocus'] ?? 'center';
+                    }
+
+                    // Extract effects
+                    if (isset($editorData['effects']) && is_array($editorData['effects'])) {
+                        $imageEffects = $editorData['effects'];
+                    }
+
+                    // Extract meta
+                    if (isset($editorData['meta']) && is_array($editorData['meta'])) {
+                        $imageMeta = array_merge($imageMeta, $editorData['meta']);
+                    }
+
+                    // Extract text objects
+                    if (isset($editorData['textObjects']) && is_array($editorData['textObjects'])) {
+                        $textObjects = $editorData['textObjects'];
+                    }
+                }
+
+                // Ensure arrays are properly formatted
+                $desktopCrop = is_array($desktopCrop) ? $desktopCrop : [];
+                $mobileCrop = is_array($mobileCrop) ? $mobileCrop : [];
+                $imageEffects = is_array($imageEffects) ? $imageEffects : [];
+                $imageMeta = is_array($imageMeta) ? $imageMeta : [
+                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+                $textObjects = is_array($textObjects) ? $textObjects : [];
+
+                $spotData['image'] = [
+                    'original' => [
+                        'path' => $post->primaryFile->file_path,
+                        'width' => $width,
+                        'height' => $height,
+                        'hash' => $hash,
+                    ],
+                    'variants' => [
+                        'desktop' => [
+                            'crop' => $desktopCrop,
+                            'focus' => $desktopFocus,
+                        ],
+                        'mobile' => [
+                            'crop' => $mobileCrop,
+                            'focus' => $mobileFocus,
+                        ],
+                    ],
+                    'effects' => $imageEffects,
+                    'meta' => $imageMeta,
+                    'textObjects' => $textObjects,
+                ];
+            }
+
+            // Only save spot_data if image editor was used
+            if ($this->imageEditorUsed) {
+                $post->spot_data = $spotData;
+                $post->save();
+            }
 
             $this->dispatch('post-created');
 

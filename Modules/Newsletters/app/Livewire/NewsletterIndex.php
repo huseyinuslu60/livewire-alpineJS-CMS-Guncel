@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\Newsletter;
+use Modules\Newsletters\Services\NewsletterService;
 
 /**
  * @property string|null $search
@@ -39,6 +40,13 @@ class NewsletterIndex extends Component
     public bool $selectAll = false;
 
     public string $bulkAction = '';
+
+    protected NewsletterService $newsletterService;
+
+    public function boot()
+    {
+        $this->newsletterService = app(NewsletterService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -110,7 +118,7 @@ class NewsletterIndex extends Component
 
         try {
             $newsletter = Newsletter::findOrFail($newsletterId);
-            $newsletter->delete();
+            $this->newsletterService->delete($newsletter);
 
             session()->flash('success', 'Newsletter başarıyla silindi.');
         } catch (\Exception $e) {
@@ -135,7 +143,7 @@ class NewsletterIndex extends Component
                 default => 'draft'
             };
 
-            $newsletter->update(['status' => $newStatus]);
+            $this->newsletterService->updateStatus($newsletter, $newStatus);
 
             session()->flash('success', 'Newsletter durumu güncellendi.');
         } catch (\Exception $e) {

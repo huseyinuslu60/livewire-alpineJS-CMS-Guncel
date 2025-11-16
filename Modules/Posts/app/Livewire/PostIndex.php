@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Posts\Models\Post;
+use Modules\Posts\Services\PostsService;
 
 /**
  * @property string|null $search
@@ -46,6 +47,13 @@ class PostIndex extends Component
 
     /** @var array<string, bool> */
     public array $visibleColumns = [];
+
+    protected PostsService $postsService;
+
+    public function boot()
+    {
+        $this->postsService = app(PostsService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -91,23 +99,23 @@ class PostIndex extends Component
 
             switch ($this->bulkAction) {
                 case 'delete':
-                    $posts->delete();
+                    $this->postsService->bulkDelete($this->selectedPosts);
                     $message = $selectedCount.' haber başarıyla silindi.';
                     break;
                 case 'activate':
-                    $posts->update(['status' => 'published']);
+                    $this->postsService->bulkUpdateStatus($this->selectedPosts, 'published');
                     $message = $selectedCount.' haber aktif yapıldı.';
                     break;
                 case 'deactivate':
-                    $posts->update(['status' => 'draft']);
+                    $this->postsService->bulkUpdateStatus($this->selectedPosts, 'draft');
                     $message = $selectedCount.' haber pasif yapıldı.';
                     break;
                 case 'newsletter_add':
-                    $posts->update(['in_newsletter' => true]);
+                    $this->postsService->bulkUpdateNewsletter($this->selectedPosts, true);
                     $message = $selectedCount.' haber bültene eklendi.';
                     break;
                 case 'newsletter_remove':
-                    $posts->update(['in_newsletter' => false]);
+                    $this->postsService->bulkUpdateNewsletter($this->selectedPosts, false);
                     $message = $selectedCount.' haber bültenden çıkarıldı.';
                     break;
                 default:
@@ -130,9 +138,7 @@ class PostIndex extends Component
 
         try {
             $post = Post::findOrFail($id);
-
-            // Soft delete (deleted_by is handled by AuditFields trait)
-            $post->delete();
+            $this->postsService->delete($post);
 
             session()->flash('success', 'Haber başarıyla silindi.');
         } catch (\Exception $e) {
@@ -146,7 +152,7 @@ class PostIndex extends Component
 
         try {
             $post = Post::findOrFail($id);
-            $post->update(['is_mainpage' => ! $post->is_mainpage]);
+            $this->postsService->toggleMainPage($post);
 
             $visibility = $post->is_mainpage ? 'gösterilecek' : 'gizlenecek';
 

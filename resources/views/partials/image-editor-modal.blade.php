@@ -385,7 +385,7 @@
                                        max="3"
                                        step="0.1"
                                        class="w-full">
-                                <div class="text-xs text-gray-400 text-right" x-text="lineHeight.toFixed(1)"></div>
+                                <div class="text-xs text-gray-400 text-right" x-text="(parseFloat(lineHeight) || 1.2).toFixed(1)"></div>
                             </div>
                         </div>
 

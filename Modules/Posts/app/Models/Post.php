@@ -101,6 +101,7 @@ class Post extends Model
         'embed_code',
         'in_newsletter',
         'no_ads',
+        'spot_data',
     ];
 
     protected $casts = [
@@ -112,6 +113,7 @@ class Post extends Model
         'no_ads' => 'boolean',
         'view_count' => 'integer',
         'post_order' => 'integer',
+        'spot_data' => 'array',
     ];
 
     protected $dates = [
@@ -457,5 +459,122 @@ class Post extends Model
     protected static function newFactory()
     {
         return \Modules\Posts\Database\Factories\PostFactory::new();
+    }
+
+    /**
+     * Get original image path from spot_data
+     */
+    public function getOriginalImagePath(): ?string
+    {
+        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['original']['path'])) {
+            return null;
+        }
+        return $this->spot_data['image']['original']['path'];
+    }
+
+    /**
+     * Get image variant data (desktop, mobile, etc.)
+     */
+    public function getImageVariant(string $variant): ?array
+    {
+        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['variants'][$variant])) {
+            return null;
+        }
+        $variantData = $this->spot_data['image']['variants'][$variant];
+        return is_array($variantData) ? $variantData : null;
+    }
+
+    /**
+     * Get image crop data for a specific variant
+     */
+    public function getImageCrop(string $variant): ?array
+    {
+        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['variants'][$variant]['crop'])) {
+            return null;
+        }
+        $crop = $this->spot_data['image']['variants'][$variant]['crop'];
+        return is_array($crop) ? $crop : null;
+    }
+
+    /**
+     * Get image effects (brightness, contrast, blur, etc.)
+     */
+    public function getImageEffects(): ?array
+    {
+        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['effects'])) {
+            return null;
+        }
+        $effects = $this->spot_data['image']['effects'];
+        return is_array($effects) ? $effects : null;
+    }
+
+    /**
+     * Get image metadata (alt, credit, source, etc.)
+     */
+    public function getImageMeta(): ?array
+    {
+        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['meta'])) {
+            return null;
+        }
+        $meta = $this->spot_data['image']['meta'];
+        return is_array($meta) ? $meta : null;
+    }
+
+    /**
+     * Get all spot_data image data
+     */
+    public function getSpotImageData(): ?array
+    {
+        if (!is_array($this->spot_data) || !isset($this->spot_data['image'])) {
+            return null;
+        }
+        $image = $this->spot_data['image'];
+        return is_array($image) ? $image : null;
+    }
+
+    /**
+     * Migrate legacy image data to spot_data format
+     * This method is called when spot_data is empty but legacy fields exist
+     */
+    public function migrateLegacyImageDataToSpotData(): void
+    {
+        if (!empty($this->spot_data) && isset($this->spot_data['image'])) {
+            // Already migrated
+            return;
+        }
+
+        $spotData = $this->spot_data ?? [];
+
+        // Try to get image from primaryFile relationship
+        $primaryFile = $this->primaryFile;
+        if ($primaryFile) {
+            $spotData['image'] = [
+                'original' => [
+                    'path' => $primaryFile->file_path,
+                    'width' => null,
+                    'height' => null,
+                    'hash' => null,
+                ],
+                'variants' => [
+                    'desktop' => [
+                        'crop' => [], // Empty array, not null
+                        'focus' => 'center',
+                    ],
+                    'mobile' => [
+                        'crop' => [], // Empty array, not null
+                        'focus' => 'center',
+                    ],
+                ],
+                'effects' => [],
+                'meta' => [
+                    'alt' => $primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ],
+            ];
+
+            $this->spot_data = $spotData;
+            $this->saveQuietly(); // Save without triggering events
+        }
     }
 }

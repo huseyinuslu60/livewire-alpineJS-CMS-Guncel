@@ -1,4 +1,12 @@
-<div x-data="postsForm()">
+<div x-data="postsForm()"
+     x-init="initTrumbowygSync();
+             // Initialize image editor reference
+             $nextTick(() => {
+                 const editorEl = document.querySelector('[x-data*=imageEditor]');
+                 if (editorEl && editorEl._x_dataStack && editorEl._x_dataStack[0]) {
+                     window.postsImageEditor = editorEl._x_dataStack[0];
+                 }
+             });">
     <!-- Flash Messages -->
     @if (session()->has('success'))
         <div x-show="showSuccess"
@@ -84,7 +92,7 @@
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div class="p-6">
-                    <form wire:submit.prevent="savePost">
+                    <form @submit.prevent="syncContentAndSave">
                         <!-- Başlık -->
                         <div class="mb-6">
                             <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
@@ -140,19 +148,8 @@
                                 <i class="fas fa-align-left mr-1 text-blue-500"></i>
                                 İçerik *
                             </label>
-                            <div wire:ignore.self>
+                            <div wire:ignore>
                                 <textarea wire:model="content"
-                                          x-data
-                                          x-init="
-                                              $nextTick(() => {
-                                                  if (window.jQuery && window.jQuery('#content').length) {
-                                                      window.jQuery('#content').on('tbwchange', function() {
-                                                          const content = window.jQuery(this).trumbowyg('html');
-                                                          @this.set('content', content);
-                                                      });
-                                                  }
-                                              });
-                                          "
                                           class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
                                           id="content"
                                           rows="10"
@@ -162,12 +159,6 @@
                             @error('content')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
-                            @if(empty($content))
-                                <p class="mt-1 text-xs text-amber-600">
-                                    <i class="fas fa-exclamation-triangle mr-1"></i>
-                                    İçerik alanı boş. Lütfen haber içeriğini girin.
-                                </p>
-                            @endif
                         </div>
 
                         <!-- Medya -->
@@ -242,27 +233,31 @@
                                                         }
                                                     }
                                                 @endphp
-                                                <img src="{{ $previewUrl }}"
-                                                     class="w-full h-24 object-cover rounded-lg border border-gray-200 bg-gray-100"
-                                                     alt="Preview {{ $index + 1 }}"
-                                                     onerror="console.error('Image preview error:', this.src); this.style.backgroundColor='#f3f4f6'; this.style.display='flex'; this.style.alignItems='center'; this.style.justifyContent='center'; this.innerHTML='<span style=\'color:#9ca3af;font-size:10px\'>Resim yüklenemedi</span>';"
-                                                     onload="this.style.backgroundColor='transparent';"
-                                                     loading="lazy">
-                                                {{-- Top right corner buttons --}}
-                                                <div class="absolute top-1 right-1 flex gap-1">
-                                                    <button type="button"
-                                                            class="bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                                                            onclick="if (window.openImageEditor) { window.openImageEditor({{ $index }}, '{{ $previewUrl }}'); }"
-                                                            title="Düzenle">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                    <button type="button"
-                                                            class="bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 shadow-md"
-                                                            wire:click="removeFile({{ $index }})"
-                                                            title="Resmi Kaldır">
-                                                        <i class="fas fa-times"></i>
-                                                    </button>
-                                                </div>
+                                                <img src="{{ $editedFileUrls[$index] ?? $previewUrl }}"
+                                                     class="w-full h-24 object-cover rounded-lg border border-gray-200"
+                                                     alt="Preview {{ $index + 1 }}">
+                                                <!-- Düzenle Butonu -->
+                                                <button type="button"
+                                                        class="absolute top-1 left-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 z-10 opacity-0 group-hover:opacity-100"
+                                                        onclick="
+                                                            if (window.openImageEditor) {
+                                                                window.openImageEditor({{ $index }}, '{{ $editedFileUrls[$index] ?? $previewUrl }}');
+                                                            } else if (window.postsImageEditor && typeof window.postsImageEditor.openEditor === 'function') {
+                                                                window.postsImageEditor.openEditor({{ $index }}, '{{ $editedFileUrls[$index] ?? $previewUrl }}');
+                                                            } else {
+                                                                window.dispatchEvent(new CustomEvent('open-image-editor', { detail: { index: {{ $index }}, url: '{{ $editedFileUrls[$index] ?? $previewUrl }}' } }));
+                                                            }
+                                                        "
+                                                        title="Resmi Düzenle">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <!-- Kaldır Butonu -->
+                                                <button type="button"
+                                                        class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 z-10"
+                                                        wire:click="removeFile({{ $index }})"
+                                                        title="Resmi Kaldır">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
                                                 <div class="mt-1">
                                                     <p class="text-xs text-gray-500 truncate">{{ $file->getClientOriginalName() }}</p>
                                                 </div>
@@ -515,8 +510,28 @@
     {{-- Posts modülü asset dosyalarını dahil et --}}
     @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js'])
 
-    {{-- Image Editor Modal --}}
-    <div x-data="imageEditor()">
+    {{-- Image Editor Modal - Always in DOM for Alpine.js initialization --}}
+    <div x-data="imageEditor()"
+         x-init="
+            // Set global reference
+            window.postsImageEditor = $data;
+            // Watch for isOpen changes
+            $watch('isOpen', value => {
+                if (value) {
+                    window.postsImageEditor = $data;
+                }
+            });
+            // Ensure it's set after Alpine finishes initialization
+            $nextTick(() => {
+                window.postsImageEditor = $data;
+            });
+            // Also set it after a short delay to ensure Alpine is fully initialized
+            setTimeout(() => {
+                window.postsImageEditor = $data;
+            }, 200);
+         "
+         @open-image-editor.window="openEditor($event.detail.index, $event.detail.url)"
+         x-on:open-image-editor.window="openEditor($event.detail.index, $event.detail.url)">
         @include('partials.image-editor-modal')
     </div>
 </div>

@@ -5,6 +5,7 @@ namespace Modules\Newsletters\Livewire;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Newsletters\Models\NewsletterTemplate;
+use Modules\Newsletters\Services\NewsletterTemplateService;
 
 class TemplateEdit extends Component
 {
@@ -33,6 +34,13 @@ class TemplateEdit extends Component
     public bool $is_active = true;
 
     public int $sort_order = 0;
+
+    protected NewsletterTemplateService $templateService;
+
+    public function boot()
+    {
+        $this->templateService = app(NewsletterTemplateService::class);
+    }
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -117,7 +125,7 @@ class TemplateEdit extends Component
             'sort_order' => 'integer|min:0',
         ]);
 
-        $this->template->update([
+        $data = [
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
@@ -132,7 +140,9 @@ class TemplateEdit extends Component
             ],
             'is_active' => $this->is_active,
             'sort_order' => $this->sort_order,
-        ]);
+        ];
+
+        $this->templateService->update($this->template, $data);
 
         session()->flash('success', 'Template başarıyla güncellendi!');
 

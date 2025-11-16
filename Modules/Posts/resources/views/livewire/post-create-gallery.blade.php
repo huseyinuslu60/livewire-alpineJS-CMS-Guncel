@@ -504,7 +504,7 @@
                         <i class="fas fa-tag mr-2 text-green-500"></i>
                         Etiketler
                     </h3>
-                    <div x-data="tagsInput()" class="space-y-3">
+                    <div x-data="tagsInput($wire.tagsInput || '')" class="space-y-3">
                         <!-- Mevcut Etiketler -->
                         <div class="flex flex-wrap gap-2" x-show="tags.length > 0">
                             <template x-for="(tag, index) in tags" :key="index">

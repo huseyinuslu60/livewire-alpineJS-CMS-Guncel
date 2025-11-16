@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Banks\Models\Stock;
+use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
 {
@@ -27,6 +28,13 @@ class StockIndex extends Component
 
     /** @var array<string, bool> */
     public array $visibleColumns = [];
+
+    protected StockService $stockService;
+
+    public function boot()
+    {
+        $this->stockService = app(StockService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -68,15 +76,15 @@ class StockIndex extends Component
 
             switch ($this->bulkAction) {
                 case 'delete':
-                    $stocks->delete();
+                    $this->stockService->bulkDelete($this->selectedStocks);
                     $message = $selectedCount.' hisse senedi başarıyla silindi.';
                     break;
                 case 'activate':
-                    $stocks->update(['last_status' => 'active']);
+                    $this->stockService->bulkUpdateStatus($this->selectedStocks, 'active');
                     $message = $selectedCount.' hisse senedi aktif yapıldı.';
                     break;
                 case 'deactivate':
-                    $stocks->update(['last_status' => 'inactive']);
+                    $this->stockService->bulkUpdateStatus($this->selectedStocks, 'inactive');
                     $message = $selectedCount.' hisse senedi pasif yapıldı.';
                     break;
                 default:
@@ -101,7 +109,7 @@ class StockIndex extends Component
 
         try {
             $stock = Stock::findOrFail($id);
-            $stock->delete();
+            $this->stockService->delete($stock);
 
             session()->flash('success', 'Hisse senedi başarıyla silindi.');
         } catch (\Exception $e) {

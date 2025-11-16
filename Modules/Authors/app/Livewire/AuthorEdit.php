@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Authors\Models\Author;
+use Modules\Authors\Services\AuthorService;
 
 class AuthorEdit extends Component
 {
@@ -38,6 +39,13 @@ class AuthorEdit extends Component
     public ?bool $status = null;
 
     public ?string $successMessage = null;
+
+    protected AuthorService $authorService;
+
+    public function boot()
+    {
+        $this->authorService = app(AuthorService::class);
+    }
 
     protected $rules = [
         'title' => 'required|string|max:255',
@@ -90,19 +98,7 @@ class AuthorEdit extends Component
             'weight', 'status',
         ]);
 
-        // Handle image upload
-        if ($this->image) {
-            // Delete old image if exists
-            if ($this->author->image && Storage::disk('public')->exists($this->author->image)) {
-                Storage::disk('public')->delete($this->author->image);
-            }
-
-            $imageName = time().'_'.$this->image->getClientOriginalName();
-            $this->image->storeAs('authors', $imageName, 'public');
-            $data['image'] = 'authors/'.$imageName;
-        }
-
-        $this->author->update($data);
+        $this->authorService->update($this->author, $data, $this->image);
 
         $this->dispatch('author-updated');
 

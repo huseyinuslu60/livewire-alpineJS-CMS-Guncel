@@ -75,7 +75,7 @@ class PostsService
                 return $post->load(['files', 'categories', 'tags', 'author']);
             });
         } catch (\Exception $e) {
-            \Log::error('PostsService update error:', [
+            Log::error('PostsService update error:', [
                 'post_id' => $post->post_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -96,10 +96,122 @@ class PostsService
                 $post->delete();
             });
         } catch (\Exception $e) {
-            \Log::error('PostsService delete error:', [
+            Log::error('PostsService delete error:', [
                 'post_id' => $post->post_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Bulk delete posts
+     */
+    public function bulkDelete(array $postIds): int
+    {
+        try {
+            return DB::transaction(function () use ($postIds) {
+                $posts = Post::whereIn('post_id', $postIds)->get();
+                $deletedCount = 0;
+
+                foreach ($posts as $post) {
+                    $this->delete($post);
+                    $deletedCount++;
+                }
+
+                Log::info('Posts bulk deleted', [
+                    'count' => $deletedCount,
+                    'post_ids' => $postIds,
+                ]);
+
+                return $deletedCount;
+            });
+        } catch (\Exception $e) {
+            Log::error('PostsService bulkDelete error:', [
+                'post_ids' => $postIds,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Bulk update post status
+     */
+    public function bulkUpdateStatus(array $postIds, string $status): int
+    {
+        try {
+            return DB::transaction(function () use ($postIds, $status) {
+                $updated = Post::whereIn('post_id', $postIds)
+                    ->update(['status' => $status]);
+
+                Log::info('Posts bulk status updated', [
+                    'count' => $updated,
+                    'status' => $status,
+                    'post_ids' => $postIds,
+                ]);
+
+                return $updated;
+            });
+        } catch (\Exception $e) {
+            Log::error('PostsService bulkUpdateStatus error:', [
+                'post_ids' => $postIds,
+                'status' => $status,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Bulk update newsletter flag
+     */
+    public function bulkUpdateNewsletter(array $postIds, bool $inNewsletter): int
+    {
+        try {
+            return DB::transaction(function () use ($postIds, $inNewsletter) {
+                $updated = Post::whereIn('post_id', $postIds)
+                    ->update(['in_newsletter' => $inNewsletter]);
+
+                Log::info('Posts bulk newsletter flag updated', [
+                    'count' => $updated,
+                    'in_newsletter' => $inNewsletter,
+                    'post_ids' => $postIds,
+                ]);
+
+                return $updated;
+            });
+        } catch (\Exception $e) {
+            Log::error('PostsService bulkUpdateNewsletter error:', [
+                'post_ids' => $postIds,
+                'in_newsletter' => $inNewsletter,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Toggle post mainpage visibility
+     */
+    public function toggleMainPage(Post $post): Post
+    {
+        try {
+            return DB::transaction(function () use ($post) {
+                $post->update(['is_mainpage' => !$post->is_mainpage]);
+
+                Log::info('Post mainpage toggled', [
+                    'post_id' => $post->post_id,
+                    'is_mainpage' => $post->is_mainpage,
+                ]);
+
+                return $post;
+            });
+        } catch (\Exception $e) {
+            Log::error('PostsService toggleMainPage error:', [
+                'post_id' => $post->post_id,
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -150,7 +262,7 @@ class PostsService
                 $description = $fileDescriptions[$filename]['description'] ?? '';
                 $altText = $fileDescriptions[$filename]['alt_text'] ?? '';
 
-                \Log::info('PostsService::storeFiles - Processing file:', [
+                Log::info('PostsService::storeFiles - Processing file:', [
                     'index' => $index,
                     'filename' => $filename,
                     'description' => $description,

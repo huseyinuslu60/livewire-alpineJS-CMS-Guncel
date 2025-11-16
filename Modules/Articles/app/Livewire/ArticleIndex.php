@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Articles\Models\Article;
+use Modules\Articles\Services\ArticleService;
 
 /**
  * @property string|null $search
@@ -37,6 +38,13 @@ class ArticleIndex extends Component
     public string $sortBy = 'created_at';
 
     public string $sortDirection = 'desc';
+
+    protected ArticleService $articleService;
+
+    public function boot()
+    {
+        $this->articleService = app(ArticleService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -125,7 +133,7 @@ class ArticleIndex extends Component
         }
 
         try {
-            $article->delete();
+            $this->articleService->delete($article);
 
             session()->flash('success', 'Makale başarıyla silindi.');
         } catch (\Exception $e) {
@@ -141,15 +149,7 @@ class ArticleIndex extends Component
 
         try {
             $article = Article::findOrFail($articleId);
-
-            $newStatus = match ($article->status) {
-                'draft' => 'published',
-                'published' => 'draft',
-                'pending' => 'published',
-                default => 'draft'
-            };
-
-            $article->update(['status' => $newStatus]);
+            $this->articleService->toggleStatus($article);
 
             session()->flash('success', 'Makale durumu güncellendi.');
         } catch (\Exception $e) {
@@ -165,7 +165,7 @@ class ArticleIndex extends Component
 
         try {
             $article = Article::findOrFail($articleId);
-            $article->update(['show_on_mainpage' => ! $article->show_on_mainpage]);
+            $this->articleService->toggleMainPage($article);
 
             session()->flash('success', 'Ana sayfa durumu güncellendi.');
         } catch (\Exception $e) {

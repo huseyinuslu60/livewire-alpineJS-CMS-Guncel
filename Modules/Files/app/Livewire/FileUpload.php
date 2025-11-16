@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Files\Models\File;
+use Modules\Files\Services\FileService;
 
 class FileUpload extends Component
 {
@@ -34,6 +35,13 @@ class FileUpload extends Component
     public string $successMessage = '';
 
     public string $errorMessage = '';
+
+    protected FileService $fileService;
+
+    public function boot()
+    {
+        $this->fileService = app(FileService::class);
+    }
 
     protected $rules = [
         'files.*' => 'required|file|max:10240', // 10MB max
@@ -113,15 +121,13 @@ class FileUpload extends Component
                 $postId = request()->get('post_id'); // Null olabilir
 
                 // Veritabanına kaydet
-                File::create([
+                $this->fileService->create([
                     'post_id' => $postId, // Null olabilir
                     'title' => $originalName,
-                    'file_path' => str_replace('storage/', '', $path),
-                    'type' => $file->getMimeType(),
                     'alt_text' => $description['alt_text'] ?? '',
                     'caption' => $description['caption'] ?? '',
                     'primary' => false, // Ana dosya seçeneği kaldırıldı
-                ]);
+                ], $file, 'files');
 
                 $uploadedCount++;
             } catch (\Exception $e) {

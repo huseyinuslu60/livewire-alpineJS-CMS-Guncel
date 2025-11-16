@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Authors\Models\Author;
+use Modules\Authors\Services\AuthorService;
 
 class AuthorCreate extends Component
 {
@@ -38,6 +39,13 @@ class AuthorCreate extends Component
     public bool $status = true;
 
     public ?string $successMessage = null;
+
+    protected AuthorService $authorService;
+
+    public function boot()
+    {
+        $this->authorService = app(AuthorService::class);
+    }
 
     protected $rules = [
         'user_id' => 'required|exists:users,id|unique:authors,user_id',
@@ -74,14 +82,7 @@ class AuthorCreate extends Component
             'weight', 'status',
         ]);
 
-        // Handle image upload
-        if ($this->image) {
-            $imageName = time().'_'.$this->image->getClientOriginalName();
-            $this->image->storeAs('authors', $imageName, 'public');
-            $data['image'] = 'authors/'.$imageName;
-        }
-
-        Author::create($data);
+        $this->authorService->create($data, $this->image);
 
         $this->dispatch('author-created');
 

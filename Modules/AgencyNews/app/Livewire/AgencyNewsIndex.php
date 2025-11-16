@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\AgencyNews\Models\AgencyNews;
+use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
 {
@@ -26,6 +27,13 @@ class AgencyNewsIndex extends Component
     public string $sortBy = 'created_at';
 
     public string $sortDirection = 'desc';
+
+    protected AgencyNewsService $agencyNewsService;
+
+    public function boot()
+    {
+        $this->agencyNewsService = app(AgencyNewsService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -92,7 +100,7 @@ class AgencyNewsIndex extends Component
 
         try {
             $agencyNews = AgencyNews::findOrFail($agencyNewsId);
-            $agencyNews->delete();
+            $this->agencyNewsService->delete($agencyNews);
 
             session()->flash('success', 'Agency news başarıyla silindi.');
         } catch (\Exception $e) {

@@ -51,22 +51,59 @@ document.addEventListener('alpine:init', () => {
         newTag: '',
 
         init() {
-      this.tags = (initial || this.$wire?.tagsInput || '')
-        .split(',').map(t => t.trim()).filter(Boolean);
+          // Get initial value from parameter or Livewire wire
+          let tagsValue = initial;
+          if (!tagsValue && this.$wire) {
+            tagsValue = this.$wire.get ? this.$wire.get('tagsInput') : (this.$wire.tagsInput || '');
+          }
+          // Ensure it's a string
+          tagsValue = typeof tagsValue === 'string' ? tagsValue : String(tagsValue || '');
+          // Parse tags
+          this.tags = tagsValue
+            .split(',')
+            .map(t => t.trim())
+            .filter(Boolean);
         },
 
         addTag() {
-      const parts = this.newTag.split(',').map(t => t.trim()).filter(Boolean);
-      parts.forEach(t => { if (!this.tags.includes(t)) this.tags.push(t); });
-                this.newTag = '';
-      this.sync();
-    },
+          const parts = this.newTag.split(',').map(t => t.trim()).filter(Boolean);
+          parts.forEach(t => {
+            if (!this.tags.includes(t)) {
+              this.tags.push(t);
+            }
+          });
+          this.newTag = '';
+          this.sync();
+        },
 
-    removeTag(i) { this.tags.splice(i, 1); this.sync(); },
+        removeTag(i) {
+          this.tags.splice(i, 1);
+          this.sync();
+        },
 
-    keydown(e) { if (e.key === 'Enter') { e.preventDefault(); this.addTag(); } },
+        keydown(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            this.addTag();
+          }
+        },
 
-    sync() { this.$wire?.set('tagsInput', this.tags.join(',')); }
+        sync() {
+          if (this.$wire && Array.isArray(this.tags)) {
+            // Filter out empty tags and join with comma
+            const tagsString = this.tags
+              .filter(tag => tag && typeof tag === 'string' && tag.trim() !== '')
+              .join(',');
+            // Use $wire.set() with skipDebounce=true to prevent multiple rapid updates
+            // This is safer than call() and prevents corrupt payload issues
+            if (this.$wire.set && typeof this.$wire.set === 'function') {
+              this.$wire.set('tagsInput', tagsString, true);
+            } else if (this.$wire.tagsInput !== undefined) {
+              // Fallback: direct property assignment
+              this.$wire.tagsInput = tagsString;
+            }
+          }
+        }
   }));
 
     Alpine.data('postsForm', () => ({
@@ -168,7 +205,62 @@ document.addEventListener('alpine:init', () => {
         this.primaryFileIndex = Math.max(0, this.files.length - 1);
       }
     },
-    setPrimary(i){ this.primaryFileIndex = i; }
+    setPrimary(i){ this.primaryFileIndex = i; },
+
+    // Trumbowyg sync functions
+    initTrumbowygSync() {
+      const contentTextarea = document.getElementById('content');
+      if (!contentTextarea || !window.jQuery) return;
+
+      // Trumbowyg zaten mount edilmiş olabilir, kontrol et
+      if (window.jQuery(contentTextarea).data('trumbowyg')) {
+        // Trumbowyg change event'ini dinle
+        window.jQuery(contentTextarea).on('tbwchange', () => {
+          const content = window.jQuery(contentTextarea).trumbowyg('html');
+          if (this.$wire) {
+            this.$wire.set('content', content, false);
+          }
+        });
+      } else {
+        // Trumbowyg henüz mount edilmemiş, bekle
+        const checkInterval = setInterval(() => {
+          if (window.jQuery(contentTextarea).data('trumbowyg')) {
+            clearInterval(checkInterval);
+            window.jQuery(contentTextarea).on('tbwchange', () => {
+              const content = window.jQuery(contentTextarea).trumbowyg('html');
+              if (this.$wire) {
+                this.$wire.set('content', content, false);
+              }
+            });
+          }
+        }, 100);
+        // 5 saniye sonra timeout
+        setTimeout(() => clearInterval(checkInterval), 5000);
+      }
+    },
+
+    syncContentAndSave() {
+      // Trumbowyg içeriğini Livewire'a senkronize et
+      const contentTextarea = document.getElementById('content');
+      if (contentTextarea && window.jQuery && window.jQuery(contentTextarea).data('trumbowyg')) {
+        const content = window.jQuery(contentTextarea).trumbowyg('html');
+        if (this.$wire) {
+          // İçeriği senkronize et
+          this.$wire.set('content', content, false);
+          // Kısa bir gecikme sonrası submit et (içeriğin senkronize olması için)
+          setTimeout(() => {
+            if (this.$wire) {
+              this.$wire.call('savePost');
+            }
+          }, 100);
+        }
+      } else {
+        // Trumbowyg yoksa direkt submit et
+        if (this.$wire) {
+          this.$wire.call('savePost');
+        }
+      }
+    }
   }));
 
     Alpine.data('galleryUpload', () => ({

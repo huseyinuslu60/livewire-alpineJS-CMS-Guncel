@@ -70,6 +70,17 @@ class PostCreateGallery extends Component
 
     public bool $isSaving = false;
 
+    /**
+     * Image editor data storage
+     * Key: fileId (string), Value: array with crop, effects, meta data
+     */
+    protected array $imageEditorData = [];
+
+    /**
+     * Flag to track if image editor was used (to avoid saving empty spot_data)
+     */
+    protected bool $imageEditorUsed = false;
+
     /** @var array<int, \Illuminate\Http\UploadedFile> */
     public array $dropzoneFiles = [];
 
@@ -129,6 +140,20 @@ class PostCreateGallery extends Component
             'uploadedFiles.*.file' => 'nullable|image|max:4096',
             'uploadedFiles.*.description' => 'nullable|string|max:500',
         ];
+    }
+
+    /**
+     * Ensure tagsInput is always a string when updated
+     */
+    public function updatedTagsInput($value)
+    {
+        // Ensure tagsInput is always a string to prevent Livewire serialization issues
+        if (!is_string($value)) {
+            $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
+        } else {
+            // Clean up the string: remove extra spaces, ensure proper comma separation
+            $this->tagsInput = trim($value);
+        }
     }
 
     protected function messages(): array
@@ -308,6 +333,138 @@ class PostCreateGallery extends Component
                 $fileDescriptions
             );
 
+            // Build and save spot_data with image data only
+            // Only save spot_data if image editor was actually used
+            $spotData = [];
+
+            // Add image data if we have primary file AND image editor was used
+            if ($this->imageEditorUsed && $post->primaryFile) {
+                // Get image dimensions and hash
+                $imagePath = public_path('storage/' . $post->primaryFile->file_path);
+                $width = null;
+                $height = null;
+                $hash = null;
+
+                if (file_exists($imagePath)) {
+                    // Get image dimensions
+                    $imageInfo = @getimagesize($imagePath);
+                    if ($imageInfo !== false) {
+                        $width = $imageInfo[0];
+                        $height = $imageInfo[1];
+                    }
+
+                    // Calculate file hash
+                    $hash = md5_file($imagePath);
+                }
+
+                // Get image editor data if available (from image editor modal)
+                // Find primary file's fileId from uploadedFiles
+                $primaryFileId = null;
+                foreach ($this->uploadedFiles as $fileId => $fileData) {
+                    if (isset($fileData['file']) && $fileData['file']->getClientOriginalName() === $post->primaryFile->original_name) {
+                        $primaryFileId = $fileId;
+                        break;
+                    }
+                }
+                // If not found by name, try to find by primaryFileId property
+                if ($primaryFileId === null && $this->primaryFileId) {
+                    $primaryFileId = $this->primaryFileId;
+                }
+                // Fallback: use first fileId if available
+                if ($primaryFileId === null && !empty($this->uploadedFiles)) {
+                    $primaryFileId = array_key_first($this->uploadedFiles);
+                }
+
+                $editorData = $primaryFileId ? ($this->imageEditorData[$primaryFileId] ?? null) : null;
+
+                // Extract crop, effects, and meta from editor data
+                $desktopCrop = [];
+                $mobileCrop = [];
+                $desktopFocus = 'center';
+                $mobileFocus = 'center';
+                $imageEffects = [];
+                $imageMeta = [
+                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+                $textObjects = [];
+
+                if ($editorData !== null && is_array($editorData)) {
+                    // Extract crop data
+                    if (isset($editorData['crop']) && is_array($editorData['crop'])) {
+                        $desktopCrop = $editorData['crop']['desktop'] ?? [];
+                        $mobileCrop = $editorData['crop']['mobile'] ?? [];
+                    } elseif (isset($editorData['desktopCrop'])) {
+                        $desktopCrop = $editorData['desktopCrop'];
+                        $mobileCrop = $editorData['mobileCrop'] ?? [];
+                    }
+
+                    // Extract focus data
+                    if (isset($editorData['focus']) && is_array($editorData['focus'])) {
+                        $desktopFocus = $editorData['focus']['desktop'] ?? 'center';
+                        $mobileFocus = $editorData['focus']['mobile'] ?? 'center';
+                    } elseif (isset($editorData['desktopFocus'])) {
+                        $desktopFocus = $editorData['desktopFocus'];
+                        $mobileFocus = $editorData['mobileFocus'] ?? 'center';
+                    }
+
+                    // Extract effects
+                    if (isset($editorData['effects']) && is_array($editorData['effects'])) {
+                        $imageEffects = $editorData['effects'];
+                    }
+
+                    // Extract meta
+                    if (isset($editorData['meta']) && is_array($editorData['meta'])) {
+                        $imageMeta = array_merge($imageMeta, $editorData['meta']);
+                    }
+
+                    // Extract text objects
+                    if (isset($editorData['textObjects']) && is_array($editorData['textObjects'])) {
+                        $textObjects = $editorData['textObjects'];
+                    }
+                }
+
+                // Ensure arrays are properly formatted
+                $desktopCrop = is_array($desktopCrop) ? $desktopCrop : [];
+                $mobileCrop = is_array($mobileCrop) ? $mobileCrop : [];
+                $imageEffects = is_array($imageEffects) ? $imageEffects : [];
+                $imageMeta = is_array($imageMeta) ? $imageMeta : [
+                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'credit' => null,
+                    'source' => null,
+                ];
+                $textObjects = is_array($textObjects) ? $textObjects : [];
+
+                $spotData['image'] = [
+                    'original' => [
+                        'path' => $post->primaryFile->file_path,
+                        'width' => $width,
+                        'height' => $height,
+                        'hash' => $hash,
+                    ],
+                    'variants' => [
+                        'desktop' => [
+                            'crop' => $desktopCrop,
+                            'focus' => $desktopFocus,
+                        ],
+                        'mobile' => [
+                            'crop' => $mobileCrop,
+                            'focus' => $mobileFocus,
+                        ],
+                    ],
+                    'effects' => $imageEffects,
+                    'meta' => $imageMeta,
+                    'textObjects' => $textObjects,
+                ];
+            }
+
+            // Only save spot_data if image editor was used
+            if ($this->imageEditorUsed) {
+                $post->spot_data = $spotData;
+                $post->save();
+            }
+
             // content'i manuel olarak güncelle (galleryData ile)
             if (! empty($galleryData)) {
                 // PostsService'den sonra file_path'leri güncelle
@@ -430,8 +587,37 @@ class PostCreateGallery extends Component
         }
     }
 
-    public function updateFilePreview($identifier, $imageUrl, $tempPath = null)
+    public function updateFilePreview($identifier, $imageUrl, $tempPath = null, $editorData = null)
     {
+        $this->skipRender();
+
+        // Store image editor data if provided
+        if ($editorData !== null) {
+            // If editorData is a JSON string, decode it
+            if (is_string($editorData)) {
+                $decoded = json_decode($editorData, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $editorData = $decoded;
+                } else {
+                    \Log::warning('PostCreateGallery updateFilePreview - Failed to decode JSON editorData:', [
+                        'json_error' => json_last_error_msg(),
+                    ]);
+                    $editorData = null;
+                }
+            }
+
+            if ($editorData !== null && is_array($editorData)) {
+                \Log::info('PostCreateGallery updateFilePreview - editorData received:', [
+                    'identifier' => $identifier,
+                    'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                    'editorData_keys' => array_keys($editorData),
+                ]);
+                // Store editorData by identifier (fileId)
+                $this->imageEditorData[$identifier] = $editorData;
+                $this->imageEditorUsed = true; // Mark that image editor was used
+            }
+        }
+
         // identifier fileId (string) olabilir
         if (is_string($identifier) && isset($this->uploadedFiles[$identifier])) {
             try {

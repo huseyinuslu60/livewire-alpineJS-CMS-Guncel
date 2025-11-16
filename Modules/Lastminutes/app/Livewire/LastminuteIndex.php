@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Lastminutes\Models\Lastminute;
+use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteIndex extends Component
 {
@@ -22,6 +23,13 @@ class LastminuteIndex extends Component
     public string $sortBy = 'created_at';
 
     public string $sortDirection = 'desc';
+
+    protected LastminuteService $lastminuteService;
+
+    public function boot()
+    {
+        $this->lastminuteService = app(LastminuteService::class);
+    }
 
     protected $listeners = ['refreshComponent' => '$refresh'];
 
@@ -66,7 +74,7 @@ class LastminuteIndex extends Component
         Gate::authorize('delete lastminutes');
 
         $lastminute = Lastminute::findOrFail($id);
-        $lastminute->delete();
+        $this->lastminuteService->delete($lastminute);
 
         $this->dispatch('lastminute-deleted');
         session()->flash('success', 'Son dakika başarıyla silindi.');

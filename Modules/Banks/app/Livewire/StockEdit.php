@@ -41,6 +41,13 @@ class StockEdit extends Component
 
     public string $last_status = 'active';
 
+    protected StockService $stockService;
+
+    public function boot()
+    {
+        $this->stockService = app(StockService::class);
+    }
+
     protected $rules = [
         'name' => 'required|string|max:255',
         'unvan' => 'required|string|max:255',
@@ -107,7 +114,7 @@ class StockEdit extends Component
         $this->validate();
 
         try {
-            $this->stock->update([
+            $data = [
                 'name' => $this->name,
                 'unvan' => $this->unvan,
                 'kurulus_tarihi' => $this->kurulus_tarihi ?: null,
@@ -123,8 +130,9 @@ class StockEdit extends Component
                 'endeksler' => $this->endeksler,
                 'details' => $this->details,
                 'last_status' => $this->last_status,
-                // Audit fields (updated_by) are handled by AuditFields trait
-            ]);
+            ];
+
+            $this->stockService->update($this->stock, $data);
 
             session()->flash('success', 'Hisse senedi başarıyla güncellendi.');
 

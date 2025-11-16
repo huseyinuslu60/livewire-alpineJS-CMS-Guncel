@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
+use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
 class UserEdit extends Component
@@ -28,6 +29,13 @@ class UserEdit extends Component
     public ?string $successMessage = null;
 
     public bool $isLoading = false;
+
+    protected UserService $userService;
+
+    public function boot()
+    {
+        $this->userService = app(UserService::class);
+    }
 
     protected $rules = [
         'name' => 'required|string|max:255',
@@ -100,23 +108,17 @@ class UserEdit extends Component
                 }
             }
 
-            $updateData = [
+            $data = [
                 'name' => $this->name,
                 'email' => $this->email,
             ];
 
-            // Şifre varsa güncelle
+            // Şifre varsa ekle
             if (! empty($this->password)) {
-                $updateData['password'] = Hash::make($this->password);
+                $data['password'] = $this->password;
             }
 
-            $this->user->update($updateData);
-
-            // Rolleri güncelle
-            $roles = Role::whereIn('id', $this->role_ids)->get();
-            if ($roles->count() > 0) {
-                $this->user->syncRoles($roles);
-            }
+            $this->userService->update($this->user, $data, $this->role_ids);
 
             $this->isLoading = false;
             $this->dispatch('user-updated');

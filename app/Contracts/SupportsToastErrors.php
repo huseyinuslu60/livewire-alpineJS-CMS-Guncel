@@ -6,4 +6,3 @@ interface SupportsToastErrors
 {
     public function toastError(string $message): void;
 }
-

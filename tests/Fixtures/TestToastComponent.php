@@ -2,9 +2,9 @@
 
 namespace Tests\Fixtures;
 
-use Livewire\Component;
-use App\Traits\HandlesExceptionsWithToast;
 use App\Contracts\SupportsToastErrors;
+use App\Traits\HandlesExceptionsWithToast;
+use Livewire\Component;
 
 class TestToastComponent extends Component implements SupportsToastErrors
 {
@@ -59,4 +59,3 @@ class TestToastComponent extends Component implements SupportsToastErrors
         return '<div>Test Component</div>';
     }
 }
-

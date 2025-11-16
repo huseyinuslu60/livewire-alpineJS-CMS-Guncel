@@ -6,4 +6,3 @@ interface SupportsSelectionReset
 {
     public function resetSelection(): void;
 }
-

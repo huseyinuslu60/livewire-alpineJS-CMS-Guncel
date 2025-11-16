@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
@@ -17,7 +18,7 @@ use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
-class PostCreateNews extends Component
+class PostCreateNews extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages, WithFileUploads;
 

@@ -24,12 +24,8 @@ trait HandlesExceptionsWithToast
             'class' => get_class($e),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
+            'component' => get_class($this),
         ], $context);
-
-        // Add component/class name if available
-        if (isset($this)) {
-            $logContext['component'] = get_class($this);
-        }
 
         // Log the exception with full details
         Log::error('Exception occurred', $logContext);
@@ -41,15 +37,13 @@ trait HandlesExceptionsWithToast
 
         // Show user-friendly message if this is a Livewire component
         if ($this instanceof Component) {
-            // Check if component uses InteractsWithToast trait
-            if (method_exists($this, 'toastError')) {
+            // Most components using this trait also use InteractsWithToast which provides toastError
+            // Try toastError first, then fallback to dispatch, then addError
+            if ($this instanceof \App\Contracts\SupportsToastErrors) {
                 $this->toastError($userMessage);
-            } elseif (method_exists($this, 'dispatch')) {
+            } else {
                 // Fallback to dispatch if toastError is not available
                 $this->dispatch('show-error', $userMessage);
-            } elseif (method_exists($this, 'addError')) {
-                // Fallback to addError if neither is available
-                $this->addError('general', $userMessage);
             }
         }
     }

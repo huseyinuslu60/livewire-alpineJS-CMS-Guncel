@@ -123,10 +123,10 @@ class PostObserver
         // Get position value (handle both enum and string)
         $positionValue = $post->post_position instanceof PostPosition
             ? $post->post_position->value
-            : $post->post_position;
+            : ($post->post_position ?? PostPosition::Normal->value);
 
-        // Add to appropriate zone if position is not 'normal'
-        if ($positionValue !== PostPosition::Normal->value) {
+        // Add to appropriate zone if position is not 'normal' and not null
+        if ($positionValue && $positionValue !== PostPosition::Normal->value) {
             $zone = PostPosition::toZone($positionValue);
 
             if ($zone) {

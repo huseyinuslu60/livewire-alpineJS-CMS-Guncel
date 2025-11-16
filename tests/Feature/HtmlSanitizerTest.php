@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Support\Sanitizer;
 use Modules\AgencyNews\Models\AgencyNews;
 use Modules\Articles\Models\Article;
@@ -7,65 +8,61 @@ use Modules\Posts\Models\Post;
 
 use function Pest\Laravel\actingAs;
 
-beforeEach(function () {
-    $this->user = \App\Models\User::factory()->create();
-});
-
 describe('Sanitizer', function () {
     it('removes script tags', function () {
         $malicious = '<script>alert("XSS")</script><p>Safe content</p>';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('<script>')
-            ->not->toContain('alert')
-            ->toContain('<p>Safe content</p>');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, '<script>'))->toBeFalse();
+        expect(str_contains($sanitized, 'alert'))->toBeFalse();
+        expect(str_contains($sanitized, '<p>Safe content</p>'))->toBeTrue();
     });
 
     it('removes iframe tags', function () {
         $malicious = '<iframe src="evil.com"></iframe><p>Safe</p>';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('<iframe>')
-            ->toContain('<p>Safe</p>');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, '<iframe>'))->toBeFalse();
+        expect(str_contains($sanitized, '<p>Safe</p>'))->toBeTrue();
     });
 
     it('removes javascript: protocol from href', function () {
         $malicious = '<a href="javascript:alert(\'XSS\')">Click</a>';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('javascript:')
-            ->not->toContain('alert');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, 'javascript:'))->toBeFalse();
+        expect(str_contains($sanitized, 'alert'))->toBeFalse();
     });
 
     it('removes data: protocol from src', function () {
         $malicious = '<img src="data:text/html,<script>alert(1)</script>">';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('data:')
-            ->not->toContain('alert');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, 'data:'))->toBeFalse();
+        expect(str_contains($sanitized, 'alert'))->toBeFalse();
     });
 
     it('removes event handlers like onclick', function () {
         $malicious = '<p onclick="alert(\'XSS\')">Click me</p>';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('onclick')
-            ->not->toContain('alert')
-            ->toContain('<p>Click me</p>');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, 'onclick'))->toBeFalse();
+        expect(str_contains($sanitized, 'alert'))->toBeFalse();
+        expect(str_contains($sanitized, '<p>Click me</p>'))->toBeTrue();
     });
 
     it('removes style attributes to prevent CSS injection', function () {
         $malicious = '<p style="background: url(javascript:alert(1))">Text</p>';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('style=')
-            ->not->toContain('javascript:');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, 'style='))->toBeFalse();
+        expect(str_contains($sanitized, 'javascript:'))->toBeFalse();
     });
 
     it('preserves safe HTML tags', function () {
@@ -107,15 +104,16 @@ describe('Sanitizer', function () {
         $malicious = '<object data="evil.swf"></object><embed src="evil.swf">';
         $sanitized = Sanitizer::sanitizeHtml($malicious);
 
-        expect($sanitized)
-            ->not->toContain('<object>')
-            ->not->toContain('<embed>');
+        expect($sanitized)->toBeString();
+        expect(str_contains($sanitized, '<object>'))->toBeFalse();
+        expect(str_contains($sanitized, '<embed>'))->toBeFalse();
     });
 });
 
 describe('Post Model Sanitization', function () {
     it('sanitizes content when creating a post', function () {
-        actingAs($this->user);
+        $user = User::factory()->create();
+        actingAs($user);
 
         $malicious = '<script>alert("XSS")</script><p>Safe content</p>';
 
@@ -123,39 +121,42 @@ describe('Post Model Sanitization', function () {
             'title' => 'Test Post',
             'slug' => 'test-post-'.time(),
             'content' => $malicious,
-            'author_id' => $this->user->id,
+            'author_id' => $user->id,
             'post_type' => 'news',
             'status' => 'draft',
-            'created_by' => $this->user->id,
+            'created_by' => $user->id,
         ]);
 
-        expect($post->content)
-            ->not->toContain('<script>')
-            ->not->toContain('alert')
-            ->toContain('<p>Safe content</p>');
+        expect($post->content)->toBeString();
+        expect(str_contains($post->content, '<script>'))->toBeFalse();
+        expect(str_contains($post->content, 'alert'))->toBeFalse();
+        expect(str_contains($post->content, '<p>Safe content</p>'))->toBeTrue();
     });
 
     it('sanitizes content when updating a post', function () {
-        actingAs($this->user);
+        $user = User::factory()->create();
+        actingAs($user);
 
         $post = Post::factory()->create([
-            'author_id' => $this->user->id,
-            'created_by' => $this->user->id,
+            'author_id' => $user->id,
+            'created_by' => $user->id,
         ]);
 
         $malicious = '<script>alert("XSS")</script><p>Updated</p>';
         $post->update(['content' => $malicious]);
 
-        expect($post->fresh()->content)
-            ->not->toContain('<script>')
-            ->not->toContain('alert')
-            ->toContain('<p>Updated</p>');
+        $freshContent = $post->fresh()->content;
+        expect($freshContent)->toBeString();
+        expect(str_contains($freshContent, '<script>'))->toBeFalse();
+        expect(str_contains($freshContent, 'alert'))->toBeFalse();
+        expect(str_contains($freshContent, '<p>Updated</p>'))->toBeTrue();
     });
 });
 
 describe('Article Model Sanitization', function () {
     it('sanitizes article_text when creating an article', function () {
-        actingAs($this->user);
+        $user = User::factory()->create();
+        actingAs($user);
 
         $malicious = '<script>alert("XSS")</script><p>Safe article</p>';
 
@@ -163,30 +164,32 @@ describe('Article Model Sanitization', function () {
             'title' => 'Test Article',
             'article_text' => $malicious,
             'status' => 'draft',
-            'author_id' => $this->user->id,
-            'created_by' => $this->user->id,
+            'author_id' => $user->id,
+            'created_by' => $user->id,
         ]);
 
-        expect($article->article_text)
-            ->not->toContain('<script>')
-            ->not->toContain('alert')
-            ->toContain('<p>Safe article</p>');
+        expect($article->article_text)->toBeString();
+        expect(str_contains($article->article_text, '<script>'))->toBeFalse();
+        expect(str_contains($article->article_text, 'alert'))->toBeFalse();
+        expect(str_contains($article->article_text, '<p>Safe article</p>'))->toBeTrue();
     });
 
     it('sanitizes article_text when updating an article', function () {
-        actingAs($this->user);
+        $user = User::factory()->create();
+        actingAs($user);
 
         $article = Article::factory()->create([
-            'author_id' => $this->user->id,
-            'created_by' => $this->user->id,
+            'author_id' => $user->id,
+            'created_by' => $user->id,
         ]);
 
         $malicious = '<iframe src="evil.com"></iframe><p>Updated</p>';
         $article->update(['article_text' => $malicious]);
 
-        expect($article->fresh()->article_text)
-            ->not->toContain('<iframe>')
-            ->toContain('<p>Updated</p>');
+        $freshText = $article->fresh()->article_text;
+        expect($freshText)->toBeString();
+        expect(str_contains($freshText, '<iframe>'))->toBeFalse();
+        expect(str_contains($freshText, '<p>Updated</p>'))->toBeTrue();
     });
 });
 
@@ -200,10 +203,10 @@ describe('AgencyNews Model Sanitization', function () {
             'agency_id' => 1,
         ]);
 
-        expect($agencyNews->content)
-            ->not->toContain('<script>')
-            ->not->toContain('alert')
-            ->toContain('<p>Safe news</p>');
+        expect($agencyNews->content)->toBeString();
+        expect(str_contains($agencyNews->content, '<script>'))->toBeFalse();
+        expect(str_contains($agencyNews->content, 'alert'))->toBeFalse();
+        expect(str_contains($agencyNews->content, '<p>Safe news</p>'))->toBeTrue();
     });
 
     it('sanitizes content when updating agency news', function () {
@@ -212,8 +215,9 @@ describe('AgencyNews Model Sanitization', function () {
         $malicious = '<object data="evil.swf"></object><p>Updated</p>';
         $agencyNews->update(['content' => $malicious]);
 
-        expect($agencyNews->fresh()->content)
-            ->not->toContain('<object>')
-            ->toContain('<p>Updated</p>');
+        $freshContent = $agencyNews->fresh()->content;
+        expect($freshContent)->toBeString();
+        expect(str_contains($freshContent, '<object>'))->toBeFalse();
+        expect(str_contains($freshContent, '<p>Updated</p>'))->toBeTrue();
     });
 });

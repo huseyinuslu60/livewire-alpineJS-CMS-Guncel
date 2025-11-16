@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Services\FileUploadService;
 use App\Traits\HandlesExceptionsWithToast;
@@ -14,7 +15,7 @@ use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
-class PostEditMediaManager extends Component
+class PostEditMediaManager extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages, WithFileUploads;
 

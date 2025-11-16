@@ -2,6 +2,7 @@
 
 namespace Modules\User\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
@@ -23,7 +24,7 @@ use Spatie\Permission\Models\Role;
  * @property string $sortDirection
  * @property string $successMessage
  */
-class UserIndex extends Component
+class UserIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, ValidationMessages, WithPagination;
 

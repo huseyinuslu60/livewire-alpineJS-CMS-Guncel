@@ -2,6 +2,7 @@
 
 namespace Modules\AgencyNews\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithModal;
@@ -13,7 +14,7 @@ use Livewire\Component;
 use Modules\AgencyNews\Models\AgencyNews;
 use Modules\AgencyNews\Services\AgencyNewsService;
 
-class AgencyNewsIndex extends Component
+class AgencyNewsIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast;
     use HasSearchAndFilters;

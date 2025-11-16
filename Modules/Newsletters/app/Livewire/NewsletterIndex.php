@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
@@ -23,7 +24,7 @@ use Modules\Newsletters\Services\NewsletterService;
  * @property bool $selectAll
  * @property string $bulkAction
  */
-class NewsletterIndex extends Component
+class NewsletterIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, WithPagination;
 

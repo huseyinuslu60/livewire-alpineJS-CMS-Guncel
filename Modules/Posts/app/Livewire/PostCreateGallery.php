@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Services\FileUploadService;
 use App\Support\Sanitizer;
@@ -19,7 +20,7 @@ use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
-class PostCreateGallery extends Component
+class PostCreateGallery extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages, WithFileUploads;
 

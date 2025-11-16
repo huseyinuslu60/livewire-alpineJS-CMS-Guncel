@@ -2,6 +2,7 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use Carbon\Carbon;
@@ -10,7 +11,7 @@ use Livewire\Component;
 use Modules\Banks\Models\Stock;
 use Modules\Banks\Services\StockService;
 
-class StockEdit extends Component
+class StockEdit extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast;
 

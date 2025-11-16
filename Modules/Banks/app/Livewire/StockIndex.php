@@ -2,6 +2,8 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Contracts\SupportsSelectionReset;
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\HasBulkActions;
 use App\Livewire\Concerns\HasColumnPreferences;
 use App\Livewire\Concerns\HasSearchAndFilters;
@@ -13,7 +15,7 @@ use Livewire\Component;
 use Modules\Banks\Models\Stock;
 use Modules\Banks\Services\StockService;
 
-class StockIndex extends Component
+class StockIndex extends Component implements SupportsSelectionReset, SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast;
     use HasBulkActions, HasColumnPreferences, HasSearchAndFilters;

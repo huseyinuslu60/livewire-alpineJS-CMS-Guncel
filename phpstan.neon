@@ -65,3 +65,7 @@ parameters:
         # Pest test framework - specific to Pest
         - '#Call to an undefined method.*Pest\\\\TestSuite::get#'
         - '#Anonymous function should return.*Expectation.*but returns.*Expectation#'
+
+        # Laravel Log facade test helpers - specific to testing
+        - '#Call to an undefined static method.*Log::fake#'
+        - '#Call to an undefined static method.*Log::assertLogged#'

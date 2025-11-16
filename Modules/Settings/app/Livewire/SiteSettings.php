@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Gate;
@@ -9,7 +10,7 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Settings\Services\SettingsService;
 
-class SiteSettings extends Component
+class SiteSettings extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, WithFileUploads;
 

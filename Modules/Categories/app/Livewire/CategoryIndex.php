@@ -2,6 +2,7 @@
 
 namespace Modules\Categories\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
@@ -20,7 +21,7 @@ use Modules\Categories\Services\CategoryService;
  * @property string $sortField
  * @property string $sortDirection
  */
-class CategoryIndex extends Component
+class CategoryIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, WithPagination;
 

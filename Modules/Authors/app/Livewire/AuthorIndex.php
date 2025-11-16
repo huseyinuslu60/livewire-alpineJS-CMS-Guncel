@@ -2,6 +2,7 @@
 
 namespace Modules\Authors\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\HandlesExceptionsWithToast;
@@ -16,7 +17,7 @@ use Modules\Authors\Services\AuthorService;
  * @property string|null $statusFilter
  * @property string|null $mainpageFilter
  */
-class AuthorIndex extends Component
+class AuthorIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 

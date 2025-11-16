@@ -2,6 +2,7 @@
 
 namespace Modules\Authors\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +12,7 @@ use Livewire\WithFileUploads;
 use Modules\Authors\Models\Author;
 use Modules\Authors\Services\AuthorService;
 
-class AuthorEdit extends Component
+class AuthorEdit extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages, WithFileUploads;
 

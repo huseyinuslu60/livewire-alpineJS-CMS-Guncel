@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Sanitizer;
 use App\Traits\HandlesExceptionsWithToast;
@@ -13,7 +14,7 @@ use Modules\Posts\Enums\PostPosition;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
-class PostEdit extends Component
+class PostEdit extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 

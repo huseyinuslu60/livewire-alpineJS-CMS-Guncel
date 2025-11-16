@@ -35,7 +35,7 @@ class PostQueryService
                 'creator:id,name,created_at',  // View'de name ve created_at kullanılıyor
                 'updater:id,name,updated_at',  // View'de name ve updated_at kullanılıyor
                 'categories:category_id,name', // View'de sadece name kullanılıyor
-                'primaryFile:file_id,file_path,alt_text,is_image', // View'de bu alanlar kullanılıyor
+                'primaryFile:file_id,file_path,alt_text', // View'de bu alanlar kullanılıyor (is_image accessor, kolon değil)
             ]);
         // Kaldırılan: 'author' (view'de kullanılmıyor), 'tags' (view'de kullanılmıyor)
 

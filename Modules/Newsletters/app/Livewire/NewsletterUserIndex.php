@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
@@ -11,7 +12,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\NewsletterUser;
 
-class NewsletterUserIndex extends Component
+class NewsletterUserIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 

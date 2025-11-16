@@ -91,7 +91,8 @@ trait HasSearchAndFilters
     protected function onFilterUpdated(string $propertyName): void
     {
         // Reset selection if component uses bulk actions
-        if (method_exists($this, 'resetSelection')) {
+        // Components using HasBulkActions trait implement SupportsSelectionReset interface
+        if ($this instanceof \App\Contracts\SupportsSelectionReset) {
             $this->resetSelection();
         }
 

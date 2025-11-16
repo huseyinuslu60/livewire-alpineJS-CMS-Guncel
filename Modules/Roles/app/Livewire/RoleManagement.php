@@ -2,6 +2,7 @@
 
 namespace Modules\Roles\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
@@ -12,7 +13,7 @@ use Livewire\Component;
 use Modules\Roles\Services\RoleService;
 use Spatie\Permission\Models\Role;
 
-class RoleManagement extends Component
+class RoleManagement extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, ValidationMessages;
 

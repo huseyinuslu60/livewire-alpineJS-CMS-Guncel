@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
@@ -10,7 +11,7 @@ use Modules\Posts\Enums\PostPosition;
 use Modules\Posts\Enums\PostStatus;
 use Modules\Posts\Models\Post;
 
-class PostEditMetaFormSidebar extends Component
+class PostEditMetaFormSidebar extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 

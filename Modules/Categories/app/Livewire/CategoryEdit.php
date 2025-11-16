@@ -2,6 +2,7 @@
 
 namespace Modules\Categories\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
@@ -11,7 +12,7 @@ use Livewire\Component;
 use Modules\Categories\Models\Category;
 use Modules\Categories\Services\CategoryService;
 
-class CategoryEdit extends Component
+class CategoryEdit extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 

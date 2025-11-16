@@ -2,6 +2,7 @@
 
 namespace Modules\Settings\Http\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Helpers\MenuHelper;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\MenuItem;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Spatie\Permission\Models\Role;
 
-class MenuManagement extends Component
+class MenuManagement extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast;
 

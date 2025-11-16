@@ -2,6 +2,7 @@
 
 namespace Modules\Articles\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Traits\HandlesExceptionsWithToast;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Modules\Articles\Services\ArticleService;
 
-class ArticleCreate extends Component
+class ArticleCreate extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 

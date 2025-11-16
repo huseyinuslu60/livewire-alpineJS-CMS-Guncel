@@ -2,6 +2,7 @@
 
 namespace Modules\Articles\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Helpers\SystemHelper;
 use App\Livewire\Concerns\InteractsWithModal;
 use App\Livewire\Concerns\InteractsWithToast;
@@ -24,7 +25,7 @@ use Modules\Articles\Services\ArticleService;
  * @property string $sortBy
  * @property string $sortDirection
  */
-class ArticleIndex extends Component
+class ArticleIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast, WithPagination;
 

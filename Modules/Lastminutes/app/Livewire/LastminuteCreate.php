@@ -2,13 +2,14 @@
 
 namespace Modules\Lastminutes\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Modules\Lastminutes\Services\LastminuteService;
 
-class LastminuteCreate extends Component
+class LastminuteCreate extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages;
 

@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
@@ -12,7 +13,7 @@ use Modules\Newsletters\Models\NewsletterTemplate;
 use Modules\Newsletters\Services\NewsletterService;
 use Modules\Posts\Models\Post;
 
-class NewsletterCreate extends Component
+class NewsletterCreate extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages, WithPagination;
 

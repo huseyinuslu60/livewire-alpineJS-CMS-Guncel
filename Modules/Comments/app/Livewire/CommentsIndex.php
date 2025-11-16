@@ -2,6 +2,7 @@
 
 namespace Modules\Comments\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\HandlesExceptionsWithToast;
@@ -20,7 +21,7 @@ use Modules\Comments\Services\CommentService;
  * @property array<int, string> $editedCommentTexts
  * @property bool $skipRender
  */
-class CommentsIndex extends Component
+class CommentsIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 

@@ -58,7 +58,7 @@ trait InteractsWithToast
      * @param  array  $extra  Extra options
      * @param  bool  $persistOnRedirect  Redirect sonrası da gösterilsin mi? (default: true)
      */
-    protected function toastError(string $message, int $duration = 5000, array $extra = [], bool $persistOnRedirect = true): void
+    public function toastError(string $message, int $duration = 5000, array $extra = [], bool $persistOnRedirect = true): void
     {
         $this->toast('error', $message, array_merge(['duration' => $duration], $extra), $persistOnRedirect);
     }

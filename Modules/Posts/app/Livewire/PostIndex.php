@@ -2,6 +2,8 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsSelectionReset;
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\HasBulkActions;
 use App\Livewire\Concerns\HasColumnPreferences;
 use App\Livewire\Concerns\HasSearchAndFilters;
@@ -26,7 +28,7 @@ use Modules\Posts\Services\PostsService;
  * @property string $bulkAction
  * @property array<string, bool> $visibleColumns
  */
-class PostIndex extends Component
+class PostIndex extends Component implements SupportsSelectionReset, SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithModal, InteractsWithToast;
     use HasBulkActions, HasColumnPreferences, HasSearchAndFilters;
@@ -34,6 +36,14 @@ class PostIndex extends Component
     protected PostsService $postsService;
 
     public int $perPage = 10;
+
+    public ?string $post_type = null;
+
+    public ?string $status = null;
+
+    public ?string $editorFilter = null;
+
+    public ?string $categoryFilter = null;
 
     /** @var array<int> */
     public array $selectedPosts = [];
@@ -117,8 +127,8 @@ class PostIndex extends Component
             $this->toastSuccess($message);
         } catch (\Throwable $e) {
             $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
-                'selected_ids' => $this->selectedPosts ?? null,
-                'bulk_action' => $this->bulkAction ?? null,
+                'selected_ids' => $this->selectedPosts,
+                'bulk_action' => $this->bulkAction,
             ]);
         }
     }

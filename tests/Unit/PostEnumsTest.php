@@ -20,7 +20,7 @@ class PostEnumsTest extends TestCase
     public function test_post_status_options()
     {
         $options = PostStatus::options();
-        $this->assertIsArray($options);
+        $this->assertNotEmpty($options);
         $this->assertArrayHasKey('draft', $options);
         $this->assertArrayHasKey('published', $options);
         $this->assertEquals('Pasif', $options['draft']);
@@ -44,7 +44,7 @@ class PostEnumsTest extends TestCase
     public function test_post_type_options()
     {
         $options = PostType::options();
-        $this->assertIsArray($options);
+        $this->assertNotEmpty($options);
         $this->assertArrayHasKey('news', $options);
         $this->assertArrayHasKey('gallery', $options);
         $this->assertEquals('Haber', $options['news']);
@@ -62,7 +62,7 @@ class PostEnumsTest extends TestCase
     public function test_post_position_options()
     {
         $options = PostPosition::options();
-        $this->assertIsArray($options);
+        $this->assertNotEmpty($options);
         $this->assertArrayHasKey('normal', $options);
         $this->assertArrayHasKey('manşet', $options);
         $this->assertEquals('Normal', $options['normal']);

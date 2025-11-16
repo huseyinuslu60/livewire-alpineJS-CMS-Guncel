@@ -2,12 +2,13 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Newsletters\Models\NewsletterTemplate;
 
-class TemplateCreate extends Component
+class TemplateCreate extends Component implements SupportsToastErrors
 {
     use InteractsWithToast;
 

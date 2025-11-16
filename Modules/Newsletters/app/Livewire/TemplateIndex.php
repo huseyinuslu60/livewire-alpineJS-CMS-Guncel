@@ -2,13 +2,14 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Newsletters\Models\NewsletterTemplate;
 
-class TemplateIndex extends Component
+class TemplateIndex extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, WithPagination;
 

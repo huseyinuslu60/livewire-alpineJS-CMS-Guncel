@@ -2,6 +2,8 @@
 
 namespace Modules\Files\Livewire;
 
+use App\Contracts\SupportsSelectionReset;
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\HasBulkActions;
 use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
@@ -28,7 +30,7 @@ use Modules\Files\Services\FileService;
  * @property bool $showErrorMessage
  * @property string $errorMessage
  */
-class FileIndex extends Component
+class FileIndex extends Component implements SupportsSelectionReset, SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
     use HasBulkActions, HasSearchAndFilters;
@@ -150,7 +152,7 @@ class FileIndex extends Component
             $this->resetPage();
         } catch (\Throwable $e) {
             $this->handleException($e, 'Dosyalar silinirken bir hata oluştu. Lütfen tekrar deneyin.', [
-                'selected_files' => $this->selectedFiles ?? null,
+                'selected_files' => $this->selectedFiles,
             ]);
         }
     }

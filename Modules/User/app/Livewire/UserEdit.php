@@ -2,6 +2,7 @@
 
 namespace Modules\User\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Traits\HandlesExceptionsWithToast;
@@ -12,7 +13,7 @@ use Livewire\Component;
 use Modules\User\Services\UserService;
 use Spatie\Permission\Models\Role;
 
-class UserEdit extends Component
+class UserEdit extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 

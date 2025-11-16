@@ -2,13 +2,14 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Banks\Services\StockService;
 
-class StockCreate extends Component
+class StockCreate extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast;
 

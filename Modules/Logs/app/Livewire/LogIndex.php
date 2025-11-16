@@ -2,6 +2,8 @@
 
 namespace Modules\Logs\Livewire;
 
+use App\Contracts\SupportsSelectionReset;
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\HasBulkActions;
 use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
@@ -24,7 +26,7 @@ use Modules\Logs\Services\LogService;
  * @property bool $selectAll
  * @property string $bulkAction
  */
-class LogIndex extends Component
+class LogIndex extends Component implements SupportsSelectionReset, SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast;
     use HasBulkActions, HasSearchAndFilters;
@@ -129,8 +131,8 @@ class LogIndex extends Component
             $this->toastSuccess($message);
         } catch (\Throwable $e) {
             $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
-                'selected_ids' => $this->selectedLogs ?? null,
-                'bulk_action' => $this->bulkAction ?? null,
+                'selected_ids' => $this->selectedLogs,
+                'bulk_action' => $this->bulkAction,
             ]);
         }
     }

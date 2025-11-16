@@ -2,13 +2,14 @@
 
 namespace Modules\Logs\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Logs\Models\UserLog;
 
-class LogDetail extends Component
+class LogDetail extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast;
 

@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\HandlesExceptionsWithToast;
 use App\Traits\ValidationMessages;
@@ -10,7 +11,7 @@ use Modules\Categories\Models\Category;
 use Modules\Posts\Enums\PostType;
 use Modules\Posts\Models\Post;
 
-class PostEditRelationsForm extends Component
+class PostEditRelationsForm extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, ValidationMessages;
 

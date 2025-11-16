@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
@@ -9,7 +10,7 @@ use Livewire\Component;
 use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Services\NewsletterService;
 
-class NewsletterEdit extends Component
+class NewsletterEdit extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages;
 

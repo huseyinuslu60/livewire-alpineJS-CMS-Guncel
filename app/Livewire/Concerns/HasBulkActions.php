@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Contracts\SupportsSelectionReset;
+
 /**
  * Trait for Livewire components that need bulk action functionality
  *
@@ -13,6 +15,8 @@ namespace App\Livewire\Concerns;
  * Component must define:
  * - protected function getSelectedItemsPropertyName(): string (returns property name like 'selectedPosts')
  * - protected function getVisibleItemIds(): array (returns array of visible item IDs)
+ *
+ * Components using this trait should implement SupportsSelectionReset interface
  */
 trait HasBulkActions
 {

@@ -55,8 +55,8 @@ class PostModuleTest extends TestCase
 
         $this->assertInstanceOf(Post::class, $post);
         $this->assertEquals('Test Post Title', $post->title);
-        $this->assertEquals(PostType::News->value, $post->post_type->value ?? $post->post_type);
-        $this->assertEquals(PostStatus::Published->value, $post->status->value ?? $post->status);
+        $this->assertEquals(PostType::News->value, $post->post_type);
+        $this->assertEquals(PostStatus::Published->value, $post->status);
     }
 
     public function test_post_can_be_updated()

@@ -2,6 +2,7 @@
 
 namespace Modules\Banks\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
 use App\Traits\HandlesExceptionsWithToast;
@@ -10,7 +11,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Banks\Models\InvestorQuestion;
 
-class InvestorQuestionIndex extends Component
+class InvestorQuestionIndex extends Component implements SupportsToastErrors
 {
     use HandlesExceptionsWithToast, InteractsWithToast, WithPagination;
 
@@ -89,8 +90,8 @@ class InvestorQuestionIndex extends Component
             $this->toastSuccess($message);
         } catch (\Throwable $e) {
             $this->handleException($e, 'Toplu işlem sırasında bir hata oluştu. Lütfen tekrar deneyin.', [
-                'selected_ids' => $this->selectedQuestions ?? null,
-                'bulk_action' => $this->bulkAction ?? null,
+                'selected_ids' => $this->selectedQuestions,
+                'bulk_action' => $this->bulkAction,
             ]);
         }
     }

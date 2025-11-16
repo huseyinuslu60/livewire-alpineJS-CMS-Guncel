@@ -2,6 +2,7 @@
 
 namespace Modules\Lastminutes\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\HasSearchAndFilters;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Support\Pagination;
@@ -11,7 +12,7 @@ use Livewire\Component;
 use Modules\Lastminutes\Models\Lastminute;
 use Modules\Lastminutes\Services\LastminuteService;
 
-class LastminuteIndex extends Component
+class LastminuteIndex extends Component implements SupportsToastErrors
 {
     use HasSearchAndFilters;
     use InteractsWithToast, ValidationMessages;
@@ -23,6 +24,8 @@ class LastminuteIndex extends Component
     public string $sortBy = 'created_at';
 
     public string $sortDirection = 'desc';
+
+    public ?string $status = null;
 
     protected $listeners = ['refreshComponent' => '$refresh'];
 

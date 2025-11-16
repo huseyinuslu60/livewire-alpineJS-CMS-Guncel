@@ -2,6 +2,7 @@
 
 namespace Modules\Articles\Livewire;
 
+use App\Contracts\SupportsToastErrors;
 use App\Livewire\Concerns\InteractsWithToast;
 use App\Models\User;
 use App\Traits\ValidationMessages;
@@ -10,7 +11,7 @@ use Livewire\Component;
 use Modules\Articles\Models\Article;
 use Modules\Articles\Services\ArticleService;
 
-class ArticleEdit extends Component
+class ArticleEdit extends Component implements SupportsToastErrors
 {
     use InteractsWithToast, ValidationMessages;
 

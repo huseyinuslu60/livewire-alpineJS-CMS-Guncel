@@ -15,7 +15,7 @@ class PostMediaService
     /**
      * Store files for a post.
      */
-    public function storeFiles(Post $post, array $files, ?string $type = null, ?int $primaryIndex = null, array $fileDescriptions = []): void
+    public function storeFiles(Post $post, array $files, string|PostType|null $type = null, ?int $primaryIndex = null, array $fileDescriptions = []): void
     {
         $uploadedFiles = [];
         $galleryData = [];
@@ -33,7 +33,7 @@ class PostMediaService
                 $sanitizedAltText = Sanitizer::escape($altText);
                 $sanitizedCaption = Sanitizer::escape($description);
 
-                $typeValue = ($type instanceof PostType) ? $type->value : (is_string($type) ? $type : PostType::News->value);
+                $typeValue = ($type instanceof PostType) ? $type->value : ((is_string($type) && $type !== '') ? $type : PostType::News->value);
                 $uploadedFiles[] = [
                     'post_id' => $post->post_id,
                     'title' => $sanitizedTitle,
@@ -71,7 +71,7 @@ class PostMediaService
 
             File::insert($uploadedFiles);
 
-            $typeValue = ($type instanceof PostType) ? $type->value : (is_string($type) ? $type : PostType::News->value);
+            $typeValue = ($type instanceof PostType) ? $type->value : ((is_string($type) && $type !== '') ? $type : PostType::News->value);
             if (! empty($galleryData) && $typeValue === PostType::Gallery->value) {
                 $fileIndex = 0;
                 foreach ($galleryData as &$data) {

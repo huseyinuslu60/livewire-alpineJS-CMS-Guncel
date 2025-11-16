@@ -1,0 +1,17 @@
+{
+    "Roles": true,
+    "User": true,
+    "Articles": true,
+    "Categories": true,
+    "Posts": true,
+    "Files": true,
+    "Authors": true,
+    "Comments": true,
+    "Logs": true,
+    "Headline": true,
+    "AgencyNews": true,
+    "Lastminutes": true,
+    "Settings": true,
+    "Banks": true,
+    "Newsletters": true
+}

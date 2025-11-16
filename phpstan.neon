@@ -1,0 +1,67 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    treatPhpDocTypesAsCertain: false
+
+    paths:
+        - app
+        - Modules
+        - tests
+        - config
+        - routes
+        - database
+
+    excludePaths:
+        analyseAndScan:
+            - vendor
+            - node_modules (?)
+            - storage (?)
+            - public/build (?)
+            - bootstrap/cache (?)
+            - public/hot (?)
+            - storage/framework (?)
+            - storage/logs (?)
+
+    tmpDir: storage/framework/phpstan
+
+    # Larastan
+    checkModelProperties: true
+
+    bootstrapFiles:
+        - vendor/autoload.php
+
+    reportUnmatchedIgnoredErrors: false
+
+    ignoreErrors:
+        # Facades - specific classes only
+        - '#Call to static method .* on an unknown class Illuminate\\\\Support\\\\Facades\\\\(Log|Str|DB|Config|Route|Cache|Auth|Gate|View|Blade)$#'
+
+        # View statik proxy - specific to View facade
+        - '#Call to an undefined method Illuminate\\\\Support\\\\Facades\\\\View::[A-Za-z0-9_]+\\(.*\\)$#'
+
+        # Livewire dinamik property - specific to Livewire\Component
+        - '#Access to an undefined property Livewire\\\\Component::\\\$[A-Za-z0-9_]+$#'
+        - '#Access to an undefined property Modules\\\\[A-Za-z0-9_]+\\\\Livewire\\\\[A-Za-z0-9_]+::\\\$[A-Za-z0-9_]+$#'
+
+        # Eloquent dinamik property - specific model classes
+        - '#Access to an undefined property App\\\\Models\\\\[A-Za-z0-9_]+::\\\$[A-Za-z0-9_]+$#'
+        - '#Access to an undefined property Modules\\\\[A-Za-z0-9_]+\\\\Models\\\\[A-Za-z0-9_]+::\\\$[A-Za-z0-9_]+$#'
+
+        # Eloquent static magic - specific model classes
+        - '#Call to an undefined static method App\\\\Models\\\\[A-Za-z0-9_]+::[A-Za-z0-9_]+\\(.*\\)$#'
+        - '#Call to an undefined static method Modules\\\\[A-Za-z0-9_]+\\\\Models\\\\[A-Za-z0-9_]+::[A-Za-z0-9_]+\\(.*\\)$#'
+
+        # Factory return type - specific to factories
+        - '#Return type.*of method.*Factory::definition.*should be compatible with.*array#'
+
+        # View string type - specific to view() helper
+        - '#Parameter.*\$view of function view expects view-string, string given#'
+
+        # Collection covariance - specific to Collection class
+        - '#Template type TValue on class Illuminate\\\\Support\\\\Collection is not covariant#'
+
+        # Pest test framework - specific to Pest
+        - '#Call to an undefined method.*Pest\\\\TestSuite::get#'
+        - '#Anonymous function should return.*Expectation.*but returns.*Expectation#'

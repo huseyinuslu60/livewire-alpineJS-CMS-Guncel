@@ -1,0 +1,23 @@
+{
+    "name": "modules/lastminutes",
+    "description": "Son dakika haberleri yönetim modülü",
+    "type": "laravel-module",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Lastminutes\\": "app/",
+            "Modules\\Lastminutes\\Database\\Factories\\": "database/factories/",
+            "Modules\\Lastminutes\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Modules\\Lastminutes\\Providers\\LastminutesServiceProvider"
+            ]
+        }
+    }
+}

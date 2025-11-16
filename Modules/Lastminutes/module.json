@@ -1,0 +1,13 @@
+{
+    "name": "Lastminutes",
+    "alias": "lastminutes",
+    "description": "Son dakika haberleri yönetim modülü",
+    "keywords": ["lastminutes", "son dakika", "haber"],
+    "priority": 0,
+    "providers": [
+        "Modules\\Lastminutes\\Providers\\LastminutesServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}

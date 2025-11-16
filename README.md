@@ -1,0 +1,367 @@
+# 📰 Livewire-AlpineJS CMS Güncel
+
+[![CI](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/actions/workflows/ci.yml/badge.svg)](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/actions/workflows/ci.yml)
+
+Modern Laravel 12 tabanlı, tam modüler haber ve içerik yönetim sistemi. Livewire 3 ve Alpine.js ile geliştirilmiş, kullanıcı dostu admin paneli ve güçlü özellikler sunar.
+
+> **Not:** Bu proje aktif olarak geliştirilmektedir. Son güncellemeler için [commits](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/commits/main) sayfasını kontrol edebilirsiniz.
+
+## 🎯 Özellikler
+
+### 🧩 Modüler Mimari
+- **Tam modüler yapı** - `nwidart/laravel-modules` ile bağımsız modül geliştirme
+- **16 aktif modül** - Her modül kendi route, controller, view ve migration'larına sahip
+- **Kolay genişletilebilirlik** - Yeni modüller kolayca eklenebilir
+
+### ⚡ Modern Teknoloji Stack
+- **Laravel 12** - En son Laravel sürümü ile güçlü backend
+- **Livewire 3** - Sunucu tarafı reactive component'ler
+- **Alpine.js** - Hafif ve güçlü JavaScript framework
+- **Tailwind CSS 4** - Modern ve responsive UI tasarımı
+- **PostgreSQL** - Güçlü ve ölçeklenebilir veritabanı
+- **Vite** - Hızlı frontend build tool
+
+### 🛠️ Admin Paneli Özellikleri
+- **Rol tabanlı erişim kontrolü** - Editör, Admin ve özel roller
+- **Kullanıcı yönetimi** - Kapsamlı kullanıcı ve yetki yönetimi
+- **İçerik yönetimi** - Haber, makale ve kategori yönetimi
+- **Dosya yönetimi** - Güvenli dosya yükleme ve yönetim sistemi
+- **Manşet yönetimi** - Drag-drop ile sıralanabilir manşet/sürmanşet
+- **Yorum sistemi** - İçerik yorumları ve moderasyon
+- **Log yönetimi** - Sistem aktivite logları
+
+### 📬 İletişim ve Bildirim
+- **Bülten sistemi** - E-posta bülteni yönetimi ve abonelik
+- **Ajans haberleri** - Dış kaynak haber entegrasyonu
+- **Son dakika haberleri** - Acil haber yönetimi
+
+### 🏦 Ek Özellikler
+- **Banka yönetimi** - Banka bilgileri ve entegrasyonları
+- **Ayarlar modülü** - Sistem geneli ayar yönetimi
+- **Yazar yönetimi** - İçerik yazarları ve profilleri
+
+### 🧱 Geliştirme Araçları
+- **CI/CD entegrasyonu** - GitHub Actions ile otomatik test ve deploy
+- **Code Quality** - Laravel Pint, PHPStan ile kod kalitesi
+- **Test Coverage** - Pest/PHPUnit ile kapsamlı testler
+- **Type Safety** - Livewire component'lerinde type declarations ve PHPDoc
+- **Docker desteği** - Kolay geliştirme ortamı kurulumu
+- **Editor Support** - Trumbowyg WYSIWYG editör entegrasyonu
+- **Drag & Drop** - SortableJS ile sıralanabilir listeler
+
+## 📦 Modüller
+
+Proje aşağıdaki modülleri içermektedir:
+
+| Modül | Açıklama |
+|-------|----------|
+| **Articles** | Makale yönetimi ve içerik oluşturma |
+| **Authors** | Yazar profilleri ve yönetimi |
+| **AgencyNews** | Ajans haberleri entegrasyonu |
+| **Banks** | Banka bilgileri ve yönetimi |
+| **Categories** | Kategori yönetimi ve hiyerarşisi |
+| **Comments** | Yorum sistemi ve moderasyon |
+| **Files** | Dosya yükleme ve yönetim sistemi |
+| **Headline** | Manşet ve sürmanşet yönetimi |
+| **Lastminutes** | Son dakika haberleri |
+| **Logs** | Sistem logları ve aktivite takibi |
+| **Newsletters** | E-posta bülteni yönetimi |
+| **Posts** | Haber ve içerik yönetimi |
+| **Roles** | Rol ve yetki yönetimi |
+| **Settings** | Sistem ayarları |
+| **User** | Kullanıcı yönetimi |
+| **Users** | Kullanıcı işlemleri |
+
+## 🚀 Kurulum
+
+### Gereksinimler
+
+- **PHP** >= 8.2
+- **Composer** >= 2.0
+- **Node.js** >= 18.x ve npm
+- **PostgreSQL** >= 15
+- **Redis** (opsiyonel, önerilir)
+- **Git** (projeyi klonlamak için)
+
+### Adım Adım Kurulum
+
+1. **Projeyi klonlayın**
+   ```bash
+   git clone https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel.git
+   cd livewire-alpineJS-CMS-Guncel/bg-laravel
+   ```
+
+2. **Bağımlılıkları yükleyin**
+   ```bash
+   composer install
+   npm ci
+   ```
+
+3. **Ortam değişkenlerini ayarlayın**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   
+   `.env` dosyasında veritabanı ve diğer ayarları yapılandırın:
+   ```env
+   DB_CONNECTION=pgsql
+   DB_HOST=127.0.0.1
+   DB_PORT=5432
+   DB_DATABASE=your_database
+   DB_USERNAME=your_username
+   DB_PASSWORD=your_password
+   ```
+
+4. **Veritabanını oluşturun ve seed edin**
+   ```bash
+   php artisan migrate --seed
+   ```
+
+5. **Frontend asset'lerini build edin**
+   ```bash
+   # Development
+   npm run dev
+   
+   # Production
+   npm run build
+   ```
+
+6. **Uygulamayı başlatın**
+   ```bash
+   php artisan serve
+   ```
+
+   Uygulama `http://localhost:8000` adresinde çalışacaktır.
+
+### 🐳 Docker ile Kurulum
+
+Docker kullanarak daha kolay kurulum:
+
+1. **Docker Compose ile başlatın**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Container içinde bağımlılıkları yükleyin**
+   ```bash
+   docker-compose exec app composer install
+   docker-compose exec app npm ci
+   ```
+
+3. **Ortam değişkenlerini ayarlayın**
+   ```bash
+   docker-compose exec app cp .env.example .env
+   docker-compose exec app php artisan key:generate
+   ```
+
+4. **Veritabanını migrate edin**
+   ```bash
+   docker-compose exec app php artisan migrate --seed
+   ```
+
+5. **Asset'leri build edin**
+   ```bash
+   docker-compose exec app npm run build
+   ```
+
+   Uygulama `http://localhost:8000` adresinde çalışacaktır.
+
+## 🔧 Geliştirme
+
+### Geliştirme Ortamı
+
+Geliştirme için tüm servisleri aynı anda başlatmak:
+
+```bash
+# Composer script ile (server, queue, vite) - Önerilen
+composer dev
+
+# Veya ayrı ayrı terminal'lerde
+php artisan serve          # Laravel development server
+php artisan queue:listen   # Queue worker
+npm run dev                # Vite dev server (hot reload)
+```
+
+**Not:** `composer dev` komutu tüm servisleri otomatik olarak başlatır ve renkli çıktılar gösterir.
+
+### Code Quality
+
+```bash
+# PHP Code Style Fixer
+./vendor/bin/pint
+# veya
+composer format
+
+# Statik Analiz
+./vendor/bin/phpstan analyse
+# veya
+composer analyse
+
+# Testler
+php artisan test
+# veya
+composer test
+```
+
+### Asset Build
+
+```bash
+# Development (hot reload)
+npm run dev
+
+# Production build
+npm run build
+```
+
+### Yeni Modül Oluşturma
+
+Yeni bir modül oluşturmak için:
+
+```bash
+php artisan module:make ModuleName
+```
+
+Bu komut aşağıdaki yapıyı otomatik olarak oluşturur:
+- Controller'lar
+- Livewire component'leri
+- Model'ler
+- Migration'lar
+- View'lar
+- Route'lar
+- Test dosyaları
+
+Modül oluşturulduktan sonra `Modules/ModuleName` dizininde çalışmaya başlayabilirsiniz.
+
+## 🧾 Test & Kalite Kontrolleri
+
+Proje aşağıdaki otomatik kalite kontrol süreçlerini kullanır:
+
+| Kontrol | Araç | Komut |
+|---------|------|-------|
+| Kod stili | Laravel Pint | `composer format` |
+| Statik analiz | PHPStan (Level 5) | `composer analyse` |
+| Testler | Pest/PHPUnit | `composer test` |
+| Veritabanı | PostgreSQL 15+ | CI ortamında test edilir |
+| Frontend build | Vite | `npm run build` |
+
+### Test Coverage
+
+Test coverage raporu oluşturmak için:
+
+```bash
+php artisan test --coverage
+```
+
+Coverage raporu `coverage/html/index.html` dosyasında görüntülenebilir.
+
+## 📚 Dokümantasyon
+
+### Modül Yapısı
+
+Her modül aşağıdaki yapıya sahiptir:
+
+```
+Modules/
+  └── ModuleName/
+      ├── app/
+      │   ├── Http/
+      │   │   ├── Controllers/
+      │   │   └── Livewire/
+      │   ├── Models/
+      │   └── Policies/
+      ├── config/
+      ├── database/
+      │   ├── migrations/
+      │   └── seeders/
+      ├── resources/
+      │   ├── views/
+      │   ├── js/
+      │   └── scss/
+      ├── routes/
+      │   ├── web.php
+      │   └── api.php
+      └── tests/
+```
+
+### Route Yapısı
+
+- **Admin Routes**: `/admin/*` prefix'i ile admin paneli route'ları
+- **API Routes**: `/api/*` prefix'i ile API endpoint'leri
+- **Web Routes**: Genel web route'ları
+
+### Yetkilendirme
+
+Proje `spatie/laravel-permission` paketini kullanır:
+
+- **Roller**: Admin, Editor, User vb.
+- **İzinler**: Modül bazlı izin yönetimi
+- **Policy'ler**: Model bazlı yetkilendirme
+
+## 🛡️ Güvenlik
+
+Proje aşağıdaki güvenlik önlemlerini içerir:
+
+- **CSRF Protection** - Tüm formlarda CSRF koruması
+- **XSS Protection** - Input sanitization ve output escaping
+- **SQL Injection Protection** - Eloquent ORM kullanımı ile parametreli sorgular
+- **File Upload Security** - Güvenli dosya yükleme kontrolleri ve validasyon
+- **Role-based Access Control** - Rol tabanlı erişim kontrolü
+- **Policy-based Authorization** - Model bazlı yetkilendirme
+- **Secure File Storage** - Private ve public dosya yönetimi
+
+## 🤝 Katkıda Bulunma
+
+Projeye katkıda bulunmak için:
+
+1. Fork edin
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Değişikliklerinizi commit edin (`git commit -m 'Add amazing feature'`)
+4. Branch'inizi push edin (`git push origin feature/amazing-feature`)
+5. Pull Request oluşturun
+
+### Katkı Kuralları
+
+- Kod standartlarına uyun (Laravel Pint)
+- Test yazın
+- Dokümantasyonu güncelleyin
+- Açıklayıcı commit mesajları kullanın
+
+## 📝 Changelog
+
+### Son Güncellemeler
+
+- ✅ Modüler yapı ile tam entegrasyon
+- ✅ Permission-based dashboard sistemi
+- ✅ Agency news modülü iyileştirmeleri
+- ✅ Post yönetimi ve primary file seçimi
+- ✅ Newsletter template seeder
+- ✅ CI/CD workflow optimizasyonları
+
+Detaylı değişiklik listesi için [commits](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/commits/main) sayfasını kontrol edebilirsiniz.
+
+## 🐛 Bilinen Sorunlar
+
+Bilinen sorunlar ve çözümleri için [Issues](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/issues) sayfasına bakın.
+
+## 📄 Lisans
+
+Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır.
+
+## 👥 Yazar
+
+**Hüseyin Uslu**
+
+- GitHub: [@huseyinuslu60](https://github.com/huseyinuslu60)
+
+## 🙏 Teşekkürler
+
+- [Laravel](https://laravel.com) - Harika PHP framework
+- [Livewire](https://livewire.laravel.com) - Reactive component'ler
+- [Alpine.js](https://alpinejs.dev) - Minimal JavaScript framework
+- [nwidart/laravel-modules](https://github.com/nwidart/laravel-modules) - Modüler yapı
+- [Spatie](https://spatie.be) - Laravel permission paketi
+
+---
+
+⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!

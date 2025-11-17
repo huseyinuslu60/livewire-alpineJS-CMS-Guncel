@@ -10,9 +10,3 @@ Route::middleware(['web', 'auth', 'verified', 'permission:view roles', 'module.a
     ->group(function () {
         Route::get('/role-management', RoleManagement::class)->name('management');
     });
-
-// Deprecated: Eski route (backward compatibility - kaldırılacak)
-Route::middleware(['web', 'auth', 'verified', 'module.active:roles'])
-    ->group(function () {
-        Route::get('/role-management', RoleManagement::class)->name('role.deprecated.management');
-    });

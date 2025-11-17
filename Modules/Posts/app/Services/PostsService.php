@@ -264,18 +264,6 @@ class PostsService
         }
     }
 
-    /**
-     * Make a unique slug from title.
-     *
-     * @deprecated Use SlugGenerator::generate() instead
-     * @see \App\Services\SlugGenerator::generate()
-     */
-    public function makeUniqueSlug(string $title, ?int $ignoreId = null): string
-    {
-        // Geriye dönük uyumluluk için wrapper
-        $slug = $this->slugGenerator->generate($title, Post::class, 'slug', 'post_id', $ignoreId);
-        return $slug->toString();
-    }
 
     /**
      * Store files for a post.
@@ -439,17 +427,6 @@ class PostsService
         }
     }
 
-    /**
-     * Validate post type specific rules.
-     *
-     * @deprecated Use PostValidator::validatePostType() instead
-     * @see \Modules\Posts\Domain\Services\PostValidator::validatePostType()
-     */
-    protected function validatePostType(array $data): void
-    {
-        // Geriye dönük uyumluluk için wrapper
-        $this->postValidator->validatePostType($data);
-    }
 
     // ============================================
     // GALERI İŞLEMLERİ

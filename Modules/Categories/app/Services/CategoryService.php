@@ -139,17 +139,5 @@ class CategoryService
         }
     }
 
-    /**
-     * Make a unique slug from name
-     * 
-     * @deprecated Use SlugGenerator::generate() instead
-     * @see \App\Services\SlugGenerator::generate()
-     */
-    public function makeUniqueSlug(string $name, ?int $ignoreId = null): string
-    {
-        // Geriye dönük uyumluluk için wrapper
-        $slug = $this->slugGenerator->generate($name, Category::class, 'slug', 'category_id', $ignoreId);
-        return $slug->toString();
-    }
 }
 

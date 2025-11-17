@@ -29,11 +29,3 @@ Route::middleware(['web', 'auth', 'verified', 'permission:view files', 'module.a
         Route::post('/files/edit-image', [\Modules\Files\Http\Controllers\ImageEditorController::class, 'editImage'])
             ->name('edit-image');
     });
-
-// Deprecated: Eski route'lar (backward compatibility - kaldırılacak)
-Route::middleware(['web', 'auth', 'verified'])
-    ->group(function () {
-        Route::get('/files', FileIndex::class)->name('files.deprecated.index');
-        Route::get('/files/create', FileUpload::class)->name('files.deprecated.create');
-        Route::get('/files/upload', FileUpload::class)->name('files.deprecated.upload');
-    });

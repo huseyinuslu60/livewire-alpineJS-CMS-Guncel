@@ -53,6 +53,18 @@
             border-radius: 0.5rem !important;
         }
 
+        /* Trumbowyg - Galeri açıklamaları için özel yükseklik */
+        .trumbowyg-gallery-description {
+            height: 180px !important;
+            min-height: 180px !important;
+            max-height: 180px !important;
+        }
+
+        .trumbowyg-gallery-description .trumbowyg-editor {
+            min-height: 120px !important;
+            max-height: 120px !important;
+        }
+
         /* Trumbowyg Fullscreen Mode */
         .trumbowyg.trumbowyg-fullscreen {
             position: fixed !important;

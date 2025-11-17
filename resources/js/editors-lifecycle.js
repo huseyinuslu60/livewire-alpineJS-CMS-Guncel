@@ -368,6 +368,12 @@ const initTrumbowyg = () => {
         // Trumbowyg'in DOM yapısı: .trumbowyg-box > .trumbowyg-editor-box > .trumbowyg-editor
         // textarea'nın parent'ı .trumbowyg-box
         const $trumbowygBox = $el.closest('.trumbowyg-box') || $el.parent('.trumbowyg-box');
+
+        // Galeri açıklamaları için özel class ekle (CSS için)
+        if ($trumbowygBox.length > 0) {
+          $trumbowygBox.addClass('trumbowyg-gallery-description');
+        }
+
         const $editor = $trumbowygBox.find('.trumbowyg-editor');
 
         if ($editor.length > 0) {

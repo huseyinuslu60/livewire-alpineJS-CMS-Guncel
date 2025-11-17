@@ -186,7 +186,7 @@ const initTrumbowyg = () => {
       lang: 'tr',
       btns: isGalleryDescription ? minimalButtons : defaultButtons,
       autogrow: isGalleryDescription ? true : false,
-      fixedHeight: isGalleryDescription ? 120 : 400,
+      fixedHeight: isGalleryDescription ? 180 : 400,
       fullscreen: !isGalleryDescription,
       semantic: false,
       removeformatPasted: true,

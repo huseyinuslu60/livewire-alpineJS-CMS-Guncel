@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Categories\Models\Category;
+use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -105,7 +106,7 @@ class PostCreateVideo extends Component
             'summary' => 'required|string',
             'content' => 'required|string',
             'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
-            'status' => 'required|in:'.implode(',', Post::STATUSES),
+            'status' => 'required|in:'.implode(',', PostStatus::all()),
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
             'is_mainpage' => 'boolean',
@@ -501,7 +502,7 @@ class PostCreateVideo extends Component
             ->get();
 
         $postPositions = Post::POSITIONS;
-        $postStatuses = Post::STATUSES;
+        $postStatuses = PostStatus::all();
 
         /** @var view-string $view */
         $view = 'posts::livewire.post-create-video';

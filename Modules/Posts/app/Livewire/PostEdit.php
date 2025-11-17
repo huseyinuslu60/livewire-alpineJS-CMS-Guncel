@@ -17,6 +17,8 @@ use Livewire\WithFileUploads;
 use Modules\Categories\Models\Category;
 use Modules\Headline\Services\FeaturedService;
 use Modules\Posts\Models\File;
+use Modules\Posts\Domain\ValueObjects\PostStatus;
+use Modules\Posts\Domain\ValueObjects\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -439,9 +441,9 @@ class PostEdit extends Component
             'slug' => 'nullable|string|max:255|unique:posts,slug,'.$this->post->post_id.',post_id',
             'summary' => 'required|string',
             'content' => 'nullable|string',
-            'post_type' => 'required|in:'.implode(',', Post::TYPES),
+            'post_type' => 'required|in:'.implode(',', PostType::all()),
             'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
-            'status' => 'nullable|in:'.implode(',', Post::STATUSES),
+            'status' => 'nullable|in:'.implode(',', PostStatus::all()),
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
             'is_mainpage' => 'boolean',
@@ -1854,9 +1856,9 @@ class PostEdit extends Component
                 ->get();
         });
 
-        $postTypes = Post::TYPES;
+        $postTypes = PostType::all();
         $postPositions = Post::POSITIONS;
-        $postStatuses = Post::STATUSES;
+        $postStatuses = PostStatus::all();
 
         /** @var view-string $view */
         $view = 'posts::livewire.post-edit';

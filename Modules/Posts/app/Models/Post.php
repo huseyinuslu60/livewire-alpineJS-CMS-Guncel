@@ -50,41 +50,7 @@ class Post extends Model
 
     protected $primaryKey = 'post_id';
 
-    // Constants (deprecated - use ValueObjects instead)
-    /**
-     * @deprecated Use PostType::all() instead
-     * @see \Modules\Posts\Domain\ValueObjects\PostType
-     */
-    public const TYPES = ['news', 'gallery', 'video'];
-
     public const POSITIONS = ['normal', 'manşet', 'sürmanşet', 'öne çıkanlar'];
-
-    /**
-     * @deprecated Use PostStatus::all() instead
-     * @see \Modules\Posts\Domain\ValueObjects\PostStatus
-     */
-    public const STATUSES = ['draft', 'published', 'scheduled'];
-
-    // Türkçe etiketler (deprecated - use ValueObjects instead)
-    /**
-     * @deprecated Use PostType::allWithLabels() instead
-     * @see \Modules\Posts\Domain\ValueObjects\PostType
-     */
-    public const TYPE_LABELS = [
-        'news' => 'Haber',
-        'gallery' => 'Galeri',
-        'video' => 'Video',
-    ];
-
-    /**
-     * @deprecated Use PostStatus::allWithLabels() instead
-     * @see \Modules\Posts\Domain\ValueObjects\PostStatus
-     */
-    public const STATUS_LABELS = [
-        'draft' => 'Pasif',
-        'published' => 'Aktif',
-        'scheduled' => 'Zamanlanmış',
-    ];
 
     public const POSITION_LABELS = [
         'normal' => 'Normal',

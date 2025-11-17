@@ -2,10 +2,12 @@
 
 namespace Modules\Settings\Livewire;
 
+use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Settings\Models\SiteSetting;
+use Modules\Settings\Services\SettingsService;
 
 class SiteSettings extends Component
 {
@@ -17,6 +19,13 @@ class SiteSettings extends Component
     public string $activeTab = 'general';
 
     public bool $isLoading = false;
+
+    protected SettingsService $settingsService;
+
+    public function boot()
+    {
+        $this->settingsService = app(SettingsService::class);
+    }
 
     protected $rules = [
         'settings.*.value' => 'nullable|string|max:65535',
@@ -62,25 +71,22 @@ class SiteSettings extends Component
 
     public function updateSetting($settingId, $value)
     {
-        $setting = SiteSetting::find($settingId);
+        try {
+            // File upload handling
+            $setting = SiteSetting::find($settingId);
+            if ($setting && $setting->type === 'image' && is_object($value)) {
+                $value = $value->store('settings', 'public');
+            }
 
-        if (! $setting) {
-            $this->addError('settings', 'Ayar bulunamadı.');
+            $this->settingsService->updateSetting($settingId, $value);
 
-            return;
+            $this->dispatch('setting-updated', [
+                'key' => $setting?->key ?? '',
+                'value' => $value,
+            ]);
+        } catch (\Exception $e) {
+            $this->addError('settings', 'Ayar güncellenirken bir hata oluştu: '.$e->getMessage());
         }
-
-        // File upload handling
-        if ($setting->type === 'image' && is_object($value)) {
-            $value = $value->store('settings', 'public');
-        }
-
-        $setting->update(['value' => $value]);
-
-        $this->dispatch('setting-updated', [
-            'key' => $setting->key,
-            'value' => $value,
-        ]);
     }
 
     public function saveSettings()
@@ -88,41 +94,39 @@ class SiteSettings extends Component
         $this->isLoading = true;
 
         try {
-            \Log::info('Settings save başladı', ['settings' => $this->settings]);
+            LogHelper::info('Settings save başladı', ['settings' => $this->settings]);
 
+            // File upload handling - önce dosyaları kaydet
+            $settingsToUpdate = [];
             foreach ($this->settings as $group => $groupSettings) {
                 foreach ($groupSettings as $setting) {
-                    if (isset($setting['value'])) {
+                    if (isset($setting['value']) && isset($setting['id'])) {
                         $siteSetting = SiteSetting::find($setting['id']);
-                        if ($siteSetting) {
-                            $value = $setting['value'];
-
-                            // File upload handling
-                            if ($siteSetting->type === 'image' && is_object($value)) {
-                                // Dosyayı storage'a kaydet
-                                $value = $value->store('settings', 'public');
-                                \Log::info('Logo yüklendi', ['path' => $value]);
-                            }
-
-                            $siteSetting->update(['value' => $value]);
-                            \Log::info('Setting güncellendi', ['id' => $setting['id'], 'value' => $value]);
+                        if ($siteSetting && $siteSetting->type === 'image' && is_object($setting['value'])) {
+                            // Dosyayı storage'a kaydet
+                            $setting['value'] = $setting['value']->store('settings', 'public');
+                            LogHelper::info('Logo yüklendi', ['path' => $setting['value']]);
                         }
+                        $settingsToUpdate[] = $setting;
                     }
                 }
             }
 
+            // Service ile toplu güncelleme (N+1 query önleme)
+            $this->settingsService->updateSettings($settingsToUpdate);
+
             session()->flash('success', 'Ayarlar başarıyla kaydedildi.');
             $this->dispatch('settings-saved');
-            \Log::info('Settings save tamamlandı');
+            LogHelper::info('Settings save tamamlandı');
 
             // Ayarları yeniden yükle ki güncel değerler görünsün
             $this->loadSettings();
         } catch (\Exception $e) {
-            \Log::error('Settings save hatası: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \App\Helpers\LogHelper::error('Settings save hatası', ['error' => $e->getMessage()]);
             session()->flash('error', 'Ayarlar kaydedilirken bir hata oluştu: '.$e->getMessage());
         } finally {
             $this->isLoading = false;
-            \Log::info('isLoading false yapıldı');
+            LogHelper::info('isLoading false yapıldı');
         }
     }
 

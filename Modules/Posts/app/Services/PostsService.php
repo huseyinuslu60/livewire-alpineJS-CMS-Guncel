@@ -2,9 +2,9 @@
 
 namespace Modules\Posts\Services;
 
+use App\Helpers\LogHelper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
@@ -75,10 +75,9 @@ class PostsService
                 return $post->load(['files', 'categories', 'tags', 'author']);
             });
         } catch (\Exception $e) {
-            Log::error('PostsService update error:', [
+            LogHelper::error('PostsService update error', [
                 'post_id' => $post->post_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -96,10 +95,9 @@ class PostsService
                 $post->delete();
             });
         } catch (\Exception $e) {
-            Log::error('PostsService delete error:', [
+            LogHelper::error('PostsService delete error', [
                 'post_id' => $post->post_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -120,7 +118,7 @@ class PostsService
                     $deletedCount++;
                 }
 
-                Log::info('Posts bulk deleted', [
+                LogHelper::info('Yazılar toplu silindi', [
                     'count' => $deletedCount,
                     'post_ids' => $postIds,
                 ]);
@@ -128,7 +126,7 @@ class PostsService
                 return $deletedCount;
             });
         } catch (\Exception $e) {
-            Log::error('PostsService bulkDelete error:', [
+            LogHelper::error('PostsService bulkDelete error', [
                 'post_ids' => $postIds,
                 'error' => $e->getMessage(),
             ]);
@@ -146,7 +144,7 @@ class PostsService
                 $updated = Post::whereIn('post_id', $postIds)
                     ->update(['status' => $status]);
 
-                Log::info('Posts bulk status updated', [
+                LogHelper::info('Yazılar toplu durum güncellendi', [
                     'count' => $updated,
                     'status' => $status,
                     'post_ids' => $postIds,
@@ -155,7 +153,7 @@ class PostsService
                 return $updated;
             });
         } catch (\Exception $e) {
-            Log::error('PostsService bulkUpdateStatus error:', [
+            LogHelper::error('PostsService bulkUpdateStatus error', [
                 'post_ids' => $postIds,
                 'status' => $status,
                 'error' => $e->getMessage(),
@@ -174,7 +172,7 @@ class PostsService
                 $updated = Post::whereIn('post_id', $postIds)
                     ->update(['in_newsletter' => $inNewsletter]);
 
-                Log::info('Posts bulk newsletter flag updated', [
+                LogHelper::info('Yazılar toplu newsletter bayrağı güncellendi', [
                     'count' => $updated,
                     'in_newsletter' => $inNewsletter,
                     'post_ids' => $postIds,
@@ -183,7 +181,7 @@ class PostsService
                 return $updated;
             });
         } catch (\Exception $e) {
-            Log::error('PostsService bulkUpdateNewsletter error:', [
+            LogHelper::error('PostsService bulkUpdateNewsletter error', [
                 'post_ids' => $postIds,
                 'in_newsletter' => $inNewsletter,
                 'error' => $e->getMessage(),
@@ -201,7 +199,7 @@ class PostsService
             return DB::transaction(function () use ($post) {
                 $post->update(['is_mainpage' => !$post->is_mainpage]);
 
-                Log::info('Post mainpage toggled', [
+                LogHelper::info('Yazı ana sayfa görünürlüğü değiştirildi', [
                     'post_id' => $post->post_id,
                     'is_mainpage' => $post->is_mainpage,
                 ]);
@@ -209,7 +207,7 @@ class PostsService
                 return $post;
             });
         } catch (\Exception $e) {
-            Log::error('PostsService toggleMainPage error:', [
+            LogHelper::error('PostsService toggleMainPage error', [
                 'post_id' => $post->post_id,
                 'error' => $e->getMessage(),
             ]);
@@ -262,7 +260,7 @@ class PostsService
                 $description = $fileDescriptions[$filename]['description'] ?? '';
                 $altText = $fileDescriptions[$filename]['alt_text'] ?? '';
 
-                Log::info('PostsService::storeFiles - Processing file:', [
+                LogHelper::info('PostsService::storeFiles - Dosya işleniyor:', [
                     'index' => $index,
                     'filename' => $filename,
                     'description' => $description,
@@ -441,28 +439,27 @@ class PostsService
                     ->where('post_id', $post->post_id)
                     ->update(['content' => $jsonContent]);
 
-                // Post model'ini de güncelle
+                // Post model'ini de güncelle (refresh() gereksiz - zaten save() ile güncellendi)
                 $post->content = $jsonContent;
                 $post->save();
 
-                // Model'i yenile
-                $post->refresh();
-
-                Log::info('Gallery content saved successfully', [
-                    'post_id' => $post->post_id,
-                    'files_count' => count($files),
-                    'result' => $result,
-                    'gallery_data' => $galleryData,
-                    'json_content' => $jsonContent,
-                ]);
+                // Files tablosundaki caption alanını da senkronize et
+                // file_path üzerinden eşleştirerek ilgili kayıtları güncelle
+                foreach ($galleryData as $item) {
+                    $filePath = $item['file_path'] ?? '';
+                    if (! empty($filePath)) {
+                        File::where('post_id', $post->post_id)
+                            ->where('file_path', $filePath)
+                            ->update(['caption' => $item['description'] ?? '']);
+                    }
+                }
 
                 return $result > 0;
             });
         } catch (\Exception $e) {
-            Log::error('Failed to save gallery content', [
+            LogHelper::error('Galeri içeriği kaydedilirken hata oluştu', [
                 'post_id' => $post->post_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             throw $e;
@@ -521,13 +518,6 @@ class PostsService
             ];
         }
 
-        Log::info('Gallery data prepared', [
-            'files_count' => count($files),
-            'gallery_data_count' => count($galleryData),
-            'file_ids' => array_column($galleryData, 'file_id'),
-            'orders' => array_column($galleryData, 'order'),
-        ]);
-
         return $galleryData;
     }
 
@@ -558,7 +548,7 @@ class PostsService
     protected function reorderIndexedFiles(array $files, array $order): array
     {
         if (empty($order)) {
-            Log::warning('Invalid order data in reorderIndexedFiles', [
+            LogHelper::warning('reorderIndexedFiles: Geçersiz sıralama verisi', [
                 'order' => $order,
                 'files_count' => count($files),
             ]);
@@ -578,7 +568,7 @@ class PostsService
         }
 
         if (count($reorderedFiles) !== count($files)) {
-            Log::warning('File count mismatch after reordering indexed files', [
+            LogHelper::warning('File count mismatch after reordering indexed files', [
                 'original_count' => count($files),
                 'reordered_count' => count($reorderedFiles),
             ]);
@@ -599,7 +589,7 @@ class PostsService
     protected function reorderAssociativeFiles(array $files, array $order): array
     {
         if (empty($order)) {
-            Log::warning('Invalid order data in reorderAssociativeFiles', [
+            LogHelper::warning('reorderAssociativeFiles: Geçersiz sıralama verisi', [
                 'order' => $order,
                 'files_count' => count($files),
             ]);
@@ -616,7 +606,7 @@ class PostsService
         }
 
         if (count($reorderedFiles) !== count($files)) {
-            Log::warning('File count mismatch after reordering associative files', [
+            LogHelper::warning('File count mismatch after reordering associative files', [
                 'original_count' => count($files),
                 'reordered_count' => count($reorderedFiles),
             ]);
@@ -709,7 +699,7 @@ class PostsService
 
         // Debug için (sadece development'ta)
         if (config('app.debug')) {
-            Log::info('PostsService added files to gallery:', [
+            LogHelper::info('PostsService galeriye dosyalar eklendi:', [
                 'post_id' => $post->post_id,
                 'existing_count' => count($existingContentData),
                 'new_count' => count($galleryData),

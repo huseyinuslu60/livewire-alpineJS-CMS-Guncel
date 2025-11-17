@@ -5,7 +5,7 @@ namespace Modules\User\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Spatie\Permission\Models\Role;
 
 class UserService
@@ -31,7 +31,7 @@ class UserService
                 }
             }
 
-            Log::info('User created', [
+            LogHelper::info('Kullanıcı oluşturuldu', [
                 'user_id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -64,7 +64,7 @@ class UserService
                     $user->syncRoles($roles);
                 }
 
-                Log::info('User updated', [
+                LogHelper::info('Kullanıcı güncellendi', [
                     'user_id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
@@ -73,10 +73,9 @@ class UserService
                 return $user;
             });
         } catch (\Exception $e) {
-            Log::error('UserService update error:', [
+            LogHelper::error('UserService update error', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -94,17 +93,16 @@ class UserService
 
                 $user->delete();
 
-                Log::info('User deleted', [
+                LogHelper::info('Kullanıcı silindi', [
                     'user_id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('UserService delete error:', [
+            LogHelper::error('UserService delete error', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }

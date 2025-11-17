@@ -2,8 +2,8 @@
 
 namespace Modules\Newsletters\Services;
 
+use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Models\NewsletterPost;
 
@@ -23,7 +23,7 @@ class NewsletterService
                 $this->attachPosts($newsletter, $postIds);
             }
 
-            Log::info('Newsletter created', [
+            LogHelper::info('Newsletter oluşturuldu', [
                 'newsletter_id' => $newsletter->newsletter_id,
                 'name' => $newsletter->name,
                 'post_count' => count($postIds),
@@ -48,7 +48,7 @@ class NewsletterService
                     $this->syncPosts($newsletter, $postIds);
                 }
 
-                Log::info('Newsletter updated', [
+                LogHelper::info('Newsletter güncellendi', [
                     'newsletter_id' => $newsletter->newsletter_id,
                     'name' => $newsletter->name,
                 ]);
@@ -56,10 +56,9 @@ class NewsletterService
                 return $newsletter->load('newsletterPosts');
             });
         } catch (\Exception $e) {
-            Log::error('NewsletterService update error:', [
+            LogHelper::error('NewsletterService güncelleme hatası', [
                 'newsletter_id' => $newsletter->newsletter_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -79,16 +78,15 @@ class NewsletterService
                 // Delete newsletter
                 $newsletter->delete();
 
-                Log::info('Newsletter deleted', [
+                LogHelper::info('Newsletter silindi', [
                     'newsletter_id' => $newsletter->newsletter_id,
                     'name' => $newsletter->name,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('NewsletterService delete error:', [
+            LogHelper::error('NewsletterService silme hatası', [
                 'newsletter_id' => $newsletter->newsletter_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -155,7 +153,7 @@ class NewsletterService
             return DB::transaction(function () use ($newsletter, $status) {
                 $newsletter->update(['status' => $status]);
 
-                Log::info('Newsletter status updated', [
+                LogHelper::info('Newsletter durumu güncellendi', [
                     'newsletter_id' => $newsletter->newsletter_id,
                     'status' => $status,
                 ]);
@@ -163,7 +161,7 @@ class NewsletterService
                 return $newsletter;
             });
         } catch (\Exception $e) {
-            Log::error('NewsletterService updateStatus error:', [
+            LogHelper::error('NewsletterService durum güncelleme hatası', [
                 'newsletter_id' => $newsletter->newsletter_id,
                 'status' => $status,
                 'error' => $e->getMessage(),

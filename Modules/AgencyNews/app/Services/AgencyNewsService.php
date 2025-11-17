@@ -3,7 +3,7 @@
 namespace Modules\AgencyNews\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Modules\AgencyNews\Models\AgencyNews;
 
 class AgencyNewsService
@@ -16,7 +16,7 @@ class AgencyNewsService
         return DB::transaction(function () use ($data) {
             $agencyNews = AgencyNews::create($data);
 
-            Log::info('AgencyNews created', [
+            LogHelper::info('AgencyNews oluşturuldu', [
                 'record_id' => $agencyNews->record_id,
                 'title' => $agencyNews->title,
             ]);
@@ -34,7 +34,7 @@ class AgencyNewsService
             return DB::transaction(function () use ($agencyNews, $data) {
                 $agencyNews->update($data);
 
-                Log::info('AgencyNews updated', [
+                LogHelper::info('AgencyNews güncellendi', [
                     'record_id' => $agencyNews->record_id,
                     'title' => $agencyNews->title,
                 ]);
@@ -42,10 +42,9 @@ class AgencyNewsService
                 return $agencyNews;
             });
         } catch (\Exception $e) {
-            Log::error('AgencyNewsService update error:', [
+            LogHelper::error('AgencyNewsService update error', [
                 'record_id' => $agencyNews->record_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -60,16 +59,15 @@ class AgencyNewsService
             DB::transaction(function () use ($agencyNews) {
                 $agencyNews->delete();
 
-                Log::info('AgencyNews deleted', [
+                LogHelper::info('AgencyNews silindi', [
                     'record_id' => $agencyNews->record_id,
                     'title' => $agencyNews->title,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('AgencyNewsService delete error:', [
+            LogHelper::error('AgencyNewsService delete error', [
                 'record_id' => $agencyNews->record_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }

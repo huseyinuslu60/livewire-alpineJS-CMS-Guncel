@@ -3,7 +3,7 @@
 namespace Modules\Newsletters\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Modules\Newsletters\Models\NewsletterTemplate;
 
 class NewsletterTemplateService
@@ -16,7 +16,7 @@ class NewsletterTemplateService
         return DB::transaction(function () use ($data) {
             $template = NewsletterTemplate::create($data);
 
-            Log::info('NewsletterTemplate created', [
+            LogHelper::info('NewsletterTemplate oluşturuldu', [
                 'template_id' => $template->id,
                 'name' => $template->name,
             ]);
@@ -34,7 +34,7 @@ class NewsletterTemplateService
             return DB::transaction(function () use ($template, $data) {
                 $template->update($data);
 
-                Log::info('NewsletterTemplate updated', [
+                LogHelper::info('NewsletterTemplate güncellendi', [
                     'template_id' => $template->id,
                     'name' => $template->name,
                 ]);
@@ -42,10 +42,9 @@ class NewsletterTemplateService
                 return $template;
             });
         } catch (\Exception $e) {
-            Log::error('NewsletterTemplateService update error:', [
+            LogHelper::error('NewsletterTemplateService update error', [
                 'template_id' => $template->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -60,16 +59,15 @@ class NewsletterTemplateService
             DB::transaction(function () use ($template) {
                 $template->delete();
 
-                Log::info('NewsletterTemplate deleted', [
+                LogHelper::info('NewsletterTemplate silindi', [
                     'template_id' => $template->id,
                     'name' => $template->name,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('NewsletterTemplateService delete error:', [
+            LogHelper::error('NewsletterTemplateService delete error', [
                 'template_id' => $template->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -84,7 +82,7 @@ class NewsletterTemplateService
             return DB::transaction(function () use ($template) {
                 $template->update(['is_active' => !$template->is_active]);
 
-                Log::info('NewsletterTemplate active status toggled', [
+                LogHelper::info('NewsletterTemplate aktif durumu değiştirildi', [
                     'template_id' => $template->id,
                     'is_active' => $template->is_active,
                 ]);
@@ -92,10 +90,9 @@ class NewsletterTemplateService
                 return $template;
             });
         } catch (\Exception $e) {
-            Log::error('NewsletterTemplateService toggleActive error:', [
+            LogHelper::error('NewsletterTemplateService toggleActive error', [
                 'template_id' => $template->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }

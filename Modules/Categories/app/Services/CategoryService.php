@@ -3,7 +3,7 @@
 namespace Modules\Categories\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Illuminate\Support\Str;
 use Modules\Categories\Models\Category;
 
@@ -22,7 +22,7 @@ class CategoryService
 
             $category = Category::create($data);
 
-            Log::info('Category created', [
+            LogHelper::info('Kategori oluşturuldu', [
                 'category_id' => $category->category_id,
                 'name' => $category->name,
             ]);
@@ -45,7 +45,7 @@ class CategoryService
 
                 $category->update($data);
 
-                Log::info('Category updated', [
+                LogHelper::info('Kategori güncellendi', [
                     'category_id' => $category->category_id,
                     'name' => $category->name,
                 ]);
@@ -53,10 +53,9 @@ class CategoryService
                 return $category;
             });
         } catch (\Exception $e) {
-            Log::error('CategoryService update error:', [
+            LogHelper::error('CategoryService update error', [
                 'category_id' => $category->category_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -76,16 +75,15 @@ class CategoryService
 
                 $category->delete();
 
-                Log::info('Category deleted', [
+                LogHelper::info('Kategori silindi', [
                     'category_id' => $category->category_id,
                     'name' => $category->name,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('CategoryService delete error:', [
+            LogHelper::error('CategoryService delete error', [
                 'category_id' => $category->category_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }

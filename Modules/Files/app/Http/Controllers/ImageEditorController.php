@@ -5,7 +5,6 @@ namespace Modules\Files\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use Modules\Files\Services\ImageEditorService;
 
 class ImageEditorController
@@ -65,7 +64,7 @@ class ImageEditorController
                 'message' => 'Resim başarıyla kaydedildi',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::warning('Image edit validation error', [
+            \App\Helpers\LogHelper::warning('Image edit validation error', [
                 'errors' => $e->errors(),
                 'user_id' => auth()->id(),
             ]);
@@ -76,7 +75,7 @@ class ImageEditorController
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Illuminate\Http\Exceptions\PostTooLargeException $e) {
-            Log::warning('Image edit error - File too large', [
+            \App\Helpers\LogHelper::warning('Image edit error - File too large', [
                 'error' => $e->getMessage(),
                 'user_id' => auth()->id(),
             ]);
@@ -86,9 +85,8 @@ class ImageEditorController
                 'message' => 'Dosya boyutu çok büyük (maksimum 10MB)',
             ], 413);
         } catch (\Exception $e) {
-            Log::error('Image edit error', [
+            \App\Helpers\LogHelper::error('Image edit error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
                 'user_id' => auth()->id(),
                 'file_id' => $request->input('file_id'),
                 'index' => $request->input('index'),

@@ -147,6 +147,7 @@ class PostsServiceProvider extends ServiceProvider
         Livewire::component('posts.post-create-gallery', \Modules\Posts\Livewire\PostCreateGallery::class);
         Livewire::component('posts.post-create-video', \Modules\Posts\Livewire\PostCreateVideo::class);
         Livewire::component('posts.post-edit', \Modules\Posts\Livewire\PostEdit::class);
+        Livewire::component('posts.post-edit-media', \Modules\Posts\Livewire\PostEditMedia::class);
     }
 
     /**

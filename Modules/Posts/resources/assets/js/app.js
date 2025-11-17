@@ -109,216 +109,6 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('postsForm', () => ({
         files: [],
         primaryFileIndex: 0,
-    trixTimers: new Map(),
-    mo: null,
-    onUploadFinish: null,
-    onLWUpdated: null,
-    onLWLoad: null,
-
-        init() {
-      // 1) Mevcut editörleri sadece bu form scope'unda bağla
-                this.initTrixEditors(this.$root);
-
-      // 2) Dinamik eklenen editörleri izle (yalnızca form veya galeri scope'u)
-      const host = this.$root.querySelector('#gallery-sortable') || this.$root;
-      this.mo = new MutationObserver((muts) => {
-        let touched = false;
-        for (const m of muts) {
-          for (const n of m.addedNodes) {
-            if (!(n instanceof HTMLElement)) continue;
-            if (n.matches?.('trix-editor[id^="description-editor-"]')) {
-              this.attachTrix(n); touched = true;
-            }
-            n.querySelectorAll?.('trix-editor[id^="description-editor-"]').forEach(e => {
-              this.attachTrix(e); touched = true;
-            });
-          }
-        }
-        if (touched) requestAnimationFrame(() => this.initTrixEditors(this.$root));
-      });
-      this.mo.observe(host, { childList: true, subtree: true });
-
-      // 3) Scope delegation: global değil, yalnızca bu form kökü
-      this.$root.addEventListener('trix-change', (e) => {
-        const el = e.target;
-        if (!this.isOurEditor(el)) return;
-        const id = el.id;
-        const fileId = id.replace('description-editor-', '');
-        const html = el.editor ? el.editor.getDocument().toString() : el.innerHTML;
-
-        const key = `debounce:${id}`;
-        if (this.trixTimers.has(key)) clearTimeout(this.trixTimers.get(key));
-        const t = setTimeout(() => {
-          localStorage.setItem(`trix:${id}`, html);
-          // data-description attribute'unu da güncelle (böylece onLWUpdated'te gereksiz güncelleme yapmayız)
-          el.setAttribute('data-description', html);
-          // Basit yaklaşım: direkt updateFileById çağır (form submit'te zaten existingFiles kullanılıyor)
-          this.$wire?.call('updateFileById', fileId, 'description', html);
-        }, Alpine.store('posts').trixDebounce || 300);
-        this.trixTimers.set(key, t);
-      }, true);
-
-      // 4) Livewire olayları: DOM güncellemesi için kısa gecikme
-      this.onUploadFinish = () => requestAnimationFrame(() => this.initTrixEditors(this.$root));
-      this.onLWUpdated   = () => {
-        // DOM güncellemesi için kısa gecikme (description'ların Livewire'dan yüklenmesi için)
-        setTimeout(() => {
-          // Önce data-description attribute'larını Livewire'dan güncelle
-          if (this.$wire) {
-            let existingFiles = [];
-            try {
-              if (this.$wire.get && typeof this.$wire.get === 'function') {
-                existingFiles = this.$wire.get('existingFiles') || [];
-              } else if (this.$wire.existingFiles) {
-                existingFiles = this.$wire.existingFiles || [];
-              }
-
-              // Her trix editor için data-description attribute'unu güncelle
-              // İçeriği güncelleme - sadece attribute'u güncelle, içerik attachTrix'te yüklenecek
-              this.$root.querySelectorAll('trix-editor[id^="description-editor-"]').forEach(editor => {
-                const fileId = editor.getAttribute('data-file-id') || editor.id.replace('description-editor-', '');
-                const file = existingFiles.find(f => String(f.file_id) === String(fileId));
-                if (file && file.description !== undefined) {
-                  const newDesc = file.description || '';
-                  const oldDesc = editor.getAttribute('data-description') || '';
-
-                  // Editor'un mevcut içeriğini al (kullanıcı yazmışsa)
-                  const currentContent = editor.innerHTML || '';
-                  const currentContentText = editor.textContent || editor.innerText || '';
-
-                  // Eğer kullanıcı yazmışsa (içerik data-description'dan farklıysa), güncelleme yapma
-                  // Sadece içerik boşsa veya data-description ile aynıysa güncelle
-                  const shouldUpdate = !currentContentText.trim() ||
-                                       currentContentText.trim() === oldDesc.trim() ||
-                                       currentContent === oldDesc;
-
-                  // data-description attribute'unu her zaman güncelle (attribute güncellemesi zararsız)
-                  editor.setAttribute('data-description', newDesc);
-
-                  // Eğer description değişmişse ve güncelleme yapılmalıysa, attachTrix'i çağır
-                  if (newDesc !== oldDesc && shouldUpdate) {
-                    // _bound flag'ini kaldır ki yeniden yüklensin
-                    editor.dataset._bound = '0';
-                    setTimeout(() => {
-                      this.attachTrix(editor, newDesc);
-                    }, 50);
-                  }
-                }
-              });
-            } catch (e) {
-              console.warn('Could not update data-description from Livewire:', e);
-            }
-          }
-
-          // Yeni editörler için initTrixEditors çağır (sadece bağlı olmayanlar için)
-          this.initTrixEditors(this.$root);
-        }, 100);
-      };
-      document.addEventListener('livewire:upload-finish', this.onUploadFinish);
-      document.addEventListener('livewire:updated', this.onLWUpdated);
-
-      // 5) Cleanup garantisi
-      this.$root.addEventListener('alpine:destroy', () => this.cleanup(), { once: true });
-    },
-
-    cleanup() {
-      if (this.mo) { this.mo.disconnect(); this.mo = null; }
-      if (this.onUploadFinish) document.removeEventListener('livewire:upload-finish', this.onUploadFinish);
-      if (this.onLWUpdated) document.removeEventListener('livewire:updated', this.onLWUpdated);
-      this.trixTimers.forEach((t) => clearTimeout(t));
-      this.trixTimers.clear();
-    },
-
-    isOurEditor(el) {
-      return el && el.tagName?.toLowerCase() === 'trix-editor' && el.id?.startsWith('description-editor-');
-    },
-
-    attachTrix(el, forceDesc = null) {
-      if (!this.isOurEditor(el)) return;
-
-      const id = el.id;
-      const saved = localStorage.getItem(`trix:${id}`);
-      // Eğer forceDesc parametresi verilmişse onu kullan, yoksa attribute'dan oku
-      const dataDesc = forceDesc !== null ? forceDesc : (el.getAttribute('data-description') || '');
-      // Öncelik: data-description (veritabanından gelen), sonra localStorage (kullanıcı yazmışsa)
-      const initial = dataDesc || saved || '';
-
-      // Eğer forceDesc verilmişse veya zaten bağlıysa, data-description değişmişse her zaman güncelle
-      if (el.dataset._bound === '1' || forceDesc !== null) {
-        const lastDesc = el.dataset._lastDesc || '';
-        // Eğer data-description değişmişse veya forceDesc verilmişse, içeriği güncelle (boş olsa bile)
-        if (forceDesc !== null || dataDesc !== lastDesc) {
-          // Trix editor'ın hazır olmasını bekle
-          const loadContent = () => {
-            try {
-              if (el.editor && typeof el.editor.loadHTML === 'function') {
-                el.editor.loadHTML(dataDesc || '');
-              } else if (el.trix && typeof el.trix.loadHTML === 'function') {
-                el.trix.loadHTML(dataDesc || '');
-              } else {
-                el.innerHTML = dataDesc || '';
-              }
-            }
-            catch (_) {
-              el.innerHTML = dataDesc || '';
-            }
-          };
-
-          // Trix editor hazır değilse bekle
-          if (!el.editor && !el.trix) {
-            setTimeout(() => {
-              requestAnimationFrame(loadContent);
-            }, 100);
-          } else {
-            requestAnimationFrame(loadContent);
-          }
-
-          el.dataset._lastDesc = dataDesc;
-        }
-        // forceDesc verilmişse _bound flag'ini set et (yeniden bağlama için)
-        if (forceDesc !== null) {
-          el.dataset._bound = '1';
-        }
-        return;
-      }
-
-      // İlk bağlama
-      const loadInitial = () => {
-        try {
-          if (el.editor && typeof el.editor.loadHTML === 'function') {
-            el.editor.loadHTML(initial);
-          } else if (el.trix && typeof el.trix.loadHTML === 'function') {
-            el.trix.loadHTML(initial);
-          } else {
-            el.innerHTML = initial;
-          }
-        }
-        catch (_) {
-          el.innerHTML = initial;
-        }
-      };
-
-      // Trix editor hazır değilse bekle
-      if (!el.editor && !el.trix) {
-        setTimeout(() => {
-          requestAnimationFrame(loadInitial);
-        }, 100);
-      } else {
-        requestAnimationFrame(loadInitial);
-      }
-
-      el.dataset._bound = '1';
-      el.dataset._lastDesc = dataDesc;
-    },
-
-    initTrixEditors(scope) {
-      scope.querySelectorAll('trix-editor[id^="description-editor-"]')
-           .forEach((el) => {
-             // Her zaman attachTrix çağır - içinde zaten gerekli kontroller yapılıyor
-             // Eğer zaten bağlıysa ve data-description değişmemişse, attachTrix içinde return edilecek
-             this.attachTrix(el);
-           });
-    },
 
     // mevcut yardımcılar
     addFile(f){ this.files.push(f); },
@@ -330,59 +120,90 @@ document.addEventListener('alpine:init', () => {
     },
     setPrimary(i){ this.primaryFileIndex = i; },
 
-    // Trumbowyg sync functions
-    initTrumbowygSync() {
-      const contentTextarea = document.getElementById('content');
-      if (!contentTextarea || !window.jQuery) return;
-
-      // Trumbowyg zaten mount edilmiş olabilir, kontrol et
-      if (window.jQuery(contentTextarea).data('trumbowyg')) {
-        // Trumbowyg change event'ini dinle
-        window.jQuery(contentTextarea).on('tbwchange', () => {
-          const content = window.jQuery(contentTextarea).trumbowyg('html');
-          if (this.$wire) {
-            this.$wire.set('content', content, false);
-          }
-        });
-      } else {
-        // Trumbowyg henüz mount edilmemiş, bekle
-        const checkInterval = setInterval(() => {
-          if (window.jQuery(contentTextarea).data('trumbowyg')) {
-            clearInterval(checkInterval);
-            window.jQuery(contentTextarea).on('tbwchange', () => {
-              const content = window.jQuery(contentTextarea).trumbowyg('html');
-              if (this.$wire) {
-                this.$wire.set('content', content, false);
-              }
-            });
-          }
-        }, 100);
-        // 5 saniye sonra timeout
-        setTimeout(() => clearInterval(checkInterval), 5000);
-      }
-    },
-
+    // Trumbowyg sync functions - Form submit'ten önce son bir sync yap
     syncContentAndSave() {
-      // Trumbowyg içeriğini Livewire'a senkronize et
-      const contentTextarea = document.getElementById('content');
+      // Form submit'ten önce Trumbowyg içeriğini son kez sync et
+      const contentTextarea = document.querySelector('textarea[data-editor="trumbowyg"], textarea.trumbowyg');
       if (contentTextarea && window.jQuery && window.jQuery(contentTextarea).data('trumbowyg')) {
-        const content = window.jQuery(contentTextarea).trumbowyg('html');
-        if (this.$wire) {
-          // İçeriği senkronize et
-          this.$wire.set('content', content, false);
-          // Kısa bir gecikme sonrası submit et (içeriğin senkronize olması için)
-          setTimeout(() => {
-            if (this.$wire) {
-              this.$wire.call('savePost');
+        try {
+          const content = window.jQuery(contentTextarea).trumbowyg('html');
+          if (this.$wire && this.$wire.set) {
+            // wire:model attribute'unu bul
+            let propertyName = 'content';
+            const wireModelAttrs = ['wire:model', 'wire:model.live', 'wire:model.debounce'];
+            for (const attrName of wireModelAttrs) {
+              if (contentTextarea.hasAttribute(attrName)) {
+                propertyName = contentTextarea.getAttribute(attrName) || propertyName;
+                break;
+              }
             }
-          }, 100);
+            // Eğer bulunamazsa, tüm attribute'ları tara
+            if (propertyName === 'content') {
+              const allAttrs = Array.from(contentTextarea.attributes);
+              const wireModelAttr = allAttrs.find(attr => attr.name.startsWith('wire:model'));
+              if (wireModelAttr) {
+                propertyName = wireModelAttr.value || propertyName;
+              }
+            }
+            // Livewire'a set et
+            this.$wire.set(propertyName, content, false);
+          }
+        } catch (e) {
+          if (import.meta.env?.DEV) {
+            console.warn('Trumbowyg sync error before submit:', e);
+          }
         }
-      } else {
-        // Trumbowyg yoksa direkt submit et
+      }
+
+      // Kısa bir gecikme sonrası submit et (Livewire'ın property'yi işlemesi için)
+      setTimeout(() => {
         if (this.$wire) {
           this.$wire.call('savePost');
         }
+      }, 100);
+    },
+
+    syncContentAndUpdate() {
+      // PostEdit için - updatePost metodunu çağır
+      // Form submit'ten önce Trumbowyg içeriğini son kez sync et
+      const contentTextarea = document.querySelector('textarea[data-editor="trumbowyg"], textarea.trumbowyg');
+      if (contentTextarea && window.jQuery && window.jQuery(contentTextarea).data('trumbowyg')) {
+        try {
+          const content = window.jQuery(contentTextarea).trumbowyg('html');
+          if (this.$wire && this.$wire.set) {
+            // wire:model attribute'unu bul
+            let propertyName = 'content';
+            const wireModelAttrs = ['wire:model', 'wire:model.live', 'wire:model.debounce'];
+            for (const attrName of wireModelAttrs) {
+              if (contentTextarea.hasAttribute(attrName)) {
+                propertyName = contentTextarea.getAttribute(attrName) || propertyName;
+                break;
+              }
+            }
+            // Eğer bulunamazsa, tüm attribute'ları tara
+            if (propertyName === 'content') {
+              const allAttrs = Array.from(contentTextarea.attributes);
+              const wireModelAttr = allAttrs.find(attr => attr.name.startsWith('wire:model'));
+              if (wireModelAttr) {
+                propertyName = wireModelAttr.value || propertyName;
+              }
+            }
+            // Livewire'a set et
+            this.$wire.set(propertyName, content, false);
+          }
+        } catch (e) {
+          if (import.meta.env?.DEV) {
+            console.warn('Trumbowyg sync error before submit:', e);
+          }
+        }
       }
+
+      // Kısa bir gecikme sonrası submit et (Livewire'ın property'yi işlemesi için)
+      setTimeout(() => {
+        if (this.$wire) {
+          this.$wire.call('updatePost');
+        }
+      }, 100);
     }
   }));
 

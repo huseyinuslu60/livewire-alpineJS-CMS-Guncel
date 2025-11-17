@@ -114,53 +114,7 @@
             overflow-y: auto !important;
         }
 
-        .trix-toolbar {
-            height: 32px !important;
-            max-height: 32px !important;
-            border-bottom: 1px solid #d1d5db !important;
-            overflow-x: auto !important;
-            white-space: nowrap !important;
-            padding: 2px 4px !important;
-        }
-        .trix-toolbar .trix-button-group {
-            display: inline-block !important;
-            margin-right: 4px !important;
-            vertical-align: top !important;
-        }
-        .trix-toolbar .trix-button {
-            width: 20px !important;
-            height: 20px !important;
-            padding: 1px !important;
-            margin: 0 !important;
-            font-size: 10px !important;
-        }
-        .trix-toolbar .trix-button-group:last-child {
-            margin-right: 0 !important;
-        }
-
-        .trix-content {
-            height: 120px !important;
-            max-height: 120px !important;
-            overflow-y: auto !important;
-            padding: 6px !important;
-        }
-
-
-
-        /* Trix Editor'ın attach özelliğini tamamen devre dışı bırak */
-        .trix-editor {
-            --trix-attachment-accept: none !important;
-        }
-
-        /* File tools grubunu gizle */
-        span.trix-button-group.trix-button-group--file-tools {
-            display: none !important;
-        }
-
-        /* History tools grubunu gizle */
-        span.trix-button-group.trix-button-group--history-tools {
-            display: none !important;
-        }
+        /* Trix kaldırıldı - artık sadece Trumbowyg kullanılıyor */
 
     </style>
 

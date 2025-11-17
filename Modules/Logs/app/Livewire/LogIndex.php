@@ -3,11 +3,11 @@
 namespace Modules\Logs\Livewire;
 
 use App\Support\Pagination;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Logs\Models\UserLog;
+use Modules\Logs\Services\LogService;
 
 /**
  * @property string|null $search
@@ -42,6 +42,13 @@ class LogIndex extends Component
     public bool $selectAll = false;
 
     public string $bulkAction = '';
+
+    protected LogService $logService;
+
+    public function boot()
+    {
+        $this->logService = app(LogService::class);
+    }
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -93,13 +100,12 @@ class LogIndex extends Component
         }
 
         try {
-            $logs = UserLog::whereIn('log_id', $this->selectedLogs);
             $selectedCount = count($this->selectedLogs);
 
             switch ($this->bulkAction) {
                 case 'delete':
-                    $logs->delete();
-                    $message = $selectedCount.' log kaydı başarıyla silindi.';
+                    $deletedCount = $this->logService->deleteBulk($this->selectedLogs);
+                    $message = $deletedCount.' log kaydı başarıyla silindi.';
                     break;
                 default:
                     return;
@@ -120,9 +126,7 @@ class LogIndex extends Component
         Gate::authorize('delete logs');
 
         try {
-            $log = UserLog::findOrFail($id);
-            $log->delete();
-
+            $this->logService->delete($id);
             session()->flash('success', 'Log kaydı başarıyla silindi.');
         } catch (\Exception $e) {
             session()->flash('error', 'Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
@@ -134,7 +138,7 @@ class LogIndex extends Component
         Gate::authorize('delete logs');
 
         try {
-            UserLog::truncate();
+            $this->logService->clearAll();
             session()->flash('success', 'Tüm log kayıtları başarıyla silindi.');
         } catch (\Exception $e) {
             session()->flash('error', 'Log kayıtları silinirken bir hata oluştu: '.$e->getMessage());
@@ -146,70 +150,18 @@ class LogIndex extends Component
         Gate::authorize('export logs');
 
         try {
-            // Aynı filtreleri kullanarak pagination olmadan tüm logları al
-            $query = UserLog::query()->with(['user']);
+            $filters = [
+                'search' => $this->search,
+                'action' => $this->action,
+                'user_id' => $this->user_id,
+                'date_from' => $this->date_from,
+                'date_to' => $this->date_to,
+            ];
 
-            if ($this->search !== null) {
-                $query->search($this->search);
-            }
-
-            if ($this->action !== null) {
-                $query->ofAction($this->action);
-            }
-
-            if ($this->user_id !== null) {
-                $query->ofUser($this->user_id);
-            }
-
-            if ($this->date_from !== null) {
-                $query->whereDate('created_at', '>=', $this->date_from);
-            }
-
-            if ($this->date_to !== null) {
-                $query->whereDate('created_at', '<=', $this->date_to);
-            }
-
-            // Export için chunk() kullan (büyük veri setleri için)
-            $hasLogs = false;
-            $csvData = "ID,User,Action,Model Type,Model ID,Description,IP Address,User Agent,Created At\n";
-
-            $query->sortedLatest('created_at')->chunk(1000, function ($logs) use (&$csvData, &$hasLogs) {
-                $hasLogs = true;
-                foreach ($logs as $log) {
-                    $csvData .= sprintf(
-                        "%d,%s,%s,%s,%s,%s,%s,%s,%s\n",
-                        $log->log_id,
-                        $log->user->name ?? 'Sistem',
-                        $log->action,
-                        $log->model_type ?? '',
-                        $log->model_id ?? '',
-                        str_replace(',', ';', $log->description ?? ''),
-                        $log->ip_address ?? '',
-                        str_replace(',', ';', $log->user_agent ?? ''),
-                        $log->created_at ?
-                            (is_string($log->created_at)
-                                ? Carbon::parse($log->created_at)->format('Y-m-d H:i:s')
-                                : $log->created_at->format('Y-m-d H:i:s')) : ''
-                    );
-                }
-            });
-
-            // Dışa aktarılacak log var mı kontrol et
-            if (! $hasLogs) {
-                $this->dispatch('show-error', 'Dışa aktarılacak log kaydı bulunamadı.');
-
-                return;
-            }
-
-            // UTF-8 BOM ekle (Excel için)
-            $csvData = "\xEF\xBB\xBF".$csvData;
-
-            // Dosya adı oluştur
-            $filename = 'logs_export_'.date('Y-m-d_H-i-s').'.csv';
+            $export = $this->logService->exportToCsv($filters);
 
             // JavaScript indirme için veri hazırla
-            $this->dispatch('download-csv', data: $csvData, filename: $filename);
-
+            $this->dispatch('download-csv', data: $export['data'], filename: $export['filename']);
         } catch (\Exception $e) {
             $this->dispatch('show-error', 'Log kayıtları dışa aktarılırken bir hata oluştu: '.$e->getMessage());
         }
@@ -217,31 +169,15 @@ class LogIndex extends Component
 
     public function getLogs()
     {
-        $query = UserLog::query()->with(['user']);
+        $filters = [
+            'search' => $this->search,
+            'action' => $this->action,
+            'user_id' => $this->user_id,
+            'date_from' => $this->date_from,
+            'date_to' => $this->date_to,
+        ];
 
-        if ($this->search !== null) {
-            $query->search($this->search);
-        }
-
-        if ($this->action !== null) {
-            $query->ofAction($this->action);
-        }
-
-        if ($this->user_id !== null) {
-            $query->ofUser($this->user_id);
-        }
-
-        if ($this->date_from !== null) {
-            $query->whereDate('created_at', '>=', $this->date_from);
-        }
-
-        if ($this->date_to !== null) {
-            $query->whereDate('created_at', '<=', $this->date_to);
-        }
-
-        return $query
-            ->sortedLatest('created_at')
-            ->paginate(Pagination::clamp($this->perPage));
+        return $this->logService->getFilteredLogs($filters, $this->perPage);
     }
 
     public function render()

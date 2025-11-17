@@ -114,7 +114,7 @@ class MenuManagement extends Component
             $this->loadData();
             LogHelper::info('MenuManagement component loaded successfully');
         } catch (\Exception $e) {
-            \Log::error('MenuManagement component error: '.$e->getMessage());
+            \App\Helpers\LogHelper::error('MenuManagement component error', ['error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -312,7 +312,7 @@ class MenuManagement extends Component
             LogHelper::info('updateSortOrder called with:', $newOrder);
 
             if (empty($newOrder) || ! is_array($newOrder)) {
-                \Log::warning('Empty or invalid newOrder array');
+                \App\Helpers\LogHelper::warning('Empty or invalid newOrder array');
 
                 return;
             }
@@ -321,7 +321,7 @@ class MenuManagement extends Component
             $processedIds = [];
             foreach (array_reverse($newOrder) as $item) {
                 if (! isset($item['id']) || ! isset($item['sort_order'])) {
-                    \Log::warning('Missing id or sort_order in item:', $item);
+                    \App\Helpers\LogHelper::warning('Missing id or sort_order in item', ['item' => $item]);
 
                     continue;
                 }
@@ -350,9 +350,9 @@ class MenuManagement extends Component
 
             session()->flash('success', 'Menü sıralaması başarıyla güncellendi.');
         } catch (\Exception $e) {
-            \Log::error('Sort order update error: '.$e->getMessage(), [
+            \App\Helpers\LogHelper::error('Sort order update error', [
                 'newOrder' => $newOrder,
-                'trace' => $e->getTraceAsString(),
+                'error' => $e->getMessage(),
             ]);
             session()->flash('error', 'Sıralama güncellenirken bir hata oluştu: '.$e->getMessage());
         }

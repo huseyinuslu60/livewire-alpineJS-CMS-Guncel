@@ -3,7 +3,7 @@
 namespace Modules\Banks\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Modules\Banks\Models\Stock;
 
 class StockService
@@ -16,7 +16,7 @@ class StockService
         return DB::transaction(function () use ($data) {
             $stock = Stock::create($data);
 
-            Log::info('Stock created', [
+            LogHelper::info('Hisse senedi oluşturuldu', [
                 'stock_id' => $stock->stock_id,
                 'name' => $stock->name,
             ]);
@@ -34,7 +34,7 @@ class StockService
             return DB::transaction(function () use ($stock, $data) {
                 $stock->update($data);
 
-                Log::info('Stock updated', [
+                LogHelper::info('Hisse senedi güncellendi', [
                     'stock_id' => $stock->stock_id,
                     'name' => $stock->name,
                 ]);
@@ -42,10 +42,9 @@ class StockService
                 return $stock;
             });
         } catch (\Exception $e) {
-            Log::error('StockService update error:', [
+            LogHelper::error('StockService update error', [
                 'stock_id' => $stock->stock_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -60,16 +59,15 @@ class StockService
             DB::transaction(function () use ($stock) {
                 $stock->delete();
 
-                Log::info('Stock deleted', [
+                LogHelper::info('Hisse senedi silindi', [
                     'stock_id' => $stock->stock_id,
                     'name' => $stock->name,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('StockService delete error:', [
+            LogHelper::error('StockService delete error', [
                 'stock_id' => $stock->stock_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -90,7 +88,7 @@ class StockService
                     $deletedCount++;
                 }
 
-                Log::info('Stocks bulk deleted', [
+                LogHelper::info('Hisse senetleri toplu silindi', [
                     'count' => $deletedCount,
                     'stock_ids' => $stockIds,
                 ]);
@@ -98,7 +96,7 @@ class StockService
                 return $deletedCount;
             });
         } catch (\Exception $e) {
-            Log::error('StockService bulkDelete error:', [
+            LogHelper::error('StockService bulkDelete error', [
                 'stock_ids' => $stockIds,
                 'error' => $e->getMessage(),
             ]);
@@ -116,7 +114,7 @@ class StockService
                 $updated = Stock::whereIn('stock_id', $stockIds)
                     ->update(['last_status' => $status]);
 
-                Log::info('Stocks bulk status updated', [
+                LogHelper::info('Hisse senetleri toplu durum güncellendi', [
                     'count' => $updated,
                     'status' => $status,
                     'stock_ids' => $stockIds,
@@ -125,7 +123,7 @@ class StockService
                 return $updated;
             });
         } catch (\Exception $e) {
-            Log::error('StockService bulkUpdateStatus error:', [
+            LogHelper::error('StockService bulkUpdateStatus error', [
                 'stock_ids' => $stockIds,
                 'status' => $status,
                 'error' => $e->getMessage(),

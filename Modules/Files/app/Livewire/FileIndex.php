@@ -137,6 +137,13 @@ class FileIndex extends Component
         Gate::authorize('delete files');
 
         try {
+            // Validation
+            if (empty($fileId)) {
+                $this->errorMessage = 'Geçersiz dosya ID.';
+                $this->showErrorMessage = true;
+                return;
+            }
+
             $file = File::find($fileId);
             if (! $file) {
                 $this->errorMessage = 'Dosya bulunamadı.';
@@ -150,6 +157,10 @@ class FileIndex extends Component
             session()->flash('success', $this->createContextualSuccessMessage('deleted', 'name', 'file'));
             $this->resetPage();
         } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('deleteFile failed', [
+                'fileId' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
             $this->errorMessage = 'Dosya silinirken hata oluştu: '.$e->getMessage();
             $this->showErrorMessage = true;
         }
@@ -157,11 +168,30 @@ class FileIndex extends Component
 
     public function editFile($fileId)
     {
-        $file = File::find($fileId);
-        if ($file) {
-            $this->editingFile = $file;
-            $this->editAltText = $file->alt_text ?? '';
-            $this->editCaption = $file->caption ?? '';
+        try {
+            // Validation
+            if (empty($fileId)) {
+                $this->errorMessage = 'Geçersiz dosya ID.';
+                $this->showErrorMessage = true;
+                return;
+            }
+
+            $file = File::find($fileId);
+            if ($file) {
+                $this->editingFile = $file;
+                $this->editAltText = $file->alt_text ?? '';
+                $this->editCaption = $file->caption ?? '';
+            } else {
+                $this->errorMessage = 'Dosya bulunamadı.';
+                $this->showErrorMessage = true;
+            }
+        } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('editFile failed', [
+                'fileId' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
+            $this->errorMessage = 'Dosya bilgileri alınırken hata oluştu: '.$e->getMessage();
+            $this->showErrorMessage = true;
         }
     }
 
@@ -170,18 +200,40 @@ class FileIndex extends Component
         Gate::authorize('edit files');
 
         try {
-            if ($this->editingFile) {
-                $this->fileService->update($this->editingFile, [
-                    'alt_text' => $this->editAltText,
-                    'caption' => $this->editCaption,
-                ]);
-
-                session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'file'));
-
-                // Form'u reset et ve modal'ı kapat
-                $this->resetEditForm();
+            // Validation
+            if (!$this->editingFile) {
+                $this->errorMessage = 'Düzenlenecek dosya seçilmedi.';
+                $this->showErrorMessage = true;
+                return;
             }
+
+            // Value validation
+            if (strlen($this->editAltText) > 255) {
+                $this->errorMessage = 'Alt metin en fazla 255 karakter olabilir.';
+                $this->showErrorMessage = true;
+                return;
+            }
+
+            if (strlen($this->editCaption) > 10000) {
+                $this->errorMessage = 'Açıklama en fazla 10000 karakter olabilir.';
+                $this->showErrorMessage = true;
+                return;
+            }
+
+            $this->fileService->update($this->editingFile, [
+                'alt_text' => $this->editAltText,
+                'caption' => $this->editCaption,
+            ]);
+
+            session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'file'));
+
+            // Form'u reset et ve modal'ı kapat
+            $this->resetEditForm();
         } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('updateFile failed', [
+                'fileId' => $this->editingFile?->file_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
             $this->errorMessage = 'Dosya güncellenirken hata oluştu: '.$e->getMessage();
             $this->showErrorMessage = true;
         }

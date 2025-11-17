@@ -2,11 +2,11 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Helpers\LogHelper;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -197,12 +197,6 @@ class PostCreateGallery extends Component
     {
         $this->primaryFileId = $value;
 
-        // Debug için log ekle
-        \Log::info('Primary file ID updated in create:', [
-            'newFileId' => $value,
-            'primaryFileId' => $this->primaryFileId,
-            'totalFiles' => count($this->uploadedFiles),
-        ]);
     }
 
     public function savePost()
@@ -255,6 +249,19 @@ class PostCreateGallery extends Component
                 $this->addError('uploadedFiles', 'Galeri yazıları için en az bir görsel yüklenmelidir.');
                 $this->isSaving = false;
 
+                return;
+            }
+
+            // Additional value validation
+            if (strlen($this->title) > 255) {
+                $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
+                $this->isSaving = false;
+                return;
+            }
+
+            if (strlen($this->summary) > 5000) {
+                $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
+                $this->isSaving = false;
                 return;
             }
 
@@ -507,8 +514,10 @@ class PostCreateGallery extends Component
 
             return redirect()->route('posts.index');
         } catch (\Exception $e) {
-            \Log::error('PostsService hatası: '.$e->getMessage());
-            \Log::error('Stack trace: '.$e->getTraceAsString());
+            LogHelper::error('PostsService hatası', [
+                'post_type' => 'gallery',
+                'error' => $e->getMessage(),
+            ]);
             $this->addError('general', 'Galeri oluşturulurken hata oluştu: '.$e->getMessage());
         } finally {
             $this->isSaving = false;
@@ -599,7 +608,7 @@ class PostCreateGallery extends Component
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                     $editorData = $decoded;
                 } else {
-                    \Log::warning('PostCreateGallery updateFilePreview - Failed to decode JSON editorData:', [
+                    LogHelper::warning('PostCreateGallery updateFilePreview - Failed to decode JSON editorData', [
                         'json_error' => json_last_error_msg(),
                     ]);
                     $editorData = null;
@@ -607,11 +616,6 @@ class PostCreateGallery extends Component
             }
 
             if ($editorData !== null && is_array($editorData)) {
-                \Log::info('PostCreateGallery updateFilePreview - editorData received:', [
-                    'identifier' => $identifier,
-                    'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
-                    'editorData_keys' => array_keys($editorData),
-                ]);
                 // Store editorData by identifier (fileId)
                 $this->imageEditorData[$identifier] = $editorData;
                 $this->imageEditorUsed = true; // Mark that image editor was used
@@ -690,8 +694,8 @@ class PostCreateGallery extends Component
                     ]);
                 }
             } catch (\Exception $e) {
-                \Log::error('Error updating file preview: '.$e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
+                LogHelper::error('Dosya önizlemesi güncellenirken hata oluştu', [
+                    'error' => $e->getMessage(),
                     'image_url' => $imageUrl,
                     'file_id' => $identifier,
                 ]);
@@ -748,11 +752,6 @@ class PostCreateGallery extends Component
 
         $orderedIds = array_keys($this->imageOrder);
 
-        \Log::info('Create: getOrderedImageIds called:', [
-            'imageOrder' => $this->imageOrder,
-            'orderedIds' => $orderedIds,
-            'count' => count($orderedIds),
-        ]);
 
         return $orderedIds;
     }
@@ -774,12 +773,6 @@ class PostCreateGallery extends Component
             return; // Başarılı güncelleme
         }
 
-        // Hiçbir şey bulunamadıysa sessizce devam et (debug için log)
-        \Log::debug('File not found for update in create:', [
-            'fileId' => $fileId,
-            'field' => $field,
-            'available_file_ids' => array_keys($this->uploadedFiles),
-        ]);
     }
 
     /**
@@ -793,7 +786,7 @@ class PostCreateGallery extends Component
     {
         // Güvenlik: fileId ve field kontrolü
         if (empty($fileId) || empty($field)) {
-            \Log::warning('updateFileById called with empty fileId or field:', [
+            LogHelper::warning('updateFileById called with empty fileId or field', [
                 'fileId' => $fileId,
                 'field' => $field,
             ]);
@@ -803,25 +796,24 @@ class PostCreateGallery extends Component
 
         // Field validation
         if (! in_array($field, ['description', 'title', 'alt'])) {
-            \Log::error('updateFileById called with invalid field:', [
+            LogHelper::error('updateFileById geçersiz alan ile çağrıldı', [
                 'fileId' => $fileId,
                 'field' => $field,
             ]);
-            abort(403, 'Invalid field');
+            abort(403, 'Geçersiz alan');
+        }
+
+        // Value validation ve normalize: null/undefined ise boş string yap
+        if ($value === null || $value === '') {
+            $value = '';
+        } elseif (!is_string($value)) {
+            // String'e çevir (güvenlik için)
+            $value = (string) $value;
         }
 
         // Convert fileId to string for comparison
         $fileIdStr = (string) $fileId;
 
-        \Log::info('updateFileById called:', [
-            'fileId' => $fileId,
-            'fileIdStr' => $fileIdStr,
-            'field' => $field,
-            'value_length' => strlen($value),
-            'value_preview' => substr($value, 0, 50),
-            'uploadedFiles_keys' => array_keys($this->uploadedFiles),
-            'uploadedFiles_count' => count($this->uploadedFiles),
-        ]);
 
         // Update in memory (uploadedFiles array)
         // Try exact match first
@@ -829,13 +821,6 @@ class PostCreateGallery extends Component
             $oldValue = $this->uploadedFiles[$fileIdStr][$field] ?? '';
             $this->uploadedFiles[$fileIdStr][$field] = $value;
 
-            \Log::info('updateFileById - File found and updated:', [
-                'fileId' => $fileIdStr,
-                'field' => $field,
-                'old_value_length' => strlen($oldValue),
-                'new_value_length' => strlen($value),
-                'uploadedFiles_after' => $this->uploadedFiles[$fileIdStr],
-            ]);
 
             return;
         }
@@ -846,33 +831,16 @@ class PostCreateGallery extends Component
                 $oldValue = $fileData[$field] ?? '';
                 $this->uploadedFiles[$key][$field] = $value;
 
-                \Log::info('updateFileById - File found by partial match and updated:', [
-                    'searched_fileId' => $fileIdStr,
-                    'found_key' => $key,
-                    'field' => $field,
-                    'old_value_length' => strlen($oldValue),
-                    'new_value_length' => strlen($value),
-                    'uploadedFiles_after' => $this->uploadedFiles[$key],
-                ]);
 
                 return;
             }
         }
 
         // If not found, log debug info
-        \Log::warning('File not found in updateFileById (create):', [
+        LogHelper::warning('File not found in updateFileById (create)', [
             'fileId' => $fileId,
             'fileIdStr' => $fileIdStr,
             'field' => $field,
-            'value_length' => strlen($value),
-            'available_file_ids' => array_keys($this->uploadedFiles),
-            'uploadedFiles_structure' => array_map(function ($data) {
-                return [
-                    'has_file' => true, // Type'a göre her zaman var
-                    'description' => $data['description'],
-                    'description_length' => strlen($data['description']),
-                ];
-            }, $this->uploadedFiles),
         ]);
     }
 
@@ -904,11 +872,6 @@ class PostCreateGallery extends Component
 
         $this->uploadedFiles = $reorderedFiles;
 
-        \Log::info('Files reordered:', [
-            'fromIndex' => $fromIndex,
-            'toIndex' => $toIndex,
-            'newOrder' => array_keys($this->uploadedFiles),
-        ]);
     }
 
     public function saveSortOrder($sortOrder)
@@ -926,10 +889,6 @@ class PostCreateGallery extends Component
         // existingFiles'ı da yeniden sırala
         $this->reorderExistingFiles();
 
-        \Log::info('Sort order saved:', [
-            'sortOrder' => $sortOrder,
-            'imageOrder' => $this->imageOrder,
-        ]);
     }
 
     private function reorderExistingFiles()
@@ -954,17 +913,10 @@ class PostCreateGallery extends Component
     public function updateOrder($order)
     {
         try {
-            Log::info('=== updateOrder METODU ÇAĞRILDI (PostCreateGallery) ===', [
-                'order' => $order,
-                'uploadedFiles_before' => array_keys($this->uploadedFiles),
-                'timestamp' => now(),
-            ]);
-
             // Validation
             if (! $this->postsService->validateOrder($order, $this->uploadedFiles, false)) {
-                Log::warning('Invalid order data received', [
+                LogHelper::warning('Geçersiz sıralama verisi alındı', [
                     'order' => $order,
-                    'uploadedFiles_count' => count($this->uploadedFiles),
                 ]);
 
                 $this->dispatch('order-update-failed', [
@@ -979,8 +931,6 @@ class PostCreateGallery extends Component
 
             // Değişiklik var mı kontrol et
             if ($currentOrder === $order) {
-                Log::info('Order unchanged, skipping update');
-
                 return;
             }
 
@@ -993,22 +943,10 @@ class PostCreateGallery extends Component
 
             // Başarı mesajı - Sessizce çalış, alert gösterme
             $this->dispatch('order-updated');
-
-            Log::info('Files reordered via updateOrder (PostCreateGallery):', [
-                'newOrder' => array_keys($this->uploadedFiles),
-                'orderCount' => count($order),
-                'uploadedFiles_after' => array_map(function ($file) {
-                    return [
-                        'file' => 'file_exists', // Type'a göre her zaman var
-                        'description' => $file['description'],
-                    ];
-                }, $this->uploadedFiles),
-            ]);
         } catch (\Exception $e) {
-            Log::error('Failed to update gallery order in create', [
+            LogHelper::error('Galeri sıralaması güncellenirken hata oluştu (create)', [
                 'order' => $order,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             // Kullanıcıya hata göster

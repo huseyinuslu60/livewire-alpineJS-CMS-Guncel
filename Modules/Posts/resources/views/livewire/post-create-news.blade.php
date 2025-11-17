@@ -1,6 +1,5 @@
 <div x-data="postsForm()"
-     x-init="initTrumbowygSync();
-             // Initialize image editor reference
+     x-init="// Initialize image editor reference
              $nextTick(() => {
                  const editorEl = document.querySelector('[x-data*=imageEditor]');
                  if (editorEl && editorEl._x_dataStack && editorEl._x_dataStack[0]) {
@@ -149,12 +148,15 @@
                                 İçerik *
                             </label>
                             <div wire:ignore>
-                                <textarea wire:model="content"
-                                          class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
-                                          id="content"
-                                          rows="10"
-                                          placeholder="Haber içeriğini girin..."
-                                          required></textarea>
+                                <textarea
+                                    wire:model.live="content"
+                                    class="trumbowyg block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 @error('content') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                    id="content"
+                                    data-editor="trumbowyg"
+                                    rows="10"
+                                    placeholder="Haber içeriğini girin..."
+                                    required
+                                >{!! $content !!}</textarea>
                             </div>
                             @error('content')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>

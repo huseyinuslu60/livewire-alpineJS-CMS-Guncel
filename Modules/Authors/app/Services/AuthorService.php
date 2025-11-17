@@ -4,7 +4,7 @@ namespace Modules\Authors\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Storage;
 use Modules\Authors\Models\Author;
 
@@ -25,7 +25,7 @@ class AuthorService
 
             $author = Author::create($data);
 
-            Log::info('Author created', [
+            LogHelper::info('Yazar oluşturuldu', [
                 'author_id' => $author->author_id,
                 'title' => $author->title,
             ]);
@@ -55,7 +55,7 @@ class AuthorService
 
                 $author->update($data);
 
-                Log::info('Author updated', [
+                LogHelper::info('Yazar güncellendi', [
                     'author_id' => $author->author_id,
                     'title' => $author->title,
                 ]);
@@ -63,10 +63,9 @@ class AuthorService
                 return $author;
             });
         } catch (\Exception $e) {
-            Log::error('AuthorService update error:', [
+            LogHelper::error('AuthorService update error', [
                 'author_id' => $author->author_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -86,16 +85,15 @@ class AuthorService
 
                 $author->delete();
 
-                Log::info('Author deleted', [
+                LogHelper::info('Yazar silindi', [
                     'author_id' => $author->author_id,
                     'title' => $author->title,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('AuthorService delete error:', [
+            LogHelper::error('AuthorService delete error', [
                 'author_id' => $author->author_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -110,7 +108,7 @@ class AuthorService
             return DB::transaction(function () use ($author) {
                 $author->update(['show_on_mainpage' => !$author->show_on_mainpage]);
 
-                Log::info('Author mainpage toggled', [
+                LogHelper::info('Yazar ana sayfa görünürlüğü değiştirildi', [
                     'author_id' => $author->author_id,
                     'show_on_mainpage' => $author->show_on_mainpage,
                 ]);
@@ -118,7 +116,7 @@ class AuthorService
                 return $author;
             });
         } catch (\Exception $e) {
-            Log::error('AuthorService toggleMainpage error:', [
+            LogHelper::error('AuthorService toggleMainpage error', [
                 'author_id' => $author->author_id,
                 'error' => $e->getMessage(),
             ]);
@@ -135,7 +133,7 @@ class AuthorService
             return DB::transaction(function () use ($author) {
                 $author->update(['status' => !$author->status]);
 
-                Log::info('Author status toggled', [
+                LogHelper::info('Yazar durumu değiştirildi', [
                     'author_id' => $author->author_id,
                     'status' => $author->status,
                 ]);
@@ -143,7 +141,7 @@ class AuthorService
                 return $author;
             });
         } catch (\Exception $e) {
-            Log::error('AuthorService toggleStatus error:', [
+            LogHelper::error('AuthorService toggleStatus error', [
                 'author_id' => $author->author_id,
                 'error' => $e->getMessage(),
             ]);

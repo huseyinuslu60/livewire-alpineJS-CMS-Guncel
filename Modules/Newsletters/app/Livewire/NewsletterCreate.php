@@ -2,6 +2,7 @@
 
 namespace Modules\Newsletters\Livewire;
 
+use App\Helpers\LogHelper;
 use App\Support\Pagination;
 use App\Traits\ValidationMessages;
 use Livewire\Component;
@@ -277,13 +278,13 @@ class NewsletterCreate extends Component
 
     public function handleReorderPosts($orderedIds)
     {
-        \Log::info('handleReorderPosts called with:', $orderedIds);
+        LogHelper::info('handleReorderPosts called with:', $orderedIds);
 
         if (! empty($orderedIds)) {
             $this->selectedPosts = $orderedIds;
             $this->updateNewsletterBody();
             session()->flash('success', 'Haberlerin sırası güncellendi!');
-            \Log::info('Posts reordered successfully:', $this->selectedPosts);
+            LogHelper::info('Posts reordered successfully:', $this->selectedPosts);
         }
     }
 
@@ -296,21 +297,40 @@ class NewsletterCreate extends Component
 
     public function store()
     {
-        $this->validate();
+        try {
+            $this->validate();
 
-        $data = [
-            'name' => $this->name,
-            'mail_subject' => $this->mail_subject,
-            'mail_body' => $this->mail_body,
-            'status' => $this->status,
-            'reklam' => $this->reklam,
-        ];
+            // Additional value validation
+            if (strlen($this->name) > 255) {
+                $this->addError('name', 'İsim en fazla 255 karakter olabilir.');
+                return;
+            }
 
-        $this->newsletterService->create($data, $this->selectedPosts);
+            if (strlen($this->mail_subject) > 255) {
+                $this->addError('mail_subject', 'E-posta konusu en fazla 255 karakter olabilir.');
+                return;
+            }
 
-        session()->flash('success', 'Newsletter başarıyla oluşturuldu!');
+            $data = [
+                'name' => $this->name,
+                'mail_subject' => $this->mail_subject,
+                'mail_body' => $this->mail_body,
+                'status' => $this->status,
+                'reklam' => $this->reklam,
+            ];
 
-        return redirect()->route('newsletters.index');
+            $this->newsletterService->create($data, $this->selectedPosts);
+
+            session()->flash('success', 'Newsletter başarıyla oluşturuldu!');
+
+            return redirect()->route('newsletters.index');
+        } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('NewsletterCreate store failed', [
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', 'Newsletter oluşturulurken bir hata oluştu: '.$e->getMessage());
+            return;
+        }
     }
 
     public function render()

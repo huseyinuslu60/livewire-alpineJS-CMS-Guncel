@@ -4,7 +4,7 @@ namespace Modules\Files\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Files\Models\File;
@@ -32,7 +32,7 @@ class FileService
 
             $file = File::create($data);
 
-            Log::info('File created', [
+            LogHelper::info('Dosya oluşturuldu', [
                 'file_id' => $file->file_id,
                 'title' => $file->title,
                 'file_path' => $file->file_path,
@@ -67,7 +67,7 @@ class FileService
 
                 $file->update($data);
 
-                Log::info('File updated', [
+                LogHelper::info('Dosya güncellendi', [
                     'file_id' => $file->file_id,
                     'title' => $file->title,
                 ]);
@@ -75,10 +75,9 @@ class FileService
                 return $file;
             });
         } catch (\Exception $e) {
-            Log::error('FileService update error:', [
+            LogHelper::error('FileService update error', [
                 'file_id' => $file->file_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -105,16 +104,15 @@ class FileService
 
                 $file->delete();
 
-                Log::info('File deleted', [
+                LogHelper::info('Dosya silindi', [
                     'file_id' => $file->file_id,
                     'title' => $file->title,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('FileService delete error:', [
+            LogHelper::error('FileService delete error', [
                 'file_id' => $file->file_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -135,7 +133,7 @@ class FileService
                     $deletedCount++;
                 }
 
-                Log::info('Files bulk deleted', [
+                LogHelper::info('Dosyalar toplu silindi', [
                     'count' => $deletedCount,
                     'file_ids' => $fileIds,
                 ]);
@@ -143,10 +141,9 @@ class FileService
                 return $deletedCount;
             });
         } catch (\Exception $e) {
-            Log::error('FileService bulkDelete error:', [
+            LogHelper::error('FileService bulkDelete error', [
                 'file_ids' => $fileIds,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }

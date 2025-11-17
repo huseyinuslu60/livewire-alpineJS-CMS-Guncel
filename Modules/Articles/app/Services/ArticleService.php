@@ -2,8 +2,8 @@
 
 namespace Modules\Articles\Services;
 
+use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Modules\Articles\Models\Article;
 
 class ArticleService
@@ -21,7 +21,7 @@ class ArticleService
 
             $article = Article::create($data);
 
-            Log::info('Article created', [
+            LogHelper::info('Makale oluşturuldu', [
                 'article_id' => $article->article_id,
                 'title' => $article->title,
             ]);
@@ -44,7 +44,7 @@ class ArticleService
 
                 $article->update($data);
 
-                Log::info('Article updated', [
+                LogHelper::info('Makale güncellendi', [
                     'article_id' => $article->article_id,
                     'title' => $article->title,
                 ]);
@@ -52,10 +52,9 @@ class ArticleService
                 return $article;
             });
         } catch (\Exception $e) {
-            Log::error('ArticleService update error:', [
+            LogHelper::error('ArticleService güncelleme hatası', [
                 'article_id' => $article->article_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -70,16 +69,15 @@ class ArticleService
             DB::transaction(function () use ($article) {
                 $article->delete();
 
-                Log::info('Article deleted', [
+                LogHelper::info('Makale silindi', [
                     'article_id' => $article->article_id,
                     'title' => $article->title,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('ArticleService delete error:', [
+            LogHelper::error('ArticleService silme hatası', [
                 'article_id' => $article->article_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -108,7 +106,7 @@ class ArticleService
 
                 $article->update($data);
 
-                Log::info('Article status toggled', [
+                LogHelper::info('Makale durumu değiştirildi', [
                     'article_id' => $article->article_id,
                     'status' => $article->status,
                 ]);
@@ -116,7 +114,7 @@ class ArticleService
                 return $article;
             });
         } catch (\Exception $e) {
-            Log::error('ArticleService toggleStatus error:', [
+            LogHelper::error('ArticleService durum değiştirme hatası', [
                 'article_id' => $article->article_id,
                 'error' => $e->getMessage(),
             ]);
@@ -133,7 +131,7 @@ class ArticleService
             return DB::transaction(function () use ($article) {
                 $article->update(['show_on_mainpage' => !$article->show_on_mainpage]);
 
-                Log::info('Article mainpage toggled', [
+                LogHelper::info('Makale ana sayfa görünürlüğü değiştirildi', [
                     'article_id' => $article->article_id,
                     'show_on_mainpage' => $article->show_on_mainpage,
                 ]);
@@ -141,7 +139,7 @@ class ArticleService
                 return $article;
             });
         } catch (\Exception $e) {
-            Log::error('ArticleService toggleMainPage error:', [
+            LogHelper::error('ArticleService ana sayfa görünürlüğü değiştirme hatası', [
                 'article_id' => $article->article_id,
                 'error' => $e->getMessage(),
             ]);

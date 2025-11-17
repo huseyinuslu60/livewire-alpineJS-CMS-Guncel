@@ -2,6 +2,7 @@
 
 namespace Modules\AgencyNews\Livewire;
 
+use App\Helpers\LogHelper;
 use App\Helpers\SystemHelper;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
@@ -110,7 +111,7 @@ class AgencyNewsIndex extends Component
 
     public function confirmPublishAgencyNews($agencyNewsId)
     {
-        \Log::info('confirmPublishAgencyNews çağrıldı', ['agencyNewsId' => $agencyNewsId]);
+        LogHelper::info('confirmPublishAgencyNews çağrıldı', ['agencyNewsId' => $agencyNewsId]);
         $this->dispatch('confirm-publish-agency-news', [
             'title' => 'Agency News Yayına Al',
             'message' => 'Bu agency news\'i post edit sayfasına yönlendirmek istediğinizden emin misiniz? Son kontrolü yapıp yayınlayabilirsiniz.',
@@ -136,7 +137,7 @@ class AgencyNewsIndex extends Component
             // Post create sayfasına yönlendir
             return redirect()->route('posts.create.news', ['agency' => $agencyNewsId]);
         } catch (\Exception $e) {
-            \Log::error('Agency news publish error: '.$e->getMessage());
+            \App\Helpers\LogHelper::error('Agency news publish error', ['error' => $e->getMessage()]);
             session()->flash('error', 'Bir hata oluştu. Lütfen tekrar deneyin.');
 
             return;

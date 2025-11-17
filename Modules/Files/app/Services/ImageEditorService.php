@@ -2,8 +2,8 @@
 
 namespace Modules\Files\Services;
 
+use App\Helpers\LogHelper;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Posts\Models\File as PostFile;
 
@@ -75,7 +75,7 @@ class ImageEditorService
             $file = PostFile::find($fileId);
 
             if (! $file) {
-                Log::warning('Post file not found for update', [
+                LogHelper::warning('Post file not found for update', [
                     'file_id' => $fileId,
                     'user_id' => auth()->id(),
                 ]);
@@ -93,16 +93,15 @@ class ImageEditorService
                 'mime_type' => $image->getMimeType(),
             ]);
 
-            Log::info('Post file updated successfully', [
+            LogHelper::info('Post file updated successfully', [
                 'file_id' => $fileId,
                 'new_path' => $newPath,
                 'user_id' => auth()->id(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to update post file', [
+            LogHelper::error('Post dosyası güncellenirken hata oluştu', [
                 'file_id' => $fileId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
                 'user_id' => auth()->id(),
             ]);
 
@@ -125,12 +124,12 @@ class ImageEditorService
             if (file_exists($fullPath) && is_file($fullPath)) {
                 @unlink($fullPath);
 
-                Log::debug('Old file deleted', [
+                LogHelper::debug('Old file deleted', [
                     'path' => $oldPath,
                 ]);
             }
         } catch (\Exception $e) {
-            Log::warning('Failed to delete old file', [
+            LogHelper::warning('Eski dosya silinirken hata oluştu', [
                 'path' => $oldPath,
                 'error' => $e->getMessage(),
             ]);

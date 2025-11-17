@@ -3,7 +3,7 @@
 namespace Modules\Lastminutes\Services;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Helpers\LogHelper;
 use Modules\Lastminutes\Models\Lastminute;
 
 class LastminuteService
@@ -16,7 +16,7 @@ class LastminuteService
         return DB::transaction(function () use ($data) {
             $lastminute = Lastminute::create($data);
 
-            Log::info('Lastminute created', [
+            LogHelper::info('Lastminute oluşturuldu', [
                 'lastminute_id' => $lastminute->lastminute_id,
                 'title' => $lastminute->title,
             ]);
@@ -34,7 +34,7 @@ class LastminuteService
             return DB::transaction(function () use ($lastminute, $data) {
                 $lastminute->update($data);
 
-                Log::info('Lastminute updated', [
+                LogHelper::info('Lastminute güncellendi', [
                     'lastminute_id' => $lastminute->lastminute_id,
                     'title' => $lastminute->title,
                 ]);
@@ -42,10 +42,9 @@ class LastminuteService
                 return $lastminute;
             });
         } catch (\Exception $e) {
-            Log::error('LastminuteService update error:', [
+            LogHelper::error('LastminuteService update error', [
                 'lastminute_id' => $lastminute->lastminute_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -60,16 +59,15 @@ class LastminuteService
             DB::transaction(function () use ($lastminute) {
                 $lastminute->delete();
 
-                Log::info('Lastminute deleted', [
+                LogHelper::info('Lastminute silindi', [
                     'lastminute_id' => $lastminute->lastminute_id,
                     'title' => $lastminute->title,
                 ]);
             });
         } catch (\Exception $e) {
-            Log::error('LastminuteService delete error:', [
+            LogHelper::error('LastminuteService delete error', [
                 'lastminute_id' => $lastminute->lastminute_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }

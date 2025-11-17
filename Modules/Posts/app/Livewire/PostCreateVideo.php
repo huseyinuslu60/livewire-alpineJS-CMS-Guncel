@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Helpers\LogHelper;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -173,7 +174,7 @@ class PostCreateVideo extends Component
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                     $editorData = $decoded;
                 } else {
-                    \Log::warning('PostCreateVideo updateFilePreview - Failed to decode JSON editorData:', [
+                    LogHelper::warning('PostCreateVideo updateFilePreview - Failed to decode JSON editorData', [
                         'json_error' => json_last_error_msg(),
                     ]);
                     $editorData = null;
@@ -181,7 +182,7 @@ class PostCreateVideo extends Component
             }
 
             if ($editorData !== null && is_array($editorData)) {
-                \Log::info('PostCreateVideo updateFilePreview - editorData received:', [
+                LogHelper::info('PostCreateVideo updateFilePreview - editorData received:', [
                     'identifier' => $identifier,
                     'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
                     'editorData_keys' => array_keys($editorData),
@@ -267,8 +268,8 @@ class PostCreateVideo extends Component
                         ]);
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Error updating file preview: '.$e->getMessage(), [
-                        'trace' => $e->getTraceAsString(),
+                    LogHelper::error('Dosya önizlemesi güncellenirken hata oluştu', [
+                        'error' => $e->getMessage(),
                         'image_url' => $imageUrl,
                         'index' => $index,
                     ]);
@@ -302,6 +303,25 @@ class PostCreateVideo extends Component
 
             // Validation'ı unique slug ile yap
             $this->validate();
+
+            // Additional value validation
+            if (strlen($this->title) > 255) {
+                $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
+                $this->isSaving = false;
+                return;
+            }
+
+            if (strlen($this->summary) > 5000) {
+                $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
+                $this->isSaving = false;
+                return;
+            }
+
+            if (strlen($this->content) > 100000) {
+                $this->addError('content', 'İçerik çok uzun (maksimum 100.000 karakter).');
+                $this->isSaving = false;
+                return;
+            }
 
             $tagIds = array_filter(array_map('trim', explode(',', $this->tagsInput)));
 

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Helpers\LogHelper;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -43,7 +44,7 @@ class NewsletterPermissionsSeeder extends Seeder
                 $superAdminRole->givePermissionTo($permissions);
                 $this->command->info('Newsletter permissions assigned to super admin role');
             } catch (\Exception $e) {
-                \Log::info('Error assigning permissions to super admin role: '.$e->getMessage());
+                LogHelper::info('Error assigning permissions to super admin role: '.$e->getMessage());
             }
         }
 
@@ -54,7 +55,7 @@ class NewsletterPermissionsSeeder extends Seeder
                 $adminRole->givePermissionTo($permissions);
                 $this->command->info('Newsletter permissions assigned to admin role');
             } catch (\Exception $e) {
-                \Log::info('Error assigning permissions to admin role: '.$e->getMessage());
+                LogHelper::info('Error assigning permissions to admin role: '.$e->getMessage());
             }
         }
 
@@ -68,7 +69,7 @@ class NewsletterPermissionsSeeder extends Seeder
                 $adminUser->givePermissionTo($permissions);
                 $this->command->info('Newsletter permissions assigned to admin user');
             } catch (\Exception $e) {
-                \Log::info('Error assigning permissions to admin user: '.$e->getMessage());
+                LogHelper::info('Error assigning permissions to admin user: '.$e->getMessage());
             }
         }
 
@@ -85,7 +86,7 @@ class NewsletterPermissionsSeeder extends Seeder
             try {
                 $editorRole->givePermissionTo($editorPermissions);
             } catch (\Exception $e) {
-                \Log::info('Error assigning permissions to editor role: '.$e->getMessage());
+                LogHelper::info('Error assigning permissions to editor role: '.$e->getMessage());
             }
         }
     }

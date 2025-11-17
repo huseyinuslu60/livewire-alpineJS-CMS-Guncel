@@ -2,6 +2,7 @@
 
 namespace Modules\Posts\Livewire;
 
+use App\Helpers\LogHelper;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -335,27 +336,19 @@ class PostCreateNews extends Component
                     if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                         $editorData = $decoded;
                     } else {
-                        \Log::warning('PostCreateNews updateFilePreview - Failed to decode JSON editorData:', [
+                        LogHelper::warning('PostCreateNews updateFilePreview - Failed to decode JSON editorData', [
                             'json_error' => json_last_error_msg(),
-                            'editorData_string' => substr($editorData, 0, 200),
                         ]);
                         $editorData = null;
                     }
                 }
 
                     if ($editorData !== null && is_array($editorData)) {
-                        \Log::info('PostCreateNews updateFilePreview - editorData received:', [
-                            'index' => $index,
-                            'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
-                            'textObjects' => $editorData['textObjects'] ?? [],
-                            'editorData_keys' => array_keys($editorData),
-                            'editorData_type' => gettype($editorData),
-                        ]);
                         $this->imageEditorData[$index] = $editorData;
                         $this->imageEditorUsed = true; // Mark that image editor was used
                     }
             } else {
-                \Log::warning('PostCreateNews updateFilePreview - editorData is null', [
+                LogHelper::warning('PostCreateNews updateFilePreview - editorData is null', [
                     'index' => $index,
                 ]);
             }
@@ -376,15 +369,6 @@ class PostCreateNews extends Component
 
         Gate::authorize('create posts');
 
-        // Log before save for debugging
-        \Log::info('PostCreateNews savePost called:', [
-            'title' => $this->title,
-            'content_length' => strlen($this->content ?? ''),
-            'content_preview' => substr($this->content ?? '', 0, 100),
-            'summary' => $this->summary,
-            'files_count' => is_array($this->files) ? count($this->files) : 0,
-            'categoryIds' => $this->categoryIds,
-        ]);
 
         // Set saving flag and skip render to avoid checksum issues
         $this->isSaving = true;
@@ -409,16 +393,29 @@ class PostCreateNews extends Component
                 $this->validate();
             } catch (\Illuminate\Validation\ValidationException $e) {
                 // Log validation errors for debugging
-                \Log::error('PostCreateNews Validation Errors:', [
+                LogHelper::error('PostCreateNews Validation Errors', [
                     'errors' => $e->errors(),
-                    'content' => $this->content,
-                    'content_length' => strlen($this->content ?? ''),
-                    'title' => $this->title,
-                    'summary' => $this->summary,
-                    'files_count' => is_array($this->files) ? count($this->files) : 0,
-                    'categoryIds' => $this->categoryIds,
                 ]);
                 throw $e;
+            }
+
+            // Additional value validation
+            if (strlen($this->title) > 255) {
+                $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
+                $this->isSaving = false;
+                return;
+            }
+
+            if (strlen($this->summary) > 5000) {
+                $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
+                $this->isSaving = false;
+                return;
+            }
+
+            if (strlen($this->content) > 100000) {
+                $this->addError('content', 'İçerik çok uzun (maksimum 100.000 karakter).');
+                $this->isSaving = false;
+                return;
             }
 
             $tagIds = array_filter(array_map('trim', explode(',', $this->tagsInput)));
@@ -427,14 +424,6 @@ class PostCreateNews extends Component
             // WithFileUploads trait handles file serialization, so we can use $this->files directly
             $filesToSave = $this->processEditedFiles();
 
-            // Log files processing for debugging
-            \Log::info('PostCreateNews Files Processing:', [
-                'original_files_count' => is_array($this->files) ? count($this->files) : 0,
-                'processed_files_count' => count($filesToSave),
-                'edited_file_paths' => $this->editedFilePaths,
-                'files_type' => gettype($this->files),
-                'files_is_array' => is_array($this->files),
-            ]);
 
             $formData = [
                 'title' => $this->title,
@@ -536,15 +525,8 @@ class PostCreateNews extends Component
                 $textObjects = [];
                 if ($editorData !== null && isset($editorData['textObjects']) && is_array($editorData['textObjects'])) {
                     $textObjects = $editorData['textObjects'];
-                    \Log::info('PostCreateNews savePost - textObjects extracted:', [
-                        'count' => count($textObjects),
-                        'textObjects' => $textObjects,
-                    ]);
                 } else {
-                    \Log::warning('PostCreateNews savePost - textObjects not found in editorData:', [
-                        'editorData_keys' => $editorData !== null ? array_keys($editorData) : [],
-                        'has_textObjects' => $editorData !== null && isset($editorData['textObjects']),
-                    ]);
+                    LogHelper::warning('PostCreateNews savePost - textObjects not found in editorData');
                 }
 
                 // Ensure arrays are properly formatted
@@ -606,11 +588,13 @@ class PostCreateNews extends Component
 
     public function render()
     {
-        // Sadece news kategorilerini getir
-        $categories = Category::where('status', 'active')
-            ->where('type', 'news')
-            ->orderBy('name')
-            ->get();
+        // Sadece news kategorilerini getir - cache ile optimize et
+        $categories = \Illuminate\Support\Facades\Cache::remember('posts:categories:news', 300, function () {
+            return Category::where('status', 'active')
+                ->where('type', 'news')
+                ->orderBy('name')
+                ->get();
+        });
 
         $postPositions = Post::POSITIONS;
         $postStatuses = Post::STATUSES;

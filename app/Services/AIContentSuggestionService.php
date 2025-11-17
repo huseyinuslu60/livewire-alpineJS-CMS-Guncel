@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Modules\Articles\Models\Article;
@@ -313,7 +314,7 @@ class AIContentSuggestionService
                 if ($attempt > 0) {
                     // Exponential backoff: 1s, 2s, 4s
                     sleep(min(pow(2, $attempt - 1), 4));
-                    \Log::info("OpenAI retry attempt {$attempt}");
+                    LogHelper::info("OpenAI retry attempt {$attempt}");
                 }
 
                 $response = Http::timeout(30)

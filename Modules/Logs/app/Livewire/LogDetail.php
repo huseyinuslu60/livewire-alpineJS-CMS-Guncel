@@ -5,10 +5,18 @@ namespace Modules\Logs\Livewire;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Modules\Logs\Models\UserLog;
+use Modules\Logs\Services\LogService;
 
 class LogDetail extends Component
 {
     public ?\Modules\Logs\Models\UserLog $log = null;
+
+    protected LogService $logService;
+
+    public function boot()
+    {
+        $this->logService = app(LogService::class);
+    }
 
     public function mount($id)
     {
@@ -26,7 +34,7 @@ class LogDetail extends Component
         }
 
         try {
-            $this->log->delete();
+            $this->logService->delete($this->log->log_id);
             session()->flash('success', 'Log kaydı başarıyla silindi.');
 
             return redirect()->route('logs.index');

@@ -45,11 +45,7 @@ if (!setTrumbowygSvgPath()) {
         }
     }, 50);
 }
-// Trix - NPM'den import et
-import Trix from 'trix';
-window.Trix = Trix;
-// Trix CSS
-import 'trix/dist/trix.css';
+// Trix kaldırıldı - artık sadece Trumbowyg kullanılıyor
 
 // Alpine.js ve plugin'ler
 import Alpine from 'alpinejs';
@@ -281,9 +277,6 @@ if (import.meta.env.DEV) {
     }
     if (window.jQuery && typeof window.jQuery.fn.trumbowyg === 'undefined') {
         errors.push('Trumbowyg');
-    }
-    if (typeof window.Trix === 'undefined') {
-        errors.push('Trix');
     }
     if (errors.length > 0) {
         console.error(`Eksik bağımlılıklar: ${errors.join(', ')}`);

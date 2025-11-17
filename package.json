@@ -24,7 +24,6 @@
         "autoprefixer": "^10.4.21",
         "jquery": "^3.7.1",
         "sortablejs": "^1.15.6",
-        "trix": "^2.0.7",
         "trumbowyg": "^2.31.0"
     }
 }

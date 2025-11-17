@@ -44,6 +44,12 @@ class RolesServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Roles\Domain\Repositories\RoleRepositoryInterface::class,
+            \Modules\Roles\Domain\Repositories\EloquentRoleRepository::class
+        );
     }
 
     /**

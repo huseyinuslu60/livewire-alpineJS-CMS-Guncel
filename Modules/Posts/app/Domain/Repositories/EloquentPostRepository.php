@@ -6,7 +6,7 @@ use Modules\Posts\Models\Post;
 
 /**
  * Eloquent Post Repository Implementation
- * 
+ *
  * PostRepositoryInterface'in Eloquent implementasyonu.
  */
 class EloquentPostRepository implements PostRepositoryInterface
@@ -58,11 +58,11 @@ class EloquentPostRepository implements PostRepositoryInterface
     public function slugExists(string $slug, ?int $excludeId = null): bool
     {
         $query = Post::where('slug', $slug);
-        
+
         if ($excludeId !== null) {
             $query->where('post_id', '!=', $excludeId);
         }
-        
+
         return $query->exists();
     }
 }

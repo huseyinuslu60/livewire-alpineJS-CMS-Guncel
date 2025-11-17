@@ -5,7 +5,12 @@ namespace Modules\Roles\Services;
 use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Modules\Logs\Models\UserLog;
+use Modules\Roles\Domain\Events\RoleCreated;
+use Modules\Roles\Domain\Events\RoleDeleted;
+use Modules\Roles\Domain\Events\RoleUpdated;
+use Modules\Roles\Domain\Repositories\RoleRepositoryInterface;
 use Modules\Roles\Domain\Services\RoleValidator;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -25,10 +30,14 @@ class RoleService
      * @return Role
      */
     protected RoleValidator $roleValidator;
+    protected RoleRepositoryInterface $roleRepository;
 
-    public function __construct(?RoleValidator $roleValidator = null)
-    {
+    public function __construct(
+        ?RoleValidator $roleValidator = null,
+        ?RoleRepositoryInterface $roleRepository = null
+    ) {
         $this->roleValidator = $roleValidator ?? app(RoleValidator::class);
+        $this->roleRepository = $roleRepository ?? app(RoleRepositoryInterface::class);
     }
 
     public function create(array $data, array $permissionNames = []): Role
@@ -38,7 +47,7 @@ class RoleService
             $this->roleValidator->validate($data);
 
             return DB::transaction(function () use ($data, $permissionNames) {
-                $role = Role::create([
+                $role = $this->roleRepository->create([
                     'name' => $data['name'],
                     'display_name' => $data['display_name'] ?? $data['name'],
                     'description' => $data['description'] ?? null,
@@ -58,6 +67,9 @@ class RoleService
                         $role->id
                     );
                 }
+
+                // Fire domain event
+                Event::dispatch(new RoleCreated($role));
 
                 LogHelper::info('Rol oluşturuldu', [
                     'role_id' => $role->id,
@@ -91,7 +103,7 @@ class RoleService
             $this->roleValidator->validate($data, $role->id);
 
             return DB::transaction(function () use ($role, $data, $permissionNames) {
-                $role->update([
+                $role = $this->roleRepository->update($role, [
                     'name' => $data['name'],
                     'display_name' => $data['display_name'] ?? $data['name'],
                     'description' => $data['description'] ?? null,
@@ -124,6 +136,10 @@ class RoleService
                     }
                 }
 
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new RoleUpdated($role, $changedAttributes));
+
                 LogHelper::info('Rol güncellendi', [
                     'role_id' => $role->id,
                     'name' => $role->name,
@@ -154,7 +170,10 @@ class RoleService
                 $roleId = $role->id;
                 $roleName = $role->name;
 
-                $role->delete();
+                $this->roleRepository->delete($role);
+
+                // Fire domain event
+                Event::dispatch(new RoleDeleted($role));
 
                 LogHelper::info('Rol silindi', [
                     'role_id' => $roleId,

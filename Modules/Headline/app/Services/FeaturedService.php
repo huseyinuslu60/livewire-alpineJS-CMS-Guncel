@@ -4,16 +4,26 @@ namespace Modules\Headline\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Headline\Domain\Events\FeaturedCreated;
+use Modules\Headline\Domain\Events\FeaturedDeleted;
+use Modules\Headline\Domain\Events\FeaturedItemsReordered;
+use Modules\Headline\Domain\Events\FeaturedUpdated;
+use Modules\Headline\Domain\Repositories\FeaturedRepositoryInterface;
 use Modules\Headline\Domain\Services\FeaturedValidator;
 use Modules\Headline\app\Models\Featured;
 
 class FeaturedService
 {
     protected FeaturedValidator $featuredValidator;
+    protected FeaturedRepositoryInterface $featuredRepository;
 
-    public function __construct(?FeaturedValidator $featuredValidator = null)
-    {
+    public function __construct(
+        ?FeaturedValidator $featuredValidator = null,
+        ?FeaturedRepositoryInterface $featuredRepository = null
+    ) {
         $this->featuredValidator = $featuredValidator ?? app(FeaturedValidator::class);
+        $this->featuredRepository = $featuredRepository ?? app(FeaturedRepositoryInterface::class);
     }
 
     /**
@@ -31,7 +41,10 @@ class FeaturedService
         // Validate featured data
         $this->featuredValidator->validate($zone, $subjectType, $subjectId, $startsAt, $endsAt);
 
-        return Featured::updateOrCreate(
+        $existing = $this->featuredRepository->findByZoneAndSubject($zone, $subjectType, $subjectId);
+        $isNew = $existing === null;
+
+        $featured = $this->featuredRepository->updateOrCreate(
             [
                 'zone' => $zone,
                 'subject_type' => $subjectType,
@@ -45,6 +58,15 @@ class FeaturedService
                 'is_active' => true,
             ]
         );
+
+        // Fire domain event
+        if ($isNew) {
+            Event::dispatch(new FeaturedCreated($featured));
+        } else {
+            Event::dispatch(new FeaturedUpdated($featured, ['slot', 'priority', 'starts_at', 'ends_at']));
+        }
+
+        return $featured;
     }
 
     /**
@@ -52,12 +74,17 @@ class FeaturedService
      */
     public function unpin(string $zone, string $subjectType, int $subjectId): bool
     {
-        $deleted = Featured::where('zone', $zone)
-            ->where('subject_type', $subjectType)
-            ->where('subject_id', $subjectId)
-            ->delete();
+        $featured = $this->featuredRepository->findByZoneAndSubject($zone, $subjectType, $subjectId);
+        
+        if (!$featured) {
+            return false;
+        }
 
-        if ($deleted) {
+        $deleted = $this->featuredRepository->deleteByZoneAndSubject($zone, $subjectType, $subjectId);
+
+        if ($deleted > 0) {
+            // Fire domain event
+            Event::dispatch(new FeaturedDeleted($featured));
             $this->bustZoneCache($zone);
         }
 
@@ -73,18 +100,29 @@ class FeaturedService
             DB::beginTransaction();
 
             // Clear existing slots for this zone
-            Featured::where('zone', $zone)
-                ->update(['slot' => null]);
+            $zoneItems = Featured::where('zone', $zone)->get();
+            foreach ($zoneItems as $item) {
+                $this->featuredRepository->update($item, ['slot' => null]);
+            }
 
             // Set new slots
             foreach ($ordered as $index => $item) {
-                Featured::where('zone', $zone)
-                    ->where('subject_type', $item['subject_type'])
-                    ->where('subject_id', $item['subject_id'])
-                    ->update(['slot' => $index + 1]);
+                $featured = $this->featuredRepository->findByZoneAndSubject(
+                    $zone,
+                    $item['subject_type'],
+                    $item['subject_id']
+                );
+                
+                if ($featured) {
+                    $this->featuredRepository->update($featured, ['slot' => $index + 1]);
+                }
             }
 
             DB::commit();
+            
+            // Fire domain event
+            Event::dispatch(new FeaturedItemsReordered($zone, $ordered));
+            
             $this->bustZoneCache($zone);
 
             return true;

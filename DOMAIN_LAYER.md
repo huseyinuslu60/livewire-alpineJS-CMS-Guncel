@@ -71,6 +71,7 @@ if ($status->isPublished()) {
 - `NewsletterStatus`, `NewsletterMailStatus` (Newsletters)
 - `LastminuteStatus` (Lastminutes)
 - `InvestorQuestionStatus` (Banks)
+- `CommentStatus` (Comments)
 
 ### 3. Repositories
 
@@ -90,8 +91,23 @@ $post = $postRepository->findById(1);
 - Data access mantığını merkezileştirir
 
 **Mevcut Repositories:**
+Tüm modüller için Repository Pattern uygulanmıştır:
 - `PostRepositoryInterface` / `EloquentPostRepository` (Posts)
 - `CategoryRepositoryInterface` / `EloquentCategoryRepository` (Categories)
+- `ArticleRepositoryInterface` / `EloquentArticleRepository` (Articles)
+- `AuthorRepositoryInterface` / `EloquentAuthorRepository` (Authors)
+- `AgencyNewsRepositoryInterface` / `EloquentAgencyNewsRepository` (AgencyNews)
+- `LastminuteRepositoryInterface` / `EloquentLastminuteRepository` (Lastminutes)
+- `NewsletterRepositoryInterface` / `EloquentNewsletterRepository` (Newsletters)
+- `NewsletterTemplateRepositoryInterface` / `EloquentNewsletterTemplateRepository` (NewsletterTemplates)
+- `UserRepositoryInterface` / `EloquentUserRepository` (User)
+- `FileRepositoryInterface` / `EloquentFileRepository` (Files)
+- `StockRepositoryInterface` / `EloquentStockRepository` (Banks)
+- `RoleRepositoryInterface` / `EloquentRoleRepository` (Roles)
+- `SettingRepositoryInterface` / `EloquentSettingRepository` (Settings)
+- `FeaturedRepositoryInterface` / `EloquentFeaturedRepository` (Headline)
+- `LogRepositoryInterface` / `EloquentLogRepository` (Logs)
+- `CommentRepositoryInterface` / `EloquentCommentRepository` (Comments)
 
 ### 4. Domain Events
 
@@ -169,21 +185,94 @@ public function create(array $data): Post
 
 ## Modül Yapısı
 
-### Posts Module
+Tüm 16 modül için Domain Layer yapısı tamamlanmıştır:
 
-**Domain Layer:**
+### Posts Module
 - `PostValidator` - Post iş kuralları
 - `PostType`, `PostStatus` - ValueObjects
-- `PostRepositoryInterface` - Data access abstraction
+- `PostRepositoryInterface` / `EloquentPostRepository` - Repository Pattern
 - `PostCreated`, `PostUpdated`, `PostDeleted` - Events
 
 ### Categories Module
-
-**Domain Layer:**
 - `CategoryValidator` - Category iş kuralları
 - `CategoryType`, `CategoryStatus` - ValueObjects
-- `CategoryRepositoryInterface` - Data access abstraction
+- `CategoryRepositoryInterface` / `EloquentCategoryRepository` - Repository Pattern
 - `CategoryCreated`, `CategoryUpdated`, `CategoryDeleted` - Events
+
+### Articles Module
+- `ArticleValidator` - Article iş kuralları
+- `ArticleStatus` - ValueObject
+- `ArticleRepositoryInterface` / `EloquentArticleRepository` - Repository Pattern
+- `ArticleCreated`, `ArticleUpdated`, `ArticleDeleted` - Events
+
+### Authors Module
+- `AuthorValidator` - Author iş kuralları
+- `AuthorRepositoryInterface` / `EloquentAuthorRepository` - Repository Pattern
+- `AuthorCreated`, `AuthorUpdated`, `AuthorDeleted` - Events
+
+### AgencyNews Module
+- `AgencyNewsValidator` - Agency News iş kuralları
+- `AgencyNewsRepositoryInterface` / `EloquentAgencyNewsRepository` - Repository Pattern
+- `AgencyNewsCreated`, `AgencyNewsUpdated`, `AgencyNewsDeleted` - Events
+
+### Lastminutes Module
+- `LastminuteValidator` - Lastminute iş kuralları
+- `LastminuteStatus` - ValueObject
+- `LastminuteRepositoryInterface` / `EloquentLastminuteRepository` - Repository Pattern
+- `LastminuteCreated`, `LastminuteUpdated`, `LastminuteDeleted` - Events
+
+### Newsletters Module
+- `NewsletterValidator` - Newsletter iş kuralları
+- `NewsletterStatus`, `NewsletterMailStatus` - ValueObjects
+- `NewsletterRepositoryInterface` / `EloquentNewsletterRepository` - Repository Pattern
+- `NewsletterCreated`, `NewsletterUpdated`, `NewsletterDeleted` - Events
+
+### NewsletterTemplates Module
+- `NewsletterTemplateValidator` - Template iş kuralları
+- `NewsletterTemplateRepositoryInterface` / `EloquentNewsletterTemplateRepository` - Repository Pattern
+- `NewsletterTemplateCreated`, `NewsletterTemplateUpdated`, `NewsletterTemplateDeleted` - Events
+
+### User Module
+- `UserValidator` - User iş kuralları
+- `UserRepositoryInterface` / `EloquentUserRepository` - Repository Pattern
+- `UserCreated`, `UserUpdated`, `UserDeleted` - Events
+
+### Files Module
+- `FileValidator`, `ImageEditorValidator` - File iş kuralları
+- `FileRepositoryInterface` / `EloquentFileRepository` - Repository Pattern
+- `FileCreated`, `FileUpdated`, `FileDeleted` - Events
+
+### Banks/Stock Module
+- `StockValidator` - Stock iş kuralları
+- `InvestorQuestionStatus` - ValueObject
+- `StockRepositoryInterface` / `EloquentStockRepository` - Repository Pattern
+- `StockCreated`, `StockUpdated`, `StockDeleted` - Events
+
+### Roles Module
+- `RoleValidator` - Role iş kuralları
+- `RoleRepositoryInterface` / `EloquentRoleRepository` - Repository Pattern
+- `RoleCreated`, `RoleUpdated`, `RoleDeleted` - Events
+
+### Settings Module
+- `SettingValidator` - Setting iş kuralları
+- `SettingRepositoryInterface` / `EloquentSettingRepository` - Repository Pattern
+- `SettingUpdated`, `SettingsBulkUpdated` - Events
+
+### Headline Module
+- `FeaturedValidator` - Featured item iş kuralları
+- `FeaturedRepositoryInterface` / `EloquentFeaturedRepository` - Repository Pattern
+- `FeaturedCreated`, `FeaturedUpdated`, `FeaturedDeleted`, `FeaturedItemsReordered` - Events
+
+### Logs Module
+- `LogValidator` - Log iş kuralları
+- `LogRepositoryInterface` / `EloquentLogRepository` - Repository Pattern
+- `LogDeleted`, `LogsBulkDeleted`, `LogsCleared` - Events
+
+### Comments Module
+- `CommentValidator` - Comment iş kuralları
+- `CommentStatus` - ValueObject
+- `CommentRepositoryInterface` / `EloquentCommentRepository` - Repository Pattern
+- `CommentCreated`, `CommentUpdated`, `CommentDeleted`, `CommentApproved`, `CommentRejected` - Events
 
 ## Best Practices
 
@@ -193,13 +282,22 @@ public function create(array $data): Post
 4. **Validation:** Domain Validator'larda yapılmalı
 5. **Type Safety:** ValueObjects kullanılmalı
 
+## Tamamlanan Özellikler
+
+- [x] Tüm modüller için Repository Pattern (16 modül)
+- [x] Domain Services (Validators) - Tüm modüllerde
+- [x] Domain Events - Tüm modüllerde
+- [x] ValueObjects - Gerektiğinde (Status, Type vb.)
+- [x] Ortak SlugGenerator servisi
+- [x] ServiceProvider bindings - Tüm modüllerde
+
 ## Gelecek Geliştirmeler
 
-- [ ] Tüm modüller için Repository Pattern
 - [ ] Daha fazla ValueObject (UserRole, vb.)
 - [ ] Event Listener'lar için örnekler
 - [ ] Unit test örnekleri
 - [ ] CQRS pattern desteği
+- [ ] Domain Services için daha fazla business logic
 
 ## Kaynaklar
 

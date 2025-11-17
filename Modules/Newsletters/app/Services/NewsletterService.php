@@ -4,6 +4,11 @@ namespace Modules\Newsletters\Services;
 
 use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Newsletters\Domain\Events\NewsletterCreated;
+use Modules\Newsletters\Domain\Events\NewsletterDeleted;
+use Modules\Newsletters\Domain\Events\NewsletterUpdated;
+use Modules\Newsletters\Domain\Repositories\NewsletterRepositoryInterface;
 use Modules\Newsletters\Domain\Services\NewsletterValidator;
 use Modules\Newsletters\Domain\ValueObjects\NewsletterMailStatus;
 use Modules\Newsletters\Domain\ValueObjects\NewsletterStatus;
@@ -13,10 +18,14 @@ use Modules\Newsletters\Models\NewsletterPost;
 class NewsletterService
 {
     protected NewsletterValidator $newsletterValidator;
+    protected NewsletterRepositoryInterface $newsletterRepository;
 
-    public function __construct(?NewsletterValidator $newsletterValidator = null)
-    {
+    public function __construct(
+        ?NewsletterValidator $newsletterValidator = null,
+        ?NewsletterRepositoryInterface $newsletterRepository = null
+    ) {
         $this->newsletterValidator = $newsletterValidator ?? app(NewsletterValidator::class);
+        $this->newsletterRepository = $newsletterRepository ?? app(NewsletterRepositoryInterface::class);
     }
 
     /**
@@ -30,12 +39,15 @@ class NewsletterService
 
             return DB::transaction(function () use ($data, $postIds) {
                 // Create newsletter
-                $newsletter = Newsletter::create($data);
+                $newsletter = $this->newsletterRepository->create($data);
 
                 // Attach posts if provided
                 if (!empty($postIds)) {
                     $this->attachPosts($newsletter, $postIds);
                 }
+
+                // Fire domain event
+                Event::dispatch(new NewsletterCreated($newsletter));
 
                 LogHelper::info('Newsletter oluşturuldu', [
                     'newsletter_id' => $newsletter->newsletter_id,
@@ -66,12 +78,16 @@ class NewsletterService
 
             return DB::transaction(function () use ($newsletter, $data, $postIds) {
                 // Update newsletter
-                $newsletter->update($data);
+                $newsletter = $this->newsletterRepository->update($newsletter, $data);
 
                 // Update posts if provided
                 if ($postIds !== null) {
                     $this->syncPosts($newsletter, $postIds);
                 }
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new NewsletterUpdated($newsletter, $changedAttributes));
 
                 LogHelper::info('Newsletter güncellendi', [
                     'newsletter_id' => $newsletter->newsletter_id,
@@ -101,7 +117,10 @@ class NewsletterService
                 $newsletter->newsletterLogs()->delete();
 
                 // Delete newsletter
-                $newsletter->delete();
+                $this->newsletterRepository->delete($newsletter);
+
+                // Fire domain event
+                Event::dispatch(new NewsletterDeleted($newsletter));
 
                 LogHelper::info('Newsletter silindi', [
                     'newsletter_id' => $newsletter->newsletter_id,

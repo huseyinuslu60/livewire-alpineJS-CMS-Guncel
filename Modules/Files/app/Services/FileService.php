@@ -5,18 +5,27 @@ namespace Modules\Files\Services;
 use App\Helpers\LogHelper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Modules\Files\Domain\Events\FileCreated;
+use Modules\Files\Domain\Events\FileDeleted;
+use Modules\Files\Domain\Events\FileUpdated;
+use Modules\Files\Domain\Repositories\FileRepositoryInterface;
 use Modules\Files\Domain\Services\FileValidator;
 use Modules\Files\Models\File;
 
 class FileService
 {
     protected FileValidator $fileValidator;
+    protected FileRepositoryInterface $fileRepository;
 
-    public function __construct(?FileValidator $fileValidator = null)
-    {
+    public function __construct(
+        ?FileValidator $fileValidator = null,
+        ?FileRepositoryInterface $fileRepository = null
+    ) {
         $this->fileValidator = $fileValidator ?? app(FileValidator::class);
+        $this->fileRepository = $fileRepository ?? app(FileRepositoryInterface::class);
     }
 
     /**
@@ -39,7 +48,10 @@ class FileService
                     $data['title'] = $data['title'] ?? $originalName;
                 }
 
-                $file = File::create($data);
+                $file = $this->fileRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new FileCreated($file));
 
                 LogHelper::info('Dosya oluşturuldu', [
                     'file_id' => $file->file_id,
@@ -84,7 +96,11 @@ class FileService
                     $data['type'] = $uploadedFile->getMimeType();
                 }
 
-                $file->update($data);
+                $file = $this->fileRepository->update($file, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new FileUpdated($file, $changedAttributes));
 
                 LogHelper::info('Dosya güncellendi', [
                     'file_id' => $file->file_id,
@@ -121,7 +137,10 @@ class FileService
                     }
                 }
 
-                $file->delete();
+                $this->fileRepository->delete($file);
+
+                // Fire domain event
+                Event::dispatch(new FileDeleted($file));
 
                 LogHelper::info('Dosya silindi', [
                     'file_id' => $file->file_id,

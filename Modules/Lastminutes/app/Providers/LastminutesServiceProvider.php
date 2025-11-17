@@ -36,6 +36,12 @@ class LastminutesServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Lastminutes\Domain\Repositories\LastminuteRepositoryInterface::class,
+            \Modules\Lastminutes\Domain\Repositories\EloquentLastminuteRepository::class
+        );
     }
 
     /**

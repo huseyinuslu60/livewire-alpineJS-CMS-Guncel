@@ -43,6 +43,12 @@ class CommentsServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Comments\Domain\Repositories\CommentRepositoryInterface::class,
+            \Modules\Comments\Domain\Repositories\EloquentCommentRepository::class
+        );
     }
 
     /**

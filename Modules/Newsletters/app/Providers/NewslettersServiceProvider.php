@@ -38,6 +38,16 @@ class NewslettersServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Newsletters\Domain\Repositories\NewsletterRepositoryInterface::class,
+            \Modules\Newsletters\Domain\Repositories\EloquentNewsletterRepository::class
+        );
+        $this->app->bind(
+            \Modules\Newsletters\Domain\Repositories\NewsletterTemplateRepositoryInterface::class,
+            \Modules\Newsletters\Domain\Repositories\EloquentNewsletterTemplateRepository::class
+        );
     }
 
     /**

@@ -56,11 +56,11 @@ class EloquentCategoryRepository implements CategoryRepositoryInterface
     public function slugExists(string $slug, ?int $excludeId = null): bool
     {
         $query = Category::where('slug', $slug);
-        
+
         if ($excludeId !== null) {
             $query->where('category_id', '!=', $excludeId);
         }
-        
+
         return $query->exists();
     }
 

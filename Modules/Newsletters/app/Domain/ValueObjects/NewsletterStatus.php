@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Newsletter Status Value Object
- * 
+ *
  * Newsletter durumlarını type-safe olarak yönetir.
  * Business rule: Sadece geçerli newsletter durumları kabul edilir.
  */

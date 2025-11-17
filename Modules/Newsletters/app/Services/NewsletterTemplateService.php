@@ -5,6 +5,11 @@ namespace Modules\Newsletters\Services;
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Newsletters\Domain\Events\NewsletterTemplateCreated;
+use Modules\Newsletters\Domain\Events\NewsletterTemplateDeleted;
+use Modules\Newsletters\Domain\Events\NewsletterTemplateUpdated;
+use Modules\Newsletters\Domain\Repositories\NewsletterTemplateRepositoryInterface;
 use Modules\Newsletters\Domain\Services\NewsletterTemplateValidator;
 use Modules\Newsletters\Models\NewsletterTemplate;
 
@@ -12,11 +17,16 @@ class NewsletterTemplateService
 {
     protected SlugGenerator $slugGenerator;
     protected NewsletterTemplateValidator $templateValidator;
+    protected NewsletterTemplateRepositoryInterface $templateRepository;
 
-    public function __construct(?SlugGenerator $slugGenerator = null, ?NewsletterTemplateValidator $templateValidator = null)
-    {
+    public function __construct(
+        ?SlugGenerator $slugGenerator = null,
+        ?NewsletterTemplateValidator $templateValidator = null,
+        ?NewsletterTemplateRepositoryInterface $templateRepository = null
+    ) {
         $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
         $this->templateValidator = $templateValidator ?? app(NewsletterTemplateValidator::class);
+        $this->templateRepository = $templateRepository ?? app(NewsletterTemplateRepositoryInterface::class);
     }
 
     /**
@@ -35,7 +45,10 @@ class NewsletterTemplateService
                     $data['slug'] = $slug->toString();
                 }
 
-                $template = NewsletterTemplate::create($data);
+                $template = $this->templateRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new NewsletterTemplateCreated($template));
 
                 LogHelper::info('NewsletterTemplate oluşturuldu', [
                     'template_id' => $template->id,
@@ -69,7 +82,11 @@ class NewsletterTemplateService
                     $data['slug'] = $slug->toString();
                 }
 
-                $template->update($data);
+                $template = $this->templateRepository->update($template, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new NewsletterTemplateUpdated($template, $changedAttributes));
 
                 LogHelper::info('NewsletterTemplate güncellendi', [
                     'template_id' => $template->id,
@@ -94,7 +111,10 @@ class NewsletterTemplateService
     {
         try {
             DB::transaction(function () use ($template) {
-                $template->delete();
+                $this->templateRepository->delete($template);
+
+                // Fire domain event
+                Event::dispatch(new NewsletterTemplateDeleted($template));
 
                 LogHelper::info('NewsletterTemplate silindi', [
                     'template_id' => $template->id,

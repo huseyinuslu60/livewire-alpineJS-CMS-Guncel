@@ -5,6 +5,11 @@ namespace Modules\Lastminutes\Services;
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Lastminutes\Domain\Events\LastminuteCreated;
+use Modules\Lastminutes\Domain\Events\LastminuteDeleted;
+use Modules\Lastminutes\Domain\Events\LastminuteUpdated;
+use Modules\Lastminutes\Domain\Repositories\LastminuteRepositoryInterface;
 use Modules\Lastminutes\Domain\Services\LastminuteValidator;
 use Modules\Lastminutes\Models\Lastminute;
 
@@ -12,11 +17,16 @@ class LastminuteService
 {
     protected SlugGenerator $slugGenerator;
     protected LastminuteValidator $lastminuteValidator;
+    protected LastminuteRepositoryInterface $lastminuteRepository;
 
-    public function __construct(?SlugGenerator $slugGenerator = null, ?LastminuteValidator $lastminuteValidator = null)
-    {
+    public function __construct(
+        ?SlugGenerator $slugGenerator = null,
+        ?LastminuteValidator $lastminuteValidator = null,
+        ?LastminuteRepositoryInterface $lastminuteRepository = null
+    ) {
         $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
         $this->lastminuteValidator = $lastminuteValidator ?? app(LastminuteValidator::class);
+        $this->lastminuteRepository = $lastminuteRepository ?? app(LastminuteRepositoryInterface::class);
     }
 
     /**
@@ -35,7 +45,10 @@ class LastminuteService
                     $data['slug'] = $slug->toString();
                 }
 
-                $lastminute = Lastminute::create($data);
+                $lastminute = $this->lastminuteRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new LastminuteCreated($lastminute));
 
                 LogHelper::info('Lastminute oluşturuldu', [
                     'lastminute_id' => $lastminute->lastminute_id,
@@ -69,7 +82,11 @@ class LastminuteService
                     $data['slug'] = $slug->toString();
                 }
 
-                $lastminute->update($data);
+                $lastminute = $this->lastminuteRepository->update($lastminute, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new LastminuteUpdated($lastminute, $changedAttributes));
 
                 LogHelper::info('Lastminute güncellendi', [
                     'lastminute_id' => $lastminute->lastminute_id,
@@ -94,7 +111,10 @@ class LastminuteService
     {
         try {
             DB::transaction(function () use ($lastminute) {
-                $lastminute->delete();
+                $this->lastminuteRepository->delete($lastminute);
+
+                // Fire domain event
+                Event::dispatch(new LastminuteDeleted($lastminute));
 
                 LogHelper::info('Lastminute silindi', [
                     'lastminute_id' => $lastminute->lastminute_id,

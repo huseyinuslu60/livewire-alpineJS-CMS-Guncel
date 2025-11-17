@@ -6,7 +6,7 @@ use Modules\Posts\Models\Post;
 
 /**
  * Post Repository Interface
- * 
+ *
  * Post data access işlemlerini soyutlar.
  * Business rule: Tüm data access işlemleri bu interface üzerinden yapılmalı.
  */
@@ -14,7 +14,7 @@ interface PostRepositoryInterface
 {
     /**
      * Find post by ID
-     * 
+     *
      * @param int $postId
      * @return Post|null
      */
@@ -22,7 +22,7 @@ interface PostRepositoryInterface
 
     /**
      * Find post by slug
-     * 
+     *
      * @param string $slug
      * @return Post|null
      */
@@ -30,7 +30,7 @@ interface PostRepositoryInterface
 
     /**
      * Create a new post
-     * 
+     *
      * @param array $data
      * @return Post
      */
@@ -38,7 +38,7 @@ interface PostRepositoryInterface
 
     /**
      * Update an existing post
-     * 
+     *
      * @param Post $post
      * @param array $data
      * @return Post
@@ -47,7 +47,7 @@ interface PostRepositoryInterface
 
     /**
      * Delete a post
-     * 
+     *
      * @param Post $post
      * @return bool
      */
@@ -55,7 +55,7 @@ interface PostRepositoryInterface
 
     /**
      * Check if slug exists
-     * 
+     *
      * @param string $slug
      * @param int|null $excludeId
      * @return bool

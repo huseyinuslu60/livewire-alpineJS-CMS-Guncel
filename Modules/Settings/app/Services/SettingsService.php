@@ -3,16 +3,24 @@
 namespace Modules\Settings\Services;
 
 use App\Helpers\LogHelper;
+use Illuminate\Support\Facades\Event;
+use Modules\Settings\Domain\Events\SettingUpdated;
+use Modules\Settings\Domain\Events\SettingsBulkUpdated;
+use Modules\Settings\Domain\Repositories\SettingRepositoryInterface;
 use Modules\Settings\Domain\Services\SettingValidator;
 use Modules\Settings\Models\SiteSetting;
 
 class SettingsService
 {
     protected SettingValidator $settingValidator;
+    protected SettingRepositoryInterface $settingRepository;
 
-    public function __construct(?SettingValidator $settingValidator = null)
-    {
+    public function __construct(
+        ?SettingValidator $settingValidator = null,
+        ?SettingRepositoryInterface $settingRepository = null
+    ) {
         $this->settingValidator = $settingValidator ?? app(SettingValidator::class);
+        $this->settingRepository = $settingRepository ?? app(SettingRepositoryInterface::class);
     }
 
     /**
@@ -28,13 +36,16 @@ class SettingsService
             // Validate setting
             $this->settingValidator->validate($settingId, $value);
 
-            $setting = SiteSetting::find($settingId);
+            $setting = $this->settingRepository->findById($settingId);
 
             if (! $setting) {
                 throw new \InvalidArgumentException('Ayar bulunamadı');
             }
 
-            $setting->update(['value' => $value]);
+            $setting = $this->settingRepository->update($setting, ['value' => $value]);
+
+            // Fire domain event
+            Event::dispatch(new SettingUpdated($setting, ['value']));
 
             LogHelper::info('Ayar güncellendi', [
                 'id' => $settingId,
@@ -76,38 +87,11 @@ class SettingsService
                 return 0;
             }
 
-            // Tüm settings'i tek seferde yükle (N+1 query önleme)
-            $siteSettings = SiteSetting::whereIn('id', $settingIds)->get()->keyBy('id');
+            // Update via repository
+            $updatedCount = $this->settingRepository->updateBulk($settings);
 
-            $updatedCount = 0;
-
-            foreach ($settings as $setting) {
-                if (isset($setting['id']) && isset($setting['value'])) {
-                    $siteSetting = $siteSettings->get($setting['id']);
-                    if ($siteSetting) {
-                        $value = $setting['value'];
-
-                        // Value validation (already validated in validateBulk, but double-check for safety)
-                        try {
-                            $this->settingValidator->validate($setting['id'], $value);
-                        } catch (\InvalidArgumentException $e) {
-                            LogHelper::warning('Ayar değeri geçersiz, atlanıyor', [
-                                'id' => $setting['id'],
-                                'error' => $e->getMessage(),
-                            ]);
-                            continue;
-                        }
-
-                        $siteSetting->update(['value' => $value]);
-                        $updatedCount++;
-
-                        LogHelper::info('Ayar güncellendi', [
-                            'id' => $setting['id'],
-                            'key' => $siteSetting->key,
-                        ]);
-                    }
-                }
-            }
+            // Fire domain event
+            Event::dispatch(new SettingsBulkUpdated($updatedCount, $settingIds));
 
             return $updatedCount;
         } catch (\Exception $e) {

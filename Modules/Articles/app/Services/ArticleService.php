@@ -5,6 +5,11 @@ namespace Modules\Articles\Services;
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Articles\Domain\Events\ArticleCreated;
+use Modules\Articles\Domain\Events\ArticleDeleted;
+use Modules\Articles\Domain\Events\ArticleUpdated;
+use Modules\Articles\Domain\Repositories\ArticleRepositoryInterface;
 use Modules\Articles\Domain\Services\ArticleValidator;
 use Modules\Articles\Domain\ValueObjects\ArticleStatus;
 use Modules\Articles\Models\Article;
@@ -13,11 +18,16 @@ class ArticleService
 {
     protected SlugGenerator $slugGenerator;
     protected ArticleValidator $articleValidator;
+    protected ArticleRepositoryInterface $articleRepository;
 
-    public function __construct(?SlugGenerator $slugGenerator = null, ?ArticleValidator $articleValidator = null)
-    {
+    public function __construct(
+        ?SlugGenerator $slugGenerator = null,
+        ?ArticleValidator $articleValidator = null,
+        ?ArticleRepositoryInterface $articleRepository = null
+    ) {
         $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
         $this->articleValidator = $articleValidator ?? app(ArticleValidator::class);
+        $this->articleRepository = $articleRepository ?? app(ArticleRepositoryInterface::class);
     }
 
     /**
@@ -39,7 +49,10 @@ class ArticleService
                     $data['slug'] = $slug->toString();
                 }
 
-                $article = Article::create($data);
+                $article = $this->articleRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new ArticleCreated($article));
 
                 LogHelper::info('Makale oluşturuldu', [
                     'article_id' => $article->article_id,
@@ -76,7 +89,11 @@ class ArticleService
                     $data['slug'] = $slug->toString();
                 }
 
-                $article->update($data);
+                $article = $this->articleRepository->update($article, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new ArticleUpdated($article, $changedAttributes));
 
                 LogHelper::info('Makale güncellendi', [
                     'article_id' => $article->article_id,
@@ -101,7 +118,10 @@ class ArticleService
     {
         try {
             DB::transaction(function () use ($article) {
-                $article->delete();
+                $this->articleRepository->delete($article);
+
+                // Fire domain event
+                Event::dispatch(new ArticleDeleted($article));
 
                 LogHelper::info('Makale silindi', [
                     'article_id' => $article->article_id,

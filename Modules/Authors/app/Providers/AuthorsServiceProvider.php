@@ -38,6 +38,12 @@ class AuthorsServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Authors\Domain\Repositories\AuthorRepositoryInterface::class,
+            \Modules\Authors\Domain\Repositories\EloquentAuthorRepository::class
+        );
     }
 
     /**

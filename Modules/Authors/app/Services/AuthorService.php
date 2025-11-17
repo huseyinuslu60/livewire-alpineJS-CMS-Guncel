@@ -6,7 +6,12 @@ use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Modules\Authors\Domain\Events\AuthorCreated;
+use Modules\Authors\Domain\Events\AuthorDeleted;
+use Modules\Authors\Domain\Events\AuthorUpdated;
+use Modules\Authors\Domain\Repositories\AuthorRepositoryInterface;
 use Modules\Authors\Domain\Services\AuthorValidator;
 use Modules\Authors\Models\Author;
 
@@ -14,11 +19,16 @@ class AuthorService
 {
     protected SlugGenerator $slugGenerator;
     protected AuthorValidator $authorValidator;
+    protected AuthorRepositoryInterface $authorRepository;
 
-    public function __construct(?SlugGenerator $slugGenerator = null, ?AuthorValidator $authorValidator = null)
-    {
+    public function __construct(
+        ?SlugGenerator $slugGenerator = null,
+        ?AuthorValidator $authorValidator = null,
+        ?AuthorRepositoryInterface $authorRepository = null
+    ) {
         $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
         $this->authorValidator = $authorValidator ?? app(AuthorValidator::class);
+        $this->authorRepository = $authorRepository ?? app(AuthorRepositoryInterface::class);
     }
 
     /**
@@ -43,7 +53,10 @@ class AuthorService
                     $data['image'] = 'authors/'.$imageName;
                 }
 
-                $author = Author::create($data);
+                $author = $this->authorRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new AuthorCreated($author));
 
                 LogHelper::info('Yazar oluşturuldu', [
                     'author_id' => $author->author_id,
@@ -88,7 +101,11 @@ class AuthorService
                     $data['image'] = 'authors/'.$imageName;
                 }
 
-                $author->update($data);
+                $author = $this->authorRepository->update($author, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new AuthorUpdated($author, $changedAttributes));
 
                 LogHelper::info('Yazar güncellendi', [
                     'author_id' => $author->author_id,
@@ -118,7 +135,10 @@ class AuthorService
                     Storage::disk('public')->delete($author->image);
                 }
 
-                $author->delete();
+                $this->authorRepository->delete($author);
+
+                // Fire domain event
+                Event::dispatch(new AuthorDeleted($author));
 
                 LogHelper::info('Yazar silindi', [
                     'author_id' => $author->author_id,

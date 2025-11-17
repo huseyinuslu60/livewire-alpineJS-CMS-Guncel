@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Comments\Models\Comment;
+use Modules\Comments\Services\CommentService;
 
 /**
  * @property string|null $search
@@ -38,6 +39,8 @@ class CommentsIndex extends Component
     // Render kontrolü için
     public bool $skipRender = false;
 
+    protected CommentService $commentService;
+
     protected $queryString = [
         'search' => ['except' => ''],
         'statusFilter' => ['except' => ''],
@@ -46,8 +49,9 @@ class CommentsIndex extends Component
         'sortDirection' => ['except' => 'desc'],
     ];
 
-    public function mount()
+    public function mount(CommentService $commentService): void
     {
+        $this->commentService = $commentService;
         Gate::authorize('view comments');
     }
 
@@ -89,7 +93,7 @@ class CommentsIndex extends Component
 
         try {
             $comment = Comment::findOrFail($commentId);
-            $comment->update(['status' => 'approved']);
+            $this->commentService->approve($comment);
 
             // Sayfa yeniden render'ını engelle
             $this->skipRender = true;
@@ -110,7 +114,7 @@ class CommentsIndex extends Component
 
         try {
             $comment = Comment::findOrFail($commentId);
-            $comment->update(['status' => 'rejected']);
+            $this->commentService->reject($comment);
 
             // Sayfa yeniden render'ını engelle
             $this->skipRender = true;
@@ -131,7 +135,7 @@ class CommentsIndex extends Component
 
         try {
             $comment = Comment::findOrFail($commentId);
-            $comment->delete();
+            $this->commentService->delete($comment);
             session()->flash('success', 'Yorum silindi.');
         } catch (\Exception $e) {
             session()->flash('error', 'Yorum silinirken bir hata oluştu: '.$e->getMessage());
@@ -146,17 +150,7 @@ class CommentsIndex extends Component
             $comment = Comment::findOrFail($commentId);
             $newText = $this->editedCommentTexts[$commentId] ?? $comment->comment_text;
 
-            // Validation: Yorum metni boş olamaz
-            if (empty(trim($newText))) {
-                $this->dispatch('show-error', 'Yorum metni boş olamaz.');
-
-                return;
-            }
-
-            $comment->update([
-                'comment_text' => $newText,
-                'status' => 'approved',
-            ]);
+            $this->commentService->updateAndApprove($comment, $newText);
 
             unset($this->editedCommentTexts[$commentId]);
             session()->flash('success', 'Yorum düzenlendi ve onaylandı.');
@@ -176,16 +170,7 @@ class CommentsIndex extends Component
             $comment = Comment::findOrFail($commentId);
             $newText = $this->editedCommentTexts[$commentId] ?? $comment->comment_text;
 
-            // Validation: Yorum metni boş olamaz
-            if (empty(trim($newText))) {
-                $this->dispatch('show-error', 'Yorum metni boş olamaz.');
-
-                return;
-            }
-
-            $comment->update([
-                'comment_text' => $newText,
-            ]);
+            $this->commentService->update($comment, ['comment_text' => $newText]);
 
             unset($this->editedCommentTexts[$commentId]);
             session()->flash('success', 'Yorum başarıyla güncellendi.');

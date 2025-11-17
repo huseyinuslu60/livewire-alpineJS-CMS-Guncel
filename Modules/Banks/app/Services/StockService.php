@@ -4,16 +4,25 @@ namespace Modules\Banks\Services;
 
 use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Banks\Domain\Events\StockCreated;
+use Modules\Banks\Domain\Events\StockDeleted;
+use Modules\Banks\Domain\Events\StockUpdated;
+use Modules\Banks\Domain\Repositories\StockRepositoryInterface;
 use Modules\Banks\Domain\Services\StockValidator;
 use Modules\Banks\Models\Stock;
 
 class StockService
 {
     protected StockValidator $stockValidator;
+    protected StockRepositoryInterface $stockRepository;
 
-    public function __construct(?StockValidator $stockValidator = null)
-    {
+    public function __construct(
+        ?StockValidator $stockValidator = null,
+        ?StockRepositoryInterface $stockRepository = null
+    ) {
         $this->stockValidator = $stockValidator ?? app(StockValidator::class);
+        $this->stockRepository = $stockRepository ?? app(StockRepositoryInterface::class);
     }
 
     /**
@@ -26,7 +35,10 @@ class StockService
             $this->stockValidator->validate($data);
 
             return DB::transaction(function () use ($data) {
-                $stock = Stock::create($data);
+                $stock = $this->stockRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new StockCreated($stock));
 
                 LogHelper::info('Hisse senedi oluşturuldu', [
                     'stock_id' => $stock->stock_id,
@@ -54,7 +66,11 @@ class StockService
             $this->stockValidator->validate($data);
 
             return DB::transaction(function () use ($stock, $data) {
-                $stock->update($data);
+                $stock = $this->stockRepository->update($stock, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new StockUpdated($stock, $changedAttributes));
 
                 LogHelper::info('Hisse senedi güncellendi', [
                     'stock_id' => $stock->stock_id,
@@ -79,7 +95,10 @@ class StockService
     {
         try {
             DB::transaction(function () use ($stock) {
-                $stock->delete();
+                $this->stockRepository->delete($stock);
+
+                // Fire domain event
+                Event::dispatch(new StockDeleted($stock));
 
                 LogHelper::info('Hisse senedi silindi', [
                     'stock_id' => $stock->stock_id,

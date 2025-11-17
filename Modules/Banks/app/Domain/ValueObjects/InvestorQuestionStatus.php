@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Investor Question Status Value Object
- * 
+ *
  * Investor question durumlarını type-safe olarak yönetir.
  * Business rule: Sadece geçerli question durumları kabul edilir.
  */

@@ -5,17 +5,26 @@ namespace Modules\User\Services;
 use App\Helpers\LogHelper;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
+use Modules\User\Domain\Events\UserCreated;
+use Modules\User\Domain\Events\UserDeleted;
+use Modules\User\Domain\Events\UserUpdated;
+use Modules\User\Domain\Repositories\UserRepositoryInterface;
 use Modules\User\Domain\Services\UserValidator;
 use Spatie\Permission\Models\Role;
 
 class UserService
 {
     protected UserValidator $userValidator;
+    protected UserRepositoryInterface $userRepository;
 
-    public function __construct(?UserValidator $userValidator = null)
-    {
+    public function __construct(
+        ?UserValidator $userValidator = null,
+        ?UserRepositoryInterface $userRepository = null
+    ) {
         $this->userValidator = $userValidator ?? app(UserValidator::class);
+        $this->userRepository = $userRepository ?? app(UserRepositoryInterface::class);
     }
 
     /**
@@ -33,7 +42,7 @@ class UserService
                     $data['password'] = Hash::make($data['password']);
                 }
 
-                $user = User::create($data);
+                $user = $this->userRepository->create($data);
 
                 // Assign roles
                 if (!empty($roleIds)) {
@@ -42,6 +51,9 @@ class UserService
                         $user->assignRole($roles);
                     }
                 }
+
+                // Fire domain event
+                Event::dispatch(new UserCreated($user));
 
                 LogHelper::info('Kullanıcı oluşturuldu', [
                     'user_id' => $user->id,
@@ -82,13 +94,17 @@ class UserService
                     unset($data['password']);
                 }
 
-                $user->update($data);
+                $user = $this->userRepository->update($user, $data);
 
                 // Sync roles if provided
                 if ($roleIds !== null) {
                     $roles = Role::whereIn('id', $roleIds)->get();
                     $user->syncRoles($roles);
                 }
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new UserUpdated($user, $changedAttributes));
 
                 LogHelper::info('Kullanıcı güncellendi', [
                     'user_id' => $user->id,
@@ -117,7 +133,10 @@ class UserService
                 // Remove all roles
                 $user->roles()->detach();
 
-                $user->delete();
+                $this->userRepository->delete($user);
+
+                // Fire domain event
+                Event::dispatch(new UserDeleted($user));
 
                 LogHelper::info('Kullanıcı silindi', [
                     'user_id' => $user->id,

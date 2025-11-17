@@ -5,6 +5,11 @@ namespace Modules\AgencyNews\Services;
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\AgencyNews\Domain\Events\AgencyNewsCreated;
+use Modules\AgencyNews\Domain\Events\AgencyNewsDeleted;
+use Modules\AgencyNews\Domain\Events\AgencyNewsUpdated;
+use Modules\AgencyNews\Domain\Repositories\AgencyNewsRepositoryInterface;
 use Modules\AgencyNews\Domain\Services\AgencyNewsValidator;
 use Modules\AgencyNews\Models\AgencyNews;
 
@@ -12,11 +17,16 @@ class AgencyNewsService
 {
     protected SlugGenerator $slugGenerator;
     protected AgencyNewsValidator $agencyNewsValidator;
+    protected AgencyNewsRepositoryInterface $agencyNewsRepository;
 
-    public function __construct(?SlugGenerator $slugGenerator = null, ?AgencyNewsValidator $agencyNewsValidator = null)
-    {
+    public function __construct(
+        ?SlugGenerator $slugGenerator = null,
+        ?AgencyNewsValidator $agencyNewsValidator = null,
+        ?AgencyNewsRepositoryInterface $agencyNewsRepository = null
+    ) {
         $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
         $this->agencyNewsValidator = $agencyNewsValidator ?? app(AgencyNewsValidator::class);
+        $this->agencyNewsRepository = $agencyNewsRepository ?? app(AgencyNewsRepositoryInterface::class);
     }
 
     /**
@@ -35,7 +45,10 @@ class AgencyNewsService
                     $data['slug'] = $slug->toString();
                 }
 
-                $agencyNews = AgencyNews::create($data);
+                $agencyNews = $this->agencyNewsRepository->create($data);
+
+                // Fire domain event
+                Event::dispatch(new AgencyNewsCreated($agencyNews));
 
                 LogHelper::info('AgencyNews oluşturuldu', [
                     'record_id' => $agencyNews->record_id,
@@ -69,7 +82,11 @@ class AgencyNewsService
                     $data['slug'] = $slug->toString();
                 }
 
-                $agencyNews->update($data);
+                $agencyNews = $this->agencyNewsRepository->update($agencyNews, $data);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new AgencyNewsUpdated($agencyNews, $changedAttributes));
 
                 LogHelper::info('AgencyNews güncellendi', [
                     'record_id' => $agencyNews->record_id,
@@ -94,7 +111,10 @@ class AgencyNewsService
     {
         try {
             DB::transaction(function () use ($agencyNews) {
-                $agencyNews->delete();
+                $this->agencyNewsRepository->delete($agencyNews);
+
+                // Fire domain event
+                Event::dispatch(new AgencyNewsDeleted($agencyNews));
 
                 LogHelper::info('AgencyNews silindi', [
                     'record_id' => $agencyNews->record_id,

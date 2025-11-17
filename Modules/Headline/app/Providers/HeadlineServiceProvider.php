@@ -38,6 +38,12 @@ class HeadlineServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Headline\Domain\Repositories\FeaturedRepositoryInterface::class,
+            \Modules\Headline\Domain\Repositories\EloquentFeaturedRepository::class
+        );
     }
 
     /**

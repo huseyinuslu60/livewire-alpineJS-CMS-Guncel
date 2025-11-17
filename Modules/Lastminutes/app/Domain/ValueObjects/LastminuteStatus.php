@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Lastminute Status Value Object
- * 
+ *
  * Lastminute durumlarını type-safe olarak yönetir.
  * Business rule: Sadece geçerli lastminute durumları kabul edilir.
  */

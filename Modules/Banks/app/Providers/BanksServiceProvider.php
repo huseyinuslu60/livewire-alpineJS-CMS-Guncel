@@ -39,6 +39,12 @@ class BanksServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Banks\Domain\Repositories\StockRepositoryInterface::class,
+            \Modules\Banks\Domain\Repositories\EloquentStockRepository::class
+        );
     }
 
     /**

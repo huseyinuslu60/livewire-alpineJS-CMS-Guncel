@@ -6,16 +6,25 @@ use App\Helpers\LogHelper;
 use App\Support\Pagination;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Modules\Logs\Domain\Events\LogDeleted;
+use Modules\Logs\Domain\Events\LogsBulkDeleted;
+use Modules\Logs\Domain\Events\LogsCleared;
+use Modules\Logs\Domain\Repositories\LogRepositoryInterface;
 use Modules\Logs\Domain\Services\LogValidator;
 use Modules\Logs\Models\UserLog;
 
 class LogService
 {
     protected LogValidator $logValidator;
+    protected LogRepositoryInterface $logRepository;
 
-    public function __construct(?LogValidator $logValidator = null)
-    {
+    public function __construct(
+        ?LogValidator $logValidator = null,
+        ?LogRepositoryInterface $logRepository = null
+    ) {
         $this->logValidator = $logValidator ?? app(LogValidator::class);
+        $this->logRepository = $logRepository ?? app(LogRepositoryInterface::class);
     }
 
     /**
@@ -30,8 +39,16 @@ class LogService
             // Validate log ID
             $this->logValidator->validateLogId($logId);
 
-            $log = UserLog::findOrFail($logId);
-            $log->delete();
+            $log = $this->logRepository->findById($logId);
+            
+            if (!$log) {
+                throw new \Exception('Log kaydı bulunamadı');
+            }
+
+            $this->logRepository->delete($log);
+
+            // Fire domain event
+            Event::dispatch(new LogDeleted($log));
 
             LogHelper::info('Log kaydı silindi', [
                 'log_id' => $logId,
@@ -60,7 +77,10 @@ class LogService
             // Validate log IDs
             $this->logValidator->validateLogIds($logIds);
 
-            $deletedCount = UserLog::whereIn('log_id', $logIds)->delete();
+            $deletedCount = $this->logRepository->deleteBulk($logIds);
+
+            // Fire domain event
+            Event::dispatch(new LogsBulkDeleted($deletedCount, $logIds));
 
             LogHelper::info('Log kayıtları toplu silindi', [
                 'count' => $deletedCount,
@@ -86,9 +106,14 @@ class LogService
     public function clearAll(): bool
     {
         try {
-            UserLog::truncate();
+            $deletedCount = $this->logRepository->clearAll();
 
-            LogHelper::info('Tüm log kayıtları temizlendi');
+            // Fire domain event
+            Event::dispatch(new LogsCleared($deletedCount));
+
+            LogHelper::info('Tüm log kayıtları temizlendi', [
+                'deleted_count' => $deletedCount,
+            ]);
 
             return true;
         } catch (\Exception $e) {

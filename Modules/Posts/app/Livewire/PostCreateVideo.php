@@ -3,6 +3,8 @@
 namespace Modules\Posts\Livewire;
 
 use App\Helpers\LogHelper;
+use App\Services\SlugGenerator;
+use App\Services\ValueObjects\Slug;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -74,9 +76,12 @@ class PostCreateVideo extends Component
 
     protected PostsService $postsService;
 
+    protected SlugGenerator $slugGenerator;
+
     public function boot()
     {
         $this->postsService = app(PostsService::class);
+        $this->slugGenerator = app(SlugGenerator::class);
     }
 
     protected $listeners = ['contentUpdated'];
@@ -145,7 +150,8 @@ class PostCreateVideo extends Component
             // Türkçe karakterleri çevir ve fazla boşlukları temizle
             $convertedTitle = strtr($value, $turkishChars);
             $convertedTitle = preg_replace('/\s+/', ' ', trim($convertedTitle)); // Çoklu boşlukları tek boşluğa çevir
-            $this->slug = Str::slug($convertedTitle);
+            $slug = $this->slugGenerator->generate($convertedTitle, Post::class, 'slug', 'post_id');
+            $this->slug = $slug->toString();
         }
     }
 
@@ -293,11 +299,14 @@ class PostCreateVideo extends Component
             // Slug'ı mutlaka unique yap - validation'dan ÖNCE
             // Eğer slug boşsa veya unique değilse, yeni bir unique slug oluştur
             if (empty($this->slug)) {
-                $this->slug = $this->postsService->makeUniqueSlug($this->title);
+                $slug = $this->slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
+                $this->slug = $slug->toString();
             } else {
                 // Slug varsa ama unique değilse, unique yap
-                if (Post::where('slug', $this->slug)->exists()) {
-                    $this->slug = $this->postsService->makeUniqueSlug($this->title);
+                $slug = Slug::fromString($this->slug);
+                if (!$this->slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
+                    $slug = $this->slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
+                    $this->slug = $slug->toString();
                 }
             }
 

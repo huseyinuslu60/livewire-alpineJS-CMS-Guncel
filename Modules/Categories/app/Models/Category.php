@@ -59,13 +59,17 @@ class Category extends Model
 
         static::creating(function ($category) {
             if (empty($category->slug)) {
-                $category->slug = Str::slug($category->name);
+                $slugGenerator = app(\App\Services\SlugGenerator::class);
+                $slug = $slugGenerator->generate($category->name, self::class, 'slug', 'category_id');
+                $category->slug = $slug->toString();
             }
         });
 
         static::updating(function ($category) {
             if ($category->isDirty('name') && empty($category->slug)) {
-                $category->slug = Str::slug($category->name);
+                $slugGenerator = app(\App\Services\SlugGenerator::class);
+                $slug = $slugGenerator->generate($category->name, self::class, 'slug', 'category_id', $category->category_id);
+                $category->slug = $slug->toString();
             }
         });
     }

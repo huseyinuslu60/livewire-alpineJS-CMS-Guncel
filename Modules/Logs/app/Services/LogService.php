@@ -6,10 +6,18 @@ use App\Helpers\LogHelper;
 use App\Support\Pagination;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Modules\Logs\Domain\Services\LogValidator;
 use Modules\Logs\Models\UserLog;
 
 class LogService
 {
+    protected LogValidator $logValidator;
+
+    public function __construct(?LogValidator $logValidator = null)
+    {
+        $this->logValidator = $logValidator ?? app(LogValidator::class);
+    }
+
     /**
      * Delete a single log
      *
@@ -19,6 +27,9 @@ class LogService
     public function delete(int $logId): bool
     {
         try {
+            // Validate log ID
+            $this->logValidator->validateLogId($logId);
+
             $log = UserLog::findOrFail($logId);
             $log->delete();
 
@@ -46,9 +57,8 @@ class LogService
     public function deleteBulk(array $logIds): int
     {
         try {
-            if (empty($logIds)) {
-                return 0;
-            }
+            // Validate log IDs
+            $this->logValidator->validateLogIds($logIds);
 
             $deletedCount = UserLog::whereIn('log_id', $logIds)->delete();
 

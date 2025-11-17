@@ -4,33 +4,55 @@ namespace Modules\Newsletters\Services;
 
 use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\DB;
+use Modules\Newsletters\Domain\Services\NewsletterValidator;
+use Modules\Newsletters\Domain\ValueObjects\NewsletterMailStatus;
+use Modules\Newsletters\Domain\ValueObjects\NewsletterStatus;
 use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Models\NewsletterPost;
 
 class NewsletterService
 {
+    protected NewsletterValidator $newsletterValidator;
+
+    public function __construct(?NewsletterValidator $newsletterValidator = null)
+    {
+        $this->newsletterValidator = $newsletterValidator ?? app(NewsletterValidator::class);
+    }
+
     /**
      * Create a new newsletter
      */
     public function create(array $data, array $postIds = []): Newsletter
     {
-        return DB::transaction(function () use ($data, $postIds) {
-            // Create newsletter
-            $newsletter = Newsletter::create($data);
+        try {
+            // Validate newsletter data
+            $this->newsletterValidator->validate($data);
 
-            // Attach posts if provided
-            if (!empty($postIds)) {
-                $this->attachPosts($newsletter, $postIds);
-            }
+            return DB::transaction(function () use ($data, $postIds) {
+                // Create newsletter
+                $newsletter = Newsletter::create($data);
 
-            LogHelper::info('Newsletter oluşturuldu', [
-                'newsletter_id' => $newsletter->newsletter_id,
-                'name' => $newsletter->name,
+                // Attach posts if provided
+                if (!empty($postIds)) {
+                    $this->attachPosts($newsletter, $postIds);
+                }
+
+                LogHelper::info('Newsletter oluşturuldu', [
+                    'newsletter_id' => $newsletter->newsletter_id,
+                    'name' => $newsletter->name,
+                    'post_count' => count($postIds),
+                ]);
+
+                return $newsletter->load('newsletterPosts');
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('NewsletterService create error', [
+                'name' => $data['name'] ?? null,
                 'post_count' => count($postIds),
+                'error' => $e->getMessage(),
             ]);
-
-            return $newsletter->load('newsletterPosts');
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -39,6 +61,9 @@ class NewsletterService
     public function update(Newsletter $newsletter, array $data, ?array $postIds = null): Newsletter
     {
         try {
+            // Validate newsletter data
+            $this->newsletterValidator->validate($data);
+
             return DB::transaction(function () use ($newsletter, $data, $postIds) {
                 // Update newsletter
                 $newsletter->update($data);
@@ -135,13 +160,22 @@ class NewsletterService
      */
     public function reorderPosts(Newsletter $newsletter, array $orderedPostIds): void
     {
-        DB::transaction(function () use ($newsletter, $orderedPostIds) {
-            foreach ($orderedPostIds as $index => $postId) {
-                NewsletterPost::where('newsletter_id', $newsletter->newsletter_id)
-                    ->where('post_id', $postId)
-                    ->update(['order' => $index + 1]);
-            }
-        });
+        try {
+            DB::transaction(function () use ($newsletter, $orderedPostIds) {
+                foreach ($orderedPostIds as $index => $postId) {
+                    NewsletterPost::where('newsletter_id', $newsletter->newsletter_id)
+                        ->where('post_id', $postId)
+                        ->update(['order' => $index + 1]);
+                }
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('NewsletterService reorderPosts error', [
+                'newsletter_id' => $newsletter->newsletter_id,
+                'post_count' => count($orderedPostIds),
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**

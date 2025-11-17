@@ -3,10 +3,18 @@
 namespace Modules\Settings\Services;
 
 use App\Helpers\LogHelper;
+use Modules\Settings\Domain\Services\SettingValidator;
 use Modules\Settings\Models\SiteSetting;
 
 class SettingsService
 {
+    protected SettingValidator $settingValidator;
+
+    public function __construct(?SettingValidator $settingValidator = null)
+    {
+        $this->settingValidator = $settingValidator ?? app(SettingValidator::class);
+    }
+
     /**
      * Update a single setting
      *
@@ -17,20 +25,13 @@ class SettingsService
     public function updateSetting(int $settingId, $value): bool
     {
         try {
-            // Validation
-            if (empty($settingId)) {
-                throw new \InvalidArgumentException('Geçersiz ayar ID');
-            }
+            // Validate setting
+            $this->settingValidator->validate($settingId, $value);
 
             $setting = SiteSetting::find($settingId);
 
             if (! $setting) {
                 throw new \InvalidArgumentException('Ayar bulunamadı');
-            }
-
-            // Value validation
-            if (is_string($value) && strlen($value) > 65535) {
-                throw new \InvalidArgumentException('Ayar değeri çok uzun (maksimum 65535 karakter)');
             }
 
             $setting->update(['value' => $value]);
@@ -60,6 +61,9 @@ class SettingsService
     public function updateSettings(array $settings): int
     {
         try {
+            // Validate all settings
+            $this->settingValidator->validateBulk($settings);
+
             // Tüm ID'leri topla (N+1 query önleme)
             $settingIds = [];
             foreach ($settings as $setting) {
@@ -83,11 +87,13 @@ class SettingsService
                     if ($siteSetting) {
                         $value = $setting['value'];
 
-                        // Value validation
-                        if (is_string($value) && strlen($value) > 65535) {
-                            LogHelper::warning('Ayar değeri çok uzun, atlanıyor', [
+                        // Value validation (already validated in validateBulk, but double-check for safety)
+                        try {
+                            $this->settingValidator->validate($setting['id'], $value);
+                        } catch (\InvalidArgumentException $e) {
+                            LogHelper::warning('Ayar değeri geçersiz, atlanıyor', [
                                 'id' => $setting['id'],
-                                'length' => strlen($value),
+                                'error' => $e->getMessage(),
                             ]);
                             continue;
                         }

@@ -6,6 +6,7 @@ use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Logs\Models\UserLog;
+use Modules\Roles\Domain\Services\RoleValidator;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -23,9 +24,19 @@ class RoleService
      * @param  array  $permissionNames
      * @return Role
      */
+    protected RoleValidator $roleValidator;
+
+    public function __construct(?RoleValidator $roleValidator = null)
+    {
+        $this->roleValidator = $roleValidator ?? app(RoleValidator::class);
+    }
+
     public function create(array $data, array $permissionNames = []): Role
     {
         try {
+            // Validate role data
+            $this->roleValidator->validate($data);
+
             return DB::transaction(function () use ($data, $permissionNames) {
                 $role = Role::create([
                     'name' => $data['name'],
@@ -76,6 +87,9 @@ class RoleService
     public function update(Role $role, array $data, ?array $permissionNames = null): Role
     {
         try {
+            // Validate role data
+            $this->roleValidator->validate($data, $role->id);
+
             return DB::transaction(function () use ($role, $data, $permissionNames) {
                 $role->update([
                     'name' => $data['name'],

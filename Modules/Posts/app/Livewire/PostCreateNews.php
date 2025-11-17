@@ -3,6 +3,8 @@
 namespace Modules\Posts\Livewire;
 
 use App\Helpers\LogHelper;
+use App\Services\SlugGenerator;
+use App\Services\ValueObjects\Slug;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -284,7 +286,9 @@ class PostCreateNews extends Component
             // Türkçe karakterleri çevir ve fazla boşlukları temizle
             $convertedTitle = strtr($value, $turkishChars);
             $convertedTitle = preg_replace('/\s+/', ' ', trim($convertedTitle)); // Çoklu boşlukları tek boşluğa çevir
-            $this->slug = Str::slug($convertedTitle);
+            $slugGenerator = app(SlugGenerator::class);
+            $slug = $slugGenerator->generate($convertedTitle, Post::class, 'slug', 'post_id');
+            $this->slug = $slug->toString();
         }
     }
 
@@ -377,13 +381,16 @@ class PostCreateNews extends Component
         try {
             // Slug'ı mutlaka unique yap - validation'dan ÖNCE
             // Eğer slug boşsa veya unique değilse, yeni bir unique slug oluştur
-            $postsService = $this->getPostsService();
+            $slugGenerator = app(SlugGenerator::class);
             if (empty($this->slug)) {
-                $this->slug = $postsService->makeUniqueSlug($this->title);
+                $slug = $slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
+                $this->slug = $slug->toString();
             } else {
                 // Slug varsa ama unique değilse, unique yap
-                if (Post::where('slug', $this->slug)->exists()) {
-                    $this->slug = $postsService->makeUniqueSlug($this->title);
+                $slug = Slug::fromString($this->slug);
+                if (!$slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
+                    $slug = $slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
+                    $this->slug = $slug->toString();
                 }
             }
 

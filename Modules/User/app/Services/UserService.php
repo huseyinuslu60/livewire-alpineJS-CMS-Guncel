@@ -2,43 +2,62 @@
 
 namespace Modules\User\Services;
 
+use App\Helpers\LogHelper;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Helpers\LogHelper;
+use Modules\User\Domain\Services\UserValidator;
 use Spatie\Permission\Models\Role;
 
 class UserService
 {
+    protected UserValidator $userValidator;
+
+    public function __construct(?UserValidator $userValidator = null)
+    {
+        $this->userValidator = $userValidator ?? app(UserValidator::class);
+    }
+
     /**
      * Create a new user
      */
     public function create(array $data, array $roleIds = []): User
     {
-        return DB::transaction(function () use ($data, $roleIds) {
-            // Hash password if provided
-            if (isset($data['password'])) {
-                $data['password'] = Hash::make($data['password']);
-            }
+        try {
+            // Validate user data
+            $this->userValidator->validate($data);
 
-            $user = User::create($data);
-
-            // Assign roles
-            if (!empty($roleIds)) {
-                $roles = Role::whereIn('id', $roleIds)->get();
-                if ($roles->count() > 0) {
-                    $user->assignRole($roles);
+            return DB::transaction(function () use ($data, $roleIds) {
+                // Hash password if provided
+                if (isset($data['password'])) {
+                    $data['password'] = Hash::make($data['password']);
                 }
-            }
 
-            LogHelper::info('Kullanıcı oluşturuldu', [
-                'user_id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
+                $user = User::create($data);
+
+                // Assign roles
+                if (!empty($roleIds)) {
+                    $roles = Role::whereIn('id', $roleIds)->get();
+                    if ($roles->count() > 0) {
+                        $user->assignRole($roles);
+                    }
+                }
+
+                LogHelper::info('Kullanıcı oluşturuldu', [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ]);
+
+                return $user;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('UserService create error', [
+                'email' => $data['email'] ?? null,
+                'error' => $e->getMessage(),
             ]);
-
-            return $user;
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -47,6 +66,13 @@ class UserService
     public function update(User $user, array $data, ?array $roleIds = null): User
     {
         try {
+            // Validate user data (email değişmemişse mevcut email'i kullan)
+            $validationData = $data;
+            if (!isset($validationData['email'])) {
+                $validationData['email'] = $user->email;
+            }
+            $this->userValidator->validate($validationData);
+
             return DB::transaction(function () use ($user, $data, $roleIds) {
                 // Hash password if provided
                 if (isset($data['password']) && !empty($data['password'])) {

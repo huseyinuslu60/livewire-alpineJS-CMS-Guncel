@@ -2,10 +2,10 @@
 
 namespace Modules\Posts\Models;
 
+use App\Services\SlugGenerator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Str;
 
 class Tag extends Model
 {
@@ -40,10 +40,11 @@ class Tag extends Model
      */
     public static function createFromName(string $name): self
     {
-        $slug = Str::slug($name);
+        $slugGenerator = app(SlugGenerator::class);
+        $slug = $slugGenerator->generate($name, self::class, 'slug', 'tag_id');
 
         return static::firstOrCreate(
-            ['slug' => $slug],
+            ['slug' => $slug->toString()],
             ['name' => $name]
         );
     }

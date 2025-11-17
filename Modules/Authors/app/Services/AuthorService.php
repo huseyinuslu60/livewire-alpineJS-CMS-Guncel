@@ -2,36 +2,63 @@
 
 namespace Modules\Authors\Services;
 
+use App\Helpers\LogHelper;
+use App\Services\SlugGenerator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Storage;
+use Modules\Authors\Domain\Services\AuthorValidator;
 use Modules\Authors\Models\Author;
 
 class AuthorService
 {
+    protected SlugGenerator $slugGenerator;
+    protected AuthorValidator $authorValidator;
+
+    public function __construct(?SlugGenerator $slugGenerator = null, ?AuthorValidator $authorValidator = null)
+    {
+        $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
+        $this->authorValidator = $authorValidator ?? app(AuthorValidator::class);
+    }
+
     /**
      * Create a new author
      */
     public function create(array $data, ?UploadedFile $image = null): Author
     {
-        return DB::transaction(function () use ($data, $image) {
-            // Handle image upload
-            if ($image) {
-                $imageName = time().'_'.$image->getClientOriginalName();
-                $image->storeAs('authors', $imageName, 'public');
-                $data['image'] = 'authors/'.$imageName;
-            }
+        try {
+            // Validate author data
+            $this->authorValidator->validate($data);
 
-            $author = Author::create($data);
+            return DB::transaction(function () use ($data, $image) {
+                // Generate slug if not provided
+                if (empty($data['slug']) && !empty($data['title'])) {
+                    $slug = $this->slugGenerator->generate($data['title'], Author::class, 'slug', 'author_id');
+                    $data['slug'] = $slug->toString();
+                }
+                // Handle image upload
+                if ($image) {
+                    $imageName = time().'_'.$image->getClientOriginalName();
+                    $image->storeAs('authors', $imageName, 'public');
+                    $data['image'] = 'authors/'.$imageName;
+                }
 
-            LogHelper::info('Yazar oluşturuldu', [
-                'author_id' => $author->author_id,
-                'title' => $author->title,
+                $author = Author::create($data);
+
+                LogHelper::info('Yazar oluşturuldu', [
+                    'author_id' => $author->author_id,
+                    'title' => $author->title,
+                ]);
+
+                return $author;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('AuthorService create error', [
+                'title' => $data['title'] ?? null,
+                'error' => $e->getMessage(),
             ]);
-
-            return $author;
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -40,7 +67,15 @@ class AuthorService
     public function update(Author $author, array $data, ?UploadedFile $image = null): Author
     {
         try {
+            // Validate author data
+            $this->authorValidator->validate($data);
+
             return DB::transaction(function () use ($author, $data, $image) {
+                // Generate slug if title changed and slug is empty
+                if (isset($data['title']) && $data['title'] !== $author->title && empty($data['slug'])) {
+                    $slug = $this->slugGenerator->generate($data['title'], Author::class, 'slug', 'author_id', $author->author_id);
+                    $data['slug'] = $slug->toString();
+                }
                 // Handle image upload
                 if ($image) {
                     // Delete old image if exists

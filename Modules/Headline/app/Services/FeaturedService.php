@@ -4,10 +4,18 @@ namespace Modules\Headline\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Modules\Headline\Domain\Services\FeaturedValidator;
 use Modules\Headline\app\Models\Featured;
 
 class FeaturedService
 {
+    protected FeaturedValidator $featuredValidator;
+
+    public function __construct(?FeaturedValidator $featuredValidator = null)
+    {
+        $this->featuredValidator = $featuredValidator ?? app(FeaturedValidator::class);
+    }
+
     /**
      * Upsert a featured item
      */
@@ -20,6 +28,9 @@ class FeaturedService
         ?\DateTime $startsAt = null,
         ?\DateTime $endsAt = null
     ): Featured {
+        // Validate featured data
+        $this->featuredValidator->validate($zone, $subjectType, $subjectId, $startsAt, $endsAt);
+
         return Featured::updateOrCreate(
             [
                 'zone' => $zone,

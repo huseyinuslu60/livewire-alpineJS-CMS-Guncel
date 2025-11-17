@@ -2,27 +2,46 @@
 
 namespace Modules\Banks\Services;
 
-use Illuminate\Support\Facades\DB;
 use App\Helpers\LogHelper;
+use Illuminate\Support\Facades\DB;
+use Modules\Banks\Domain\Services\StockValidator;
 use Modules\Banks\Models\Stock;
 
 class StockService
 {
+    protected StockValidator $stockValidator;
+
+    public function __construct(?StockValidator $stockValidator = null)
+    {
+        $this->stockValidator = $stockValidator ?? app(StockValidator::class);
+    }
+
     /**
      * Create a new stock
      */
     public function create(array $data): Stock
     {
-        return DB::transaction(function () use ($data) {
-            $stock = Stock::create($data);
+        try {
+            // Validate stock data
+            $this->stockValidator->validate($data);
 
-            LogHelper::info('Hisse senedi oluşturuldu', [
-                'stock_id' => $stock->stock_id,
-                'name' => $stock->name,
+            return DB::transaction(function () use ($data) {
+                $stock = Stock::create($data);
+
+                LogHelper::info('Hisse senedi oluşturuldu', [
+                    'stock_id' => $stock->stock_id,
+                    'name' => $stock->name,
+                ]);
+
+                return $stock;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('StockService create error', [
+                'name' => $data['name'] ?? null,
+                'error' => $e->getMessage(),
             ]);
-
-            return $stock;
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -31,6 +50,9 @@ class StockService
     public function update(Stock $stock, array $data): Stock
     {
         try {
+            // Validate stock data
+            $this->stockValidator->validate($data);
+
             return DB::transaction(function () use ($stock, $data) {
                 $stock->update($data);
 

@@ -3,31 +3,58 @@
 namespace Modules\Articles\Services;
 
 use App\Helpers\LogHelper;
+use App\Services\SlugGenerator;
 use Illuminate\Support\Facades\DB;
+use Modules\Articles\Domain\Services\ArticleValidator;
+use Modules\Articles\Domain\ValueObjects\ArticleStatus;
 use Modules\Articles\Models\Article;
 
 class ArticleService
 {
+    protected SlugGenerator $slugGenerator;
+    protected ArticleValidator $articleValidator;
+
+    public function __construct(?SlugGenerator $slugGenerator = null, ?ArticleValidator $articleValidator = null)
+    {
+        $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
+        $this->articleValidator = $articleValidator ?? app(ArticleValidator::class);
+    }
+
     /**
      * Create a new article
      */
     public function create(array $data): Article
     {
-        return DB::transaction(function () use ($data) {
-            // Set published_at if status is published and published_at is empty
-            if (($data['status'] ?? '') === 'published' && empty($data['published_at'])) {
-                $data['published_at'] = now();
-            }
+        try {
+            // Validate article data
+            $this->articleValidator->validate($data);
 
-            $article = Article::create($data);
+            // Ensure published_at for published articles
+            $data = $this->articleValidator->ensurePublishedAt($data);
 
-            LogHelper::info('Makale oluşturuldu', [
-                'article_id' => $article->article_id,
-                'title' => $article->title,
+            return DB::transaction(function () use ($data) {
+                // Generate slug if not provided
+                if (empty($data['slug']) && !empty($data['title'])) {
+                    $slug = $this->slugGenerator->generate($data['title'], Article::class, 'slug', 'article_id');
+                    $data['slug'] = $slug->toString();
+                }
+
+                $article = Article::create($data);
+
+                LogHelper::info('Makale oluşturuldu', [
+                    'article_id' => $article->article_id,
+                    'title' => $article->title,
+                ]);
+
+                return $article;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('ArticleService create error', [
+                'title' => $data['title'] ?? null,
+                'error' => $e->getMessage(),
             ]);
-
-            return $article;
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -36,10 +63,17 @@ class ArticleService
     public function update(Article $article, array $data): Article
     {
         try {
+            // Validate article data
+            $this->articleValidator->validate($data);
+
+            // Ensure published_at for published articles
+            $data = $this->articleValidator->ensurePublishedAt($data);
+
             return DB::transaction(function () use ($article, $data) {
-                // Set published_at if status is published and published_at is empty
-                if (($data['status'] ?? '') === 'published' && empty($data['published_at']) && !$article->published_at) {
-                    $data['published_at'] = now();
+                // Generate slug if title changed and slug is empty
+                if (isset($data['title']) && $data['title'] !== $article->title && empty($data['slug'])) {
+                    $slug = $this->slugGenerator->generate($data['title'], Article::class, 'slug', 'article_id', $article->article_id);
+                    $data['slug'] = $slug->toString();
                 }
 
                 $article->update($data);
@@ -90,17 +124,19 @@ class ArticleService
     {
         try {
             return DB::transaction(function () use ($article) {
+                $currentStatus = ArticleStatus::fromString($article->status);
+
                 $newStatus = match ($article->status) {
-                    'draft' => 'published',
-                    'published' => 'draft',
-                    'pending' => 'published',
-                    default => 'draft'
+                    'draft' => ArticleStatus::published(),
+                    'published' => ArticleStatus::draft(),
+                    'pending' => ArticleStatus::published(),
+                    default => ArticleStatus::draft()
                 };
 
-                $data = ['status' => $newStatus];
-                
+                $data = ['status' => $newStatus->toString()];
+
                 // Set published_at if status is published and published_at is empty
-                if ($newStatus === 'published' && empty($article->published_at)) {
+                if ($newStatus->isPublished() && empty($article->published_at)) {
                     $data['published_at'] = now();
                 }
 

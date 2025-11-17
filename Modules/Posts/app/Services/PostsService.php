@@ -3,45 +3,84 @@
 namespace Modules\Posts\Services;
 
 use App\Helpers\LogHelper;
+use App\Services\SlugGenerator;
+use App\Services\ValueObjects\Slug;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
+use Modules\Posts\Domain\Events\PostCreated;
+use Modules\Posts\Domain\Events\PostDeleted;
+use Modules\Posts\Domain\Events\PostUpdated;
+use Modules\Posts\Domain\Repositories\PostRepositoryInterface;
+use Modules\Posts\Domain\Services\PostValidator;
+use Modules\Posts\Domain\ValueObjects\PostType;
+use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Models\Tag;
 
 class PostsService
 {
+    protected SlugGenerator $slugGenerator;
+    protected PostValidator $postValidator;
+    protected PostRepositoryInterface $postRepository;
+
+    public function __construct(
+        ?SlugGenerator $slugGenerator = null,
+        ?PostValidator $postValidator = null,
+        ?PostRepositoryInterface $postRepository = null
+    ) {
+        $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
+        $this->postValidator = $postValidator ?? app(PostValidator::class);
+        $this->postRepository = $postRepository ?? app(PostRepositoryInterface::class);
+    }
+
     /**
      * Create a new post.
      */
     public function create(array $data, array $files = [], array $categoryIds = [], array $tagIds = [], array $fileDescriptions = []): Post
     {
-        return DB::transaction(function () use ($data, $files, $categoryIds, $tagIds, $fileDescriptions) {
-            // Validate post type specific rules
-            $this->validatePostType($data);
+        try {
+            return DB::transaction(function () use ($data, $files, $categoryIds, $tagIds, $fileDescriptions) {
+                // Validate post type specific rules
+                $this->postValidator->validatePostType($data);
 
-            // Generate slug if not provided
-            if (empty($data['slug'])) {
-                $data['slug'] = $this->makeUniqueSlug($data['title']);
-            }
+                // Generate slug if not provided
+                if (empty($data['slug'])) {
+                    $slug = $this->slugGenerator->generate($data['title'], Post::class, 'slug', 'post_id');
+                    $data['slug'] = $slug->toString();
+                }
 
-            // Set author field (audit fields are handled by AuditFields trait)
-            $data['author_id'] = auth()->id();
+                // Set author field (audit fields are handled by AuditFields trait)
+                $data['author_id'] = auth()->id();
 
-            // Create post
-            $post = Post::create($data);
+                // Create post
+                $post = $this->postRepository->create($data);
 
-            // Store files
-            if (! empty($files)) {
-                $this->storeFiles($post, $files, $data['post_type'] ?? null, null, $fileDescriptions);
-            }
+                // Store files
+                if (! empty($files)) {
+                    $this->storeFiles($post, $files, $data['post_type'] ?? null, null, $fileDescriptions);
+                }
 
-            // Sync relationships
-            $this->syncRelations($post, $categoryIds, $tagIds);
+                // Sync relationships
+                $this->syncRelations($post, $categoryIds, $tagIds);
 
-            return $post->load(['files', 'categories', 'tags', 'author']);
-        });
+                $post->load(['files', 'categories', 'tags', 'author']);
+
+                // Fire domain event
+                Event::dispatch(new PostCreated($post));
+
+                return $post;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('PostsService create error', [
+                'title' => $data['title'] ?? null,
+                'post_type' => $data['post_type'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -52,17 +91,18 @@ class PostsService
         try {
             return DB::transaction(function () use ($post, $data, $files, $categoryIds, $tagIds, $fileDescriptions) {
                 // Validate post type specific rules
-                $this->validatePostType($data);
+                $this->postValidator->validatePostType($data);
 
                 // Generate slug if title changed and slug is empty
                 if (isset($data['title']) && $data['title'] !== $post->title && empty($data['slug'])) {
-                    $data['slug'] = $this->makeUniqueSlug($data['title'], $post->post_id);
+                    $slug = $this->slugGenerator->generate($data['title'], Post::class, 'slug', 'post_id', $post->post_id);
+                    $data['slug'] = $slug->toString();
                 }
 
                 // Audit fields are handled by AuditFields trait
 
                 // Update post
-                $post->update($data);
+                $post = $this->postRepository->update($post, $data);
 
                 // Store new files
                 if (! empty($files)) {
@@ -72,7 +112,13 @@ class PostsService
                 // Sync relationships
                 $this->syncRelations($post, $categoryIds, $tagIds);
 
-                return $post->load(['files', 'categories', 'tags', 'author']);
+                $post->load(['files', 'categories', 'tags', 'author']);
+
+                // Fire domain event
+                $changedAttributes = array_keys($data);
+                Event::dispatch(new PostUpdated($post, $changedAttributes));
+
+                return $post;
             });
         } catch (\Exception $e) {
             LogHelper::error('PostsService update error', [
@@ -92,7 +138,10 @@ class PostsService
             DB::transaction(function () use ($post) {
                 // deleted_by is handled by AuditFields trait
                 // Soft delete
-                $post->delete();
+                $this->postRepository->delete($post);
+
+                // Fire domain event
+                Event::dispatch(new PostDeleted($post));
             });
         } catch (\Exception $e) {
             LogHelper::error('PostsService delete error', [
@@ -217,30 +266,15 @@ class PostsService
 
     /**
      * Make a unique slug from title.
+     *
+     * @deprecated Use SlugGenerator::generate() instead
+     * @see \App\Services\SlugGenerator::generate()
      */
     public function makeUniqueSlug(string $title, ?int $ignoreId = null): string
     {
-        $slug = Str::slug($title);
-        $originalSlug = $slug;
-        $counter = 1;
-
-        while (true) {
-            $query = Post::where('slug', $slug);
-
-            // 0-yutmayan filtre: ignoreId
-            if ($ignoreId !== null) {
-                $query->where('post_id', '!=', $ignoreId);
-            }
-
-            if (! $query->exists()) {
-                break;
-            }
-
-            $slug = $originalSlug.'-'.$counter;
-            $counter++;
-        }
-
-        return $slug;
+        // Geriye dönük uyumluluk için wrapper
+        $slug = $this->slugGenerator->generate($title, Post::class, 'slug', 'post_id', $ignoreId);
+        return $slug->toString();
     }
 
     /**
@@ -248,8 +282,9 @@ class PostsService
      */
     public function storeFiles(Post $post, array $files, ?string $type = null, ?int $primaryIndex = null, array $fileDescriptions = []): void
     {
-        $uploadedFiles = [];
-        $galleryData = [];
+        try {
+            $uploadedFiles = [];
+            $galleryData = [];
 
         foreach ($files as $index => $file) {
             if ($file instanceof UploadedFile) {
@@ -324,6 +359,14 @@ class PostsService
                 $this->addFilesToGallery($post, $galleryData);
             }
         }
+        } catch (\Exception $e) {
+            LogHelper::error('PostsService storeFiles error', [
+                'post_id' => $post->post_id,
+                'files_count' => count($files),
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**
@@ -358,58 +401,54 @@ class PostsService
      */
     public function syncRelations(Post $post, array $categoryIds, array $tagIds): void
     {
-        // Sync categories with timestamps
-        if (! empty($categoryIds)) {
-            $categoryData = [];
-            $now = now();
-            foreach ($categoryIds as $categoryId) {
-                $categoryData[$categoryId] = [
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
+        try {
+            // Sync categories with timestamps
+            if (! empty($categoryIds)) {
+                $categoryData = [];
+                $now = now();
+                foreach ($categoryIds as $categoryId) {
+                    $categoryData[$categoryId] = [
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+                $post->categories()->sync($categoryData);
             }
-            $post->categories()->sync($categoryData);
-        }
 
-        // Sync tags with timestamps
-        if (! empty($tagIds)) {
-            $tags = Tag::getByNames($tagIds);
-            $tagData = [];
-            $now = now();
-            foreach (collect($tags)->pluck('tag_id') as $tagId) {
-                $tagData[$tagId] = [
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
+            // Sync tags with timestamps
+            if (! empty($tagIds)) {
+                $tags = Tag::getByNames($tagIds);
+                $tagData = [];
+                $now = now();
+                foreach (collect($tags)->pluck('tag_id') as $tagId) {
+                    $tagData[$tagId] = [
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+                $post->tags()->sync($tagData);
             }
-            $post->tags()->sync($tagData);
+        } catch (\Exception $e) {
+            LogHelper::error('PostsService syncRelations error', [
+                'post_id' => $post->post_id,
+                'category_count' => count($categoryIds),
+                'tag_count' => count($tagIds),
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
     }
 
     /**
      * Validate post type specific rules.
+     *
+     * @deprecated Use PostValidator::validatePostType() instead
+     * @see \Modules\Posts\Domain\Services\PostValidator::validatePostType()
      */
     protected function validatePostType(array $data): void
     {
-        $postType = $data['post_type'] ?? null;
-
-        if (! $postType) {
-            return;
-        }
-
-        switch ($postType) {
-            case 'gallery':
-                // Gallery posts should have at least one file
-                // This will be validated in the Livewire component
-                break;
-
-            case 'video':
-                // Video posts should have embed_code
-                if (empty($data['embed_code'])) {
-                    throw new \InvalidArgumentException('Video posts must have embed code.');
-                }
-                break;
-        }
+        // Geriye dönük uyumluluk için wrapper
+        $this->postValidator->validatePostType($data);
     }
 
     // ============================================
@@ -666,34 +705,35 @@ class PostsService
      */
     public function addFilesToGallery(Post $post, array $galleryData): void
     {
-        if (empty($galleryData)) {
-            return;
-        }
+        try {
+            if (empty($galleryData)) {
+                return;
+            }
 
-        // Yeni eklenen resimler ana resim olmasın
-        foreach ($galleryData as &$data) {
-            $data['is_primary'] = false;
-        }
+            // Yeni eklenen resimler ana resim olmasın
+            foreach ($galleryData as &$data) {
+                $data['is_primary'] = false;
+            }
 
-        // Mevcut content'i al
-        $existingContentData = $post->content ? (is_string($post->content) ? json_decode($post->content, true) : $post->content) : [];
+            // Mevcut content'i al
+            $existingContentData = $post->content ? (is_string($post->content) ? json_decode($post->content, true) : $post->content) : [];
 
-        // Güvenlik kontrolü - null veya geçersiz değerleri boş array yap
-        if (! is_array($existingContentData)) {
-            $existingContentData = [];
-        }
+            // Güvenlik kontrolü - null veya geçersiz değerleri boş array yap
+            if (! is_array($existingContentData)) {
+                $existingContentData = [];
+            }
 
-        if (! empty($existingContentData)) {
-            // Mevcut verileri koru, yeni resimleri ekle
-            // Ama önce mevcut content'de boş file_path'li (yeni eklenen) dosyaları temizle
-            $existingContentData = array_filter($existingContentData, function ($item) {
-                return ! empty($item['file_path']); // Sadece gerçek file_path'i olan dosyaları koru
-            });
+            if (! empty($existingContentData)) {
+                // Mevcut verileri koru, yeni resimleri ekle
+                // Ama önce mevcut content'de boş file_path'li (yeni eklenen) dosyaları temizle
+                $existingContentData = array_filter($existingContentData, function ($item) {
+                    return ! empty($item['file_path']); // Sadece gerçek file_path'i olan dosyaları koru
+                });
 
-            $updatedContentData = array_merge($existingContentData, $galleryData);
-            $post->update(['content' => json_encode($updatedContentData, JSON_UNESCAPED_UNICODE)]);
-        } else {
-            // İlk resim ekleniyor
+                $updatedContentData = array_merge($existingContentData, $galleryData);
+                $post->update(['content' => json_encode($updatedContentData, JSON_UNESCAPED_UNICODE)]);
+            } else {
+                // İlk resim ekleniyor
             $post->update(['content' => json_encode($galleryData, JSON_UNESCAPED_UNICODE)]);
         }
 
@@ -705,6 +745,14 @@ class PostsService
                 'new_count' => count($galleryData),
                 'total_count' => count($updatedContentData ?? $galleryData),
             ]);
+        }
+        } catch (\Exception $e) {
+            LogHelper::error('PostsService addFilesToGallery error', [
+                'post_id' => $post->post_id,
+                'gallery_data_count' => count($galleryData),
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
     }
 }

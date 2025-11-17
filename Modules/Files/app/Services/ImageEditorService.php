@@ -5,10 +5,18 @@ namespace Modules\Files\Services;
 use App\Helpers\LogHelper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Modules\Files\Domain\Services\ImageEditorValidator;
 use Modules\Posts\Models\File as PostFile;
 
 class ImageEditorService
 {
+    protected ImageEditorValidator $imageEditorValidator;
+
+    public function __construct(?ImageEditorValidator $imageEditorValidator = null)
+    {
+        $this->imageEditorValidator = $imageEditorValidator ?? app(ImageEditorValidator::class);
+    }
+
     /**
      * Save edited image from image editor
      *
@@ -21,34 +29,42 @@ class ImageEditorService
      */
     public function saveEditedImage(UploadedFile $image, ?string $fileId = null, ?int $index = null): array
     {
-        // Validate file
-        if (! $image->isValid()) {
-            throw new \InvalidArgumentException('Geçersiz dosya yüklendi');
+        try {
+            // Validate image
+            $this->imageEditorValidator->validateImage($image);
+
+            // Generate storage path
+            $storagePath = $this->generateStoragePath();
+            $path = $image->store($storagePath, 'public');
+
+            if (! $path) {
+                throw new \RuntimeException('Dosya kaydedilemedi');
+            }
+
+            $imageUrl = asset('storage/'.$path);
+
+            // Update Post File model if file_id provided
+            if ($fileId) {
+                $this->updatePostFile($fileId, $path, $image);
+            }
+
+            return [
+                'image_url' => $imageUrl,
+                'temp_path' => $path,
+                'file_id' => $fileId,
+                'index' => $index,
+                'file_size' => $image->getSize(),
+                'mime_type' => $image->getMimeType(),
+            ];
+        } catch (\Exception $e) {
+            LogHelper::error('ImageEditorService saveEditedImage error', [
+                'file_id' => $fileId,
+                'index' => $index,
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id(),
+            ]);
+            throw $e;
         }
-
-        // Generate storage path
-        $storagePath = $this->generateStoragePath();
-        $path = $image->store($storagePath, 'public');
-
-        if (! $path) {
-            throw new \RuntimeException('Dosya kaydedilemedi');
-        }
-
-        $imageUrl = asset('storage/'.$path);
-
-        // Update Post File model if file_id provided
-        if ($fileId) {
-            $this->updatePostFile($fileId, $path, $image);
-        }
-
-        return [
-            'image_url' => $imageUrl,
-            'temp_path' => $path,
-            'file_id' => $fileId,
-            'index' => $index,
-            'file_size' => $image->getSize(),
-            'mime_type' => $image->getMimeType(),
-        ];
     }
 
     /**

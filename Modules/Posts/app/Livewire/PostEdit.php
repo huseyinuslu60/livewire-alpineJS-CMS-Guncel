@@ -3,6 +3,7 @@
 namespace Modules\Posts\Livewire;
 
 use App\Helpers\LogHelper;
+use App\Services\SlugGenerator;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
@@ -24,6 +25,8 @@ class PostEdit extends Component
     use SecureFileUpload, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
+
+    protected SlugGenerator $slugGenerator;
 
     public Post $post;
 
@@ -115,6 +118,7 @@ class PostEdit extends Component
     public function boot()
     {
         $this->postsService = app(PostsService::class);
+        $this->slugGenerator = app(SlugGenerator::class);
     }
 
     public function mount($post)
@@ -500,7 +504,9 @@ class PostEdit extends Component
             // Türkçe karakterleri çevir ve fazla boşlukları temizle
             $convertedTitle = strtr($value, $turkishChars);
             $convertedTitle = preg_replace('/\s+/', ' ', trim($convertedTitle)); // Çoklu boşlukları tek boşluğa çevir
-            $this->slug = Str::slug($convertedTitle);
+            $slugGenerator = app(SlugGenerator::class);
+            $slug = $slugGenerator->generate($convertedTitle, Post::class, 'slug', 'post_id', $this->post->post_id ?? null);
+            $this->slug = $slug->toString();
         }
     }
 

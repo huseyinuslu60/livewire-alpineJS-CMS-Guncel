@@ -2,6 +2,7 @@
 
 namespace Modules\Categories\Livewire;
 
+use App\Services\SlugGenerator;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -76,8 +77,10 @@ class CategoryCreate extends Component
 
     public function updatedName()
     {
-        if (! $this->isSlugEditable) {
-            $this->slug = Str::slug($this->name);
+        if (! $this->isSlugEditable && !empty($this->name)) {
+            $slugGenerator = app(SlugGenerator::class);
+            $slug = $slugGenerator->generate($this->name, Category::class, 'slug', 'category_id');
+            $this->slug = $slug->toString();
         }
     }
 
@@ -95,7 +98,7 @@ class CategoryCreate extends Component
 
             $data = [
                 'name' => $this->name,
-                'slug' => $this->slug ?: Str::slug($this->name),
+                'slug' => $this->slug ?: app(SlugGenerator::class)->generate($this->name, Category::class, 'slug', 'category_id')->toString(),
                 'meta_title' => $this->meta_title,
                 'meta_description' => $this->meta_description,
                 'meta_keywords' => $this->meta_keywords,

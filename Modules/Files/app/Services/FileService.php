@@ -2,44 +2,61 @@
 
 namespace Modules\Files\Services;
 
+use App\Helpers\LogHelper;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Modules\Files\Domain\Services\FileValidator;
 use Modules\Files\Models\File;
 
 class FileService
 {
+    protected FileValidator $fileValidator;
+
+    public function __construct(?FileValidator $fileValidator = null)
+    {
+        $this->fileValidator = $fileValidator ?? app(FileValidator::class);
+    }
+
     /**
      * Create a new file
      */
     public function create(array $data, ?UploadedFile $uploadedFile = null, ?string $storagePath = 'files'): File
     {
-        return DB::transaction(function () use ($data, $uploadedFile, $storagePath) {
-            // Handle file upload if provided
-            if ($uploadedFile) {
-                $originalName = $uploadedFile->getClientOriginalName();
-                $extension = $uploadedFile->getClientOriginalExtension();
-                $fileName = Str::uuid().'.'.$extension;
+        try {
+            return DB::transaction(function () use ($data, $uploadedFile, $storagePath) {
+                // Handle file upload if provided
+                if ($uploadedFile) {
+                    $originalName = $uploadedFile->getClientOriginalName();
+                    $extension = $uploadedFile->getClientOriginalExtension();
+                    $fileName = Str::uuid().'.'.$extension;
 
-                // Store file securely
-                $path = $uploadedFile->storeAs($storagePath, $fileName, 'public');
-                $data['file_path'] = str_replace('storage/', '', $path);
-                $data['type'] = $uploadedFile->getMimeType();
-                $data['title'] = $data['title'] ?? $originalName;
-            }
+                    // Store file securely
+                    $path = $uploadedFile->storeAs($storagePath, $fileName, 'public');
+                    $data['file_path'] = str_replace('storage/', '', $path);
+                    $data['type'] = $uploadedFile->getMimeType();
+                    $data['title'] = $data['title'] ?? $originalName;
+                }
 
-            $file = File::create($data);
+                $file = File::create($data);
 
-            LogHelper::info('Dosya oluşturuldu', [
-                'file_id' => $file->file_id,
-                'title' => $file->title,
-                'file_path' => $file->file_path,
+                LogHelper::info('Dosya oluşturuldu', [
+                    'file_id' => $file->file_id,
+                    'title' => $file->title,
+                    'file_path' => $file->file_path,
+                ]);
+
+                return $file;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('FileService create error', [
+                'title' => $data['title'] ?? null,
+                'storage_path' => $storagePath,
+                'error' => $e->getMessage(),
             ]);
-
-            return $file;
-        });
+            throw $e;
+        }
     }
 
     /**
@@ -49,6 +66,8 @@ class FileService
     {
         try {
             return DB::transaction(function () use ($file, $data, $uploadedFile) {
+                // Validate file data
+                $this->fileValidator->validate($data);
                 // Handle file replacement if provided
                 if ($uploadedFile) {
                     // Delete old file

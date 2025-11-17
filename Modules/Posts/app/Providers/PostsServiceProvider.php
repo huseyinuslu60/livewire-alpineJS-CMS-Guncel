@@ -41,6 +41,12 @@ class PostsServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+        
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Posts\Domain\Repositories\PostRepositoryInterface::class,
+            \Modules\Posts\Domain\Repositories\EloquentPostRepository::class
+        );
     }
 
     /**

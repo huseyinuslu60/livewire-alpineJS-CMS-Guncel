@@ -13,7 +13,11 @@ class CategoriesServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Categories\Domain\Repositories\CategoryRepositoryInterface::class,
+            \Modules\Categories\Domain\Repositories\EloquentCategoryRepository::class
+        );
     }
 
     /**

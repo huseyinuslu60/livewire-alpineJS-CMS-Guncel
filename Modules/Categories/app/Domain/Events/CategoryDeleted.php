@@ -6,7 +6,7 @@ use Modules\Categories\Models\Category;
 
 /**
  * Category Deleted Domain Event
- * 
+ *
  * Bir kategori silindiğinde fırlatılır.
  */
 class CategoryDeleted
@@ -18,4 +18,3 @@ class CategoryDeleted
         $this->category = $category;
     }
 }
-

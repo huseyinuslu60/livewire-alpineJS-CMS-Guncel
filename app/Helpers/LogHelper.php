@@ -46,4 +46,3 @@ class LogHelper
         Log::error($message, $context);
     }
 }
-

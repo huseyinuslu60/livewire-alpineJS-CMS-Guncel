@@ -13,4 +13,3 @@ class StockCreated
         $this->stock = $stock;
     }
 }
-

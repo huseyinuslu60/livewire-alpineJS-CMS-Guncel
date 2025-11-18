@@ -20,8 +20,18 @@ use Illuminate\Support\Facades\Auth;
  * @property string|null $description
  * @property string|null $url
  * @property string|null $method
+ * @property array|null $metadata
  * @property string|null $created_at
  * @property string|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog byAction($action)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog byUser($userId)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog byModel($modelType, $modelId = null)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog byDateRange($startDate, $endDate)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog ofAction($action)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog ofUser($userId)
+ * @method static \Illuminate\Database\Eloquent\Builder|UserLog sortedLatest($column = 'created_at')
  */
 class UserLog extends Model
 {

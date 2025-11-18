@@ -24,6 +24,7 @@ class EloquentNewsletterTemplateRepository implements NewsletterTemplateReposito
     public function update(NewsletterTemplate $template, array $data): NewsletterTemplate
     {
         $template->update($data);
+
         return $template->fresh();
     }
 
@@ -38,7 +39,12 @@ class EloquentNewsletterTemplateRepository implements NewsletterTemplateReposito
         if ($excludeId !== null) {
             $query->where('id', '!=', $excludeId);
         }
+
         return $query->exists();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return NewsletterTemplate::query();
+    }
+}

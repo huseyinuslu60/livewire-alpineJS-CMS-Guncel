@@ -11,14 +11,10 @@ class ImageEditorController
 {
     public function __construct(
         protected ImageEditorService $imageEditorService
-    ) {
-    }
+    ) {}
 
     /**
      * Save edited image from image editor
-     *
-     * @param  Request  $request
-     * @return JsonResponse
      */
     public function editImage(Request $request): JsonResponse
     {
@@ -99,4 +95,3 @@ class ImageEditorController
         }
     }
 }
-

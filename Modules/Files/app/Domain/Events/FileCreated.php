@@ -13,4 +13,3 @@ class FileCreated
         $this->file = $file;
     }
 }
-

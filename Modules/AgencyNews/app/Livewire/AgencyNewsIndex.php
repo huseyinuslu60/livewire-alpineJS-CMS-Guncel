@@ -8,7 +8,6 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\AgencyNews\Models\AgencyNews;
 use Modules\AgencyNews\Services\AgencyNewsService;
 
 class AgencyNewsIndex extends Component
@@ -100,10 +99,12 @@ class AgencyNewsIndex extends Component
         }
 
         try {
-            $agencyNews = AgencyNews::findOrFail($agencyNewsId);
+            $agencyNews = $this->agencyNewsService->findById($agencyNewsId);
             $this->agencyNewsService->delete($agencyNews);
 
             session()->flash('success', 'Agency news başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Agency news silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -127,8 +128,9 @@ class AgencyNewsIndex extends Component
             }
 
             // Agency news'i bul
-            $agencyNews = AgencyNews::find($agencyNewsId);
-            if (! $agencyNews) {
+            try {
+                $agencyNews = $this->agencyNewsService->findById($agencyNewsId);
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
                 session()->flash('error', 'Agency news bulunamadı.');
 
                 return;
@@ -136,6 +138,11 @@ class AgencyNewsIndex extends Component
 
             // Post create sayfasına yönlendir
             return redirect()->route('posts.create.news', ['agency' => $agencyNewsId]);
+        } catch (\InvalidArgumentException $e) {
+            \App\Helpers\LogHelper::warning('Agency news publish validation error', ['error' => $e->getMessage()]);
+            session()->flash('error', $e->getMessage());
+
+            return;
         } catch (\Exception $e) {
             \App\Helpers\LogHelper::error('Agency news publish error', ['error' => $e->getMessage()]);
             session()->flash('error', 'Bir hata oluştu. Lütfen tekrar deneyin.');
@@ -150,7 +157,8 @@ class AgencyNewsIndex extends Component
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
         }
 
-        $query = AgencyNews::query()
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\AgencyNews\Models\AgencyNews> $query */
+        $query = $this->agencyNewsService->getQuery()
             ->search($this->search ?? null)
             ->ofAgency($this->agencyFilter ?? null)
             ->ofCategory($this->categoryFilter ?? null);
@@ -173,15 +181,17 @@ class AgencyNewsIndex extends Component
 
         $agencyNews = $query->paginate(Pagination::clamp($this->perPage ?? null));
 
-        $agencies = AgencyNews::select('agency_id')
+        $agencies = $this->agencyNewsService->getQuery()
+            ->select('agency_id')
             ->whereNotNull('agency_id')
             ->distinct()
             ->pluck('agency_id')
-            ->map(function ($id) {
+            ->map(function (int|string $id) {
                 return ['id' => $id, 'name' => 'Agency '.$id];
             });
 
-        $categories = AgencyNews::select('category')
+        $categories = $this->agencyNewsService->getQuery()
+            ->select('category')
             ->whereNotNull('category')
             ->distinct()
             ->pluck('category');

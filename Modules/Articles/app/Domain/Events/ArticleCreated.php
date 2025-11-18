@@ -16,4 +16,3 @@ class ArticleCreated
         $this->article = $article;
     }
 }
-

@@ -117,10 +117,12 @@ class NewsletterIndex extends Component
         }
 
         try {
-            $newsletter = Newsletter::findOrFail($newsletterId);
+            $newsletter = $this->newsletterService->findById($newsletterId);
             $this->newsletterService->delete($newsletter);
 
             session()->flash('success', 'Newsletter başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Newsletter silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -133,7 +135,7 @@ class NewsletterIndex extends Component
         }
 
         try {
-            $newsletter = Newsletter::findOrFail($newsletterId);
+            $newsletter = $this->newsletterService->findById($newsletterId);
 
             $newStatus = match ($newsletter->status) {
                 'draft' => 'sending',
@@ -146,6 +148,8 @@ class NewsletterIndex extends Component
             $this->newsletterService->updateStatus($newsletter, $newStatus);
 
             session()->flash('success', 'Newsletter durumu güncellendi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Newsletter durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }

@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Featured Validator Domain Service
- * 
+ *
  * Featured iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Zone is required
@@ -18,13 +18,13 @@ class FeaturedValidator
 {
     /**
      * Featured data'nın validasyonunu yap
-     * 
-     * @param string $zone Zone name
-     * @param string $subjectType Subject type
-     * @param int $subjectId Subject ID
-     * @param \DateTime|null $startsAt Start date
-     * @param \DateTime|null $endsAt End date
-     * @return void
+     *
+     * @param  string  $zone  Zone name
+     * @param  string  $subjectType  Subject type
+     * @param  int  $subjectId  Subject ID
+     * @param  \DateTime|null  $startsAt  Start date
+     * @param  \DateTime|null  $endsAt  End date
+     *
      * @throws InvalidArgumentException
      */
     public function validate(
@@ -55,4 +55,3 @@ class FeaturedValidator
         }
     }
 }
-

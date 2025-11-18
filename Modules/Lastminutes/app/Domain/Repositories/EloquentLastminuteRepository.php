@@ -24,6 +24,7 @@ class EloquentLastminuteRepository implements LastminuteRepositoryInterface
     public function update(Lastminute $lastminute, array $data): Lastminute
     {
         $lastminute->update($data);
+
         return $lastminute->fresh();
     }
 
@@ -38,7 +39,12 @@ class EloquentLastminuteRepository implements LastminuteRepositoryInterface
         if ($excludeId !== null) {
             $query->where('lastminute_id', '!=', $excludeId);
         }
+
         return $query->exists();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Lastminute::query();
+    }
+}

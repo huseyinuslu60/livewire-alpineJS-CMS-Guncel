@@ -3,7 +3,6 @@
 namespace Modules\Newsletters\Livewire;
 
 use App\Services\SlugGenerator;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Newsletters\Models\NewsletterTemplate;
 use Modules\Newsletters\Services\NewsletterTemplateService;
@@ -61,7 +60,7 @@ class TemplateCreate extends Component
 
     public function updatedName()
     {
-        if (!empty($this->name)) {
+        if (! empty($this->name)) {
             $slug = $this->slugGenerator->generate($this->name, NewsletterTemplate::class, 'slug', 'id');
             $this->slug = $slug->toString();
         }

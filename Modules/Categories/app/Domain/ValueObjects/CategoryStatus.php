@@ -6,14 +6,16 @@ use InvalidArgumentException;
 
 /**
  * Category Status Value Object
- * 
+ *
  * Category durumlarını type-safe olarak yönetir.
  * Business rule: Sadece geçerli category durumları kabul edilir.
  */
 final class CategoryStatus
 {
     public const ACTIVE = 'active';
+
     public const INACTIVE = 'inactive';
+
     public const DRAFT = 'draft';
 
     private const VALID_STATUSES = [
@@ -145,11 +147,10 @@ final class CategoryStatus
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz category durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

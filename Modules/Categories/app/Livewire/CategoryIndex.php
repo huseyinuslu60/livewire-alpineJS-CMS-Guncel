@@ -97,13 +97,15 @@ class CategoryIndex extends Component
     {
         Gate::authorize('delete categories');
 
-        $category = Category::findOrFail($categoryId);
+        $category = $this->categoryService->findById($categoryId);
 
         try {
             $this->categoryService->delete($category);
             session()->flash('success', 'Kategori başarıyla silindi.');
-        } catch (\Exception $e) {
+        } catch (\InvalidArgumentException $e) {
             session()->flash('error', $e->getMessage());
+        } catch (\Exception $e) {
+            session()->flash('error', 'Bir hata oluştu: '.$e->getMessage());
         }
     }
 

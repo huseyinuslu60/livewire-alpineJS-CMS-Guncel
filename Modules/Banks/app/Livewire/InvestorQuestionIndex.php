@@ -6,11 +6,19 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Banks\Models\InvestorQuestion;
+use Modules\Banks\Domain\ValueObjects\InvestorQuestionStatus;
+use Modules\Banks\Services\InvestorQuestionService;
 
 class InvestorQuestionIndex extends Component
 {
     use WithPagination;
+
+    protected InvestorQuestionService $investorQuestionService;
+
+    public function boot()
+    {
+        $this->investorQuestionService = app(InvestorQuestionService::class);
+    }
 
     public ?string $search = null;
 
@@ -63,17 +71,15 @@ class InvestorQuestionIndex extends Component
         }
 
         try {
-            $questions = InvestorQuestion::whereIn('question_id', $this->selectedQuestions);
             $selectedCount = count($this->selectedQuestions);
 
             switch ($this->bulkAction) {
                 case 'delete':
-                    $questions->delete();
+                    $this->investorQuestionService->bulkDelete($this->selectedQuestions);
                     $message = $selectedCount.' soru başarıyla silindi.';
                     break;
                 case 'reject':
-                    // Audit fields (updated_by) are handled by AuditFields trait
-                    $questions->update(['status' => 'rejected']);
+                    $this->investorQuestionService->bulkUpdateStatus($this->selectedQuestions, InvestorQuestionStatus::rejected()->toString());
                     $message = $selectedCount.' soru reddedildi.';
                     break;
                 default:
@@ -85,6 +91,8 @@ class InvestorQuestionIndex extends Component
             $this->bulkAction = '';
 
             session()->flash('success', $message);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
@@ -97,13 +105,12 @@ class InvestorQuestionIndex extends Component
         }
 
         try {
-            $question = InvestorQuestion::findOrFail($id);
-            // Audit fields (updated_by) are handled by AuditFields trait
-            $question->update([
-                'status' => 'rejected',
-            ]);
+            $question = $this->investorQuestionService->findById($id);
+            $this->investorQuestionService->markAsRejected($question, Auth::id());
 
             session()->flash('success', 'Soru başarıyla reddedildi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Soru reddedilirken bir hata oluştu: '.$e->getMessage());
         }
@@ -116,10 +123,12 @@ class InvestorQuestionIndex extends Component
         }
 
         try {
-            $question = InvestorQuestion::findOrFail($id);
-            $question->delete();
+            $question = $this->investorQuestionService->findById($id);
+            $this->investorQuestionService->delete($question);
 
             session()->flash('success', 'Soru başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Soru silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -127,12 +136,14 @@ class InvestorQuestionIndex extends Component
 
     public function getQuestions()
     {
-        return InvestorQuestion::query()
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Banks\Models\InvestorQuestion> $query */
+        $query = $this->investorQuestionService->getQuery()
             ->with(['updater'])
             ->search($this->search ?? null)
             ->ofStatus($this->status ?? null)
-            ->sortedLatest('created_at')
-            ->paginate(Pagination::clamp($this->perPage));
+            ->sortedLatest('created_at');
+
+        return $query->paginate(Pagination::clamp($this->perPage));
     }
 
     public function mount()
@@ -184,7 +195,7 @@ class InvestorQuestionIndex extends Component
 
         return view($view, [
             'questions' => $this->getQuestions(),
-            'statusLabels' => InvestorQuestion::getStatusLabels(),
+            'statusLabels' => InvestorQuestionStatus::labels(),
         ])->extends('layouts.admin')->section('content');
     }
 }

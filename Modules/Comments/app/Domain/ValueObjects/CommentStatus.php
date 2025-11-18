@@ -7,7 +7,9 @@ use InvalidArgumentException;
 final class CommentStatus
 {
     public const APPROVED = 'approved';
+
     public const PENDING = 'pending';
+
     public const REJECTED = 'rejected';
 
     private string $value;
@@ -72,9 +74,8 @@ final class CommentStatus
     {
         $validStatuses = [self::APPROVED, self::PENDING, self::REJECTED];
 
-        if (!in_array($value, $validStatuses, true)) {
+        if (! in_array($value, $validStatuses, true)) {
             throw new InvalidArgumentException("Invalid comment status: {$value}. Valid statuses are: ".implode(', ', $validStatuses));
         }
     }
 }
-

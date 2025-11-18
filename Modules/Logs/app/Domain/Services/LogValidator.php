@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Log Validator Domain Service
- * 
+ *
  * Log iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Log ID must be positive
@@ -15,9 +15,9 @@ class LogValidator
 {
     /**
      * Log ID validasyonu
-     * 
-     * @param int $logId Log ID
-     * @return void
+     *
+     * @param  int  $logId  Log ID
+     *
      * @throws InvalidArgumentException
      */
     public function validateLogId(int $logId): void
@@ -29,9 +29,9 @@ class LogValidator
 
     /**
      * Bulk log IDs validasyonu
-     * 
-     * @param array $logIds Log IDs array
-     * @return void
+     *
+     * @param  array  $logIds  Log IDs array
+     *
      * @throws InvalidArgumentException
      */
     public function validateLogIds(array $logIds): void
@@ -41,10 +41,9 @@ class LogValidator
         }
 
         foreach ($logIds as $logId) {
-            if (!is_numeric($logId) || $logId <= 0) {
-                throw new InvalidArgumentException('Geçersiz log ID: ' . $logId);
+            if (! is_numeric($logId) || $logId <= 0) {
+                throw new InvalidArgumentException('Geçersiz log ID: '.$logId);
             }
         }
     }
 }
-

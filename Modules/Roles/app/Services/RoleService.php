@@ -30,6 +30,7 @@ class RoleService
      * @return Role
      */
     protected RoleValidator $roleValidator;
+
     protected RoleRepositoryInterface $roleRepository;
 
     public function __construct(
@@ -90,11 +91,6 @@ class RoleService
 
     /**
      * Update an existing role
-     *
-     * @param  Role  $role
-     * @param  array  $data
-     * @param  array|null  $permissionNames
-     * @return Role
      */
     public function update(Role $role, array $data, ?array $permissionNames = null): Role
     {
@@ -159,9 +155,6 @@ class RoleService
 
     /**
      * Delete a role
-     *
-     * @param  Role  $role
-     * @return bool
      */
     public function delete(Role $role): bool
     {
@@ -194,10 +187,6 @@ class RoleService
 
     /**
      * Sync permissions to a role
-     *
-     * @param  Role  $role
-     * @param  array  $permissionNames
-     * @return Role
      */
     public function syncPermissions(Role $role, array $permissionNames): Role
     {
@@ -235,7 +224,6 @@ class RoleService
      * Check if role is super_admin
      *
      * @param  Role|string  $role
-     * @return bool
      */
     public function isSuperAdmin($role): bool
     {
@@ -248,6 +236,7 @@ class RoleService
      * Validate that super_admin role cannot be modified
      *
      * @param  Role|string  $role
+     *
      * @throws \InvalidArgumentException
      */
     public function validateNotSuperAdmin($role): void
@@ -260,9 +249,6 @@ class RoleService
     /**
      * Filter module permissions based on user role
      * Only super_admin can assign module permissions
-     *
-     * @param  array  $permissionNames
-     * @return array
      */
     protected function filterModulePermissions(array $permissionNames): array
     {
@@ -275,5 +261,44 @@ class RoleService
 
         return $permissionNames;
     }
-}
 
+    /**
+     * Find a role by name
+     */
+    public function findByName(string $name): ?Role
+    {
+        return $this->roleRepository->findByName($name);
+    }
+
+    /**
+     * Get all roles
+     */
+    public function getAll(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->roleRepository->getQuery()->get();
+    }
+
+    /**
+     * Get query builder for roles
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->roleRepository->getQuery();
+    }
+
+    /**
+     * Find a role by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $roleId): Role
+    {
+        $role = $this->roleRepository->findById($roleId);
+
+        if (! $role) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Role not found');
+        }
+
+        return $role;
+    }
+}

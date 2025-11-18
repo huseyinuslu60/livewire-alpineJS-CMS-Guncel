@@ -19,6 +19,7 @@ class EloquentStockRepository implements StockRepositoryInterface
     public function update(Stock $stock, array $data): Stock
     {
         $stock->update($data);
+
         return $stock->fresh();
     }
 
@@ -26,5 +27,20 @@ class EloquentStockRepository implements StockRepositoryInterface
     {
         return $stock->delete();
     }
-}
 
+    public function bulkUpdateStatus(array $stockIds, string $status): int
+    {
+        return Stock::whereIn('stock_id', $stockIds)
+            ->update(['last_status' => $status]);
+    }
+
+    public function findByIds(array $stockIds): \Illuminate\Database\Eloquent\Collection
+    {
+        return Stock::whereIn('stock_id', $stockIds)->get();
+    }
+
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Stock::query();
+    }
+}

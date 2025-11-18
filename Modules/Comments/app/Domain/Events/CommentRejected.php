@@ -16,4 +16,3 @@ class CommentRejected
         $this->comment = $comment;
     }
 }
-

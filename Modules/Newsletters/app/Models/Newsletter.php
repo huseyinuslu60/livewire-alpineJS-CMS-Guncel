@@ -25,6 +25,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $reklam
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property-read string $status_badge
+ * @property-read string $mail_status_badge
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Newsletter search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Newsletter ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Newsletter sortedLatest($column = 'created_at')
  */
 class Newsletter extends Model
 {

@@ -10,7 +10,9 @@ use Livewire\WithPagination;
 use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Models\NewsletterTemplate;
 use Modules\Newsletters\Services\NewsletterService;
-use Modules\Posts\Models\Post;
+use Modules\Newsletters\Services\NewsletterTemplateService;
+use Modules\Posts\Services\PostsService;
+use Modules\Settings\Services\SettingsService;
 
 class NewsletterCreate extends Component
 {
@@ -67,7 +69,7 @@ class NewsletterCreate extends Component
 
     public function getAvailablePostsProperty()
     {
-        $query = Post::query()
+        $query = $this->postsService->getQuery()
             ->where('in_newsletter', true)
             ->ofStatus('published')
             ->where('published_date', '>=', now()->subDays(7))
@@ -98,14 +100,20 @@ class NewsletterCreate extends Component
 
     public function addPostToNewsletter($postId)
     {
-        $post = Post::find($postId);
-        if ($post && ! in_array($postId, $this->selectedPosts)) {
-            $this->selectedPosts[] = $postId;
-            $this->updateNewsletterBody();
-            session()->flash('success', 'Haber bültene eklendi!');
+        try {
+            $post = $this->postsService->findById($postId);
+            if ($post !== null && ! in_array($postId, $this->selectedPosts)) {
+                $this->selectedPosts[] = $postId;
+                $this->updateNewsletterBody();
+                session()->flash('success', 'Haber bültene eklendi!');
 
-            // Dispatch event to trigger sortable initialization
-            $this->dispatch('post-added');
+                // Dispatch event to trigger sortable initialization
+                $this->dispatch('post-added');
+            }
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
+        } catch (\Exception $e) {
+            session()->flash('error', 'Haber bulunamadı.');
         }
     }
 
@@ -127,12 +135,13 @@ class NewsletterCreate extends Component
             return;
         }
 
-        $posts = Post::whereIn('post_id', $this->selectedPosts)
+        $posts = $this->postsService->getQuery()
+            ->whereIn('post_id', $this->selectedPosts)
             ->with(['primaryFile', 'author'])
             ->get()
             ->keyBy('post_id');
 
-        $orderedPosts = collect($this->selectedPosts)->map(function ($postId) use ($posts) {
+        $orderedPosts = collect($this->selectedPosts)->map(function (int|string $postId) use ($posts) {
             return $posts->get($postId);
         })->filter();
 
@@ -141,9 +150,21 @@ class NewsletterCreate extends Component
 
     public function generateNewsletterTemplate($posts, $templateId = 1)
     {
-        $template = NewsletterTemplate::find($templateId);
-        if (! $template) {
-            $template = NewsletterTemplate::first();
+        $template = null;
+        try {
+            $template = $this->templateService->findById($templateId);
+        } catch (\InvalidArgumentException $e) {
+            // Template bulunamazsa, ilk aktif template'i al
+            $template = $this->templateService->getQuery()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->first();
+        } catch (\Exception $e) {
+            // Template bulunamazsa, ilk aktif template'i al
+            $template = $this->templateService->getQuery()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->first();
         }
 
         // Eğer hala template yoksa, varsayılan template oluştur
@@ -156,8 +177,8 @@ class NewsletterCreate extends Component
         }
 
         // Get site logo
-        $siteLogo = \Modules\Settings\Models\SiteSetting::where('key', 'site_logo')->first();
-        $logoPath = $siteLogo ? $siteLogo->value : '/images/logo.png';
+        $siteLogo = $this->settingsService->getSetting('site_logo');
+        $logoPath = $siteLogo ? $siteLogo : '/images/logo.png';
         $logoUrl = asset('storage/'.$logoPath);
 
         // Get user info
@@ -290,9 +311,18 @@ class NewsletterCreate extends Component
 
     protected NewsletterService $newsletterService;
 
+    protected PostsService $postsService;
+
+    protected SettingsService $settingsService;
+
+    protected NewsletterTemplateService $templateService;
+
     public function boot()
     {
         $this->newsletterService = app(NewsletterService::class);
+        $this->postsService = app(PostsService::class);
+        $this->settingsService = app(SettingsService::class);
+        $this->templateService = app(NewsletterTemplateService::class);
     }
 
     public function store()
@@ -303,11 +333,13 @@ class NewsletterCreate extends Component
             // Additional value validation
             if (strlen($this->name) > 255) {
                 $this->addError('name', 'İsim en fazla 255 karakter olabilir.');
+
                 return;
             }
 
             if (strlen($this->mail_subject) > 255) {
                 $this->addError('mail_subject', 'E-posta konusu en fazla 255 karakter olabilir.');
+
                 return;
             }
 
@@ -324,11 +356,19 @@ class NewsletterCreate extends Component
             session()->flash('success', 'Newsletter başarıyla oluşturuldu!');
 
             return redirect()->route('newsletters.index');
+        } catch (\InvalidArgumentException $e) {
+            \App\Helpers\LogHelper::warning('NewsletterCreate validation failed', [
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
+
+            return;
         } catch (\Exception $e) {
             \App\Helpers\LogHelper::error('NewsletterCreate store failed', [
                 'error' => $e->getMessage(),
             ]);
             session()->flash('error', 'Newsletter oluşturulurken bir hata oluştu: '.$e->getMessage());
+
             return;
         }
     }

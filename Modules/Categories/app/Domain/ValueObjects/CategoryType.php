@@ -6,14 +6,16 @@ use InvalidArgumentException;
 
 /**
  * Category Type Value Object
- * 
+ *
  * Category tiplerini type-safe olarak yönetir.
  * Business rule: Sadece geçerli category tipleri kabul edilir.
  */
 final class CategoryType
 {
     public const NEWS = 'news';
+
     public const GALLERY = 'gallery';
+
     public const VIDEO = 'video';
 
     private const VALID_TYPES = [
@@ -145,11 +147,10 @@ final class CategoryType
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_TYPES, true)) {
+        if (! in_array($value, self::VALID_TYPES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz category tipi: %s. Geçerli tipler: %s', $value, implode(', ', self::VALID_TYPES))
             );
         }
     }
 }
-

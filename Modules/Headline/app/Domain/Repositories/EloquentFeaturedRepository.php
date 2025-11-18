@@ -19,6 +19,32 @@ class EloquentFeaturedRepository implements FeaturedRepositoryInterface
             ->first();
     }
 
+    public function findByZoneAndSlot(string $zone, int $slot): \Illuminate\Database\Eloquent\Collection
+    {
+        return Featured::where('zone', $zone)
+            ->where('slot', $slot)
+            ->get();
+    }
+
+    public function findByZone(string $zone): \Illuminate\Database\Eloquent\Collection
+    {
+        return Featured::where('zone', $zone)->get();
+    }
+
+    public function getSubjectIdsByZone(string $zone): array
+    {
+        return Featured::where('zone', $zone)
+            ->pluck('subject_id')
+            ->toArray();
+    }
+
+    public function getMaxSlotForZone(string $zone): ?int
+    {
+        return Featured::where('zone', $zone)
+            ->whereNotNull('slot')
+            ->max('slot');
+    }
+
     public function create(array $data): Featured
     {
         return Featured::create($data);
@@ -27,6 +53,7 @@ class EloquentFeaturedRepository implements FeaturedRepositoryInterface
     public function update(Featured $featured, array $data): Featured
     {
         $featured->update($data);
+
         return $featured->fresh();
     }
 
@@ -47,5 +74,9 @@ class EloquentFeaturedRepository implements FeaturedRepositoryInterface
             ->where('subject_id', $subjectId)
             ->delete();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Featured::query();
+    }
+}

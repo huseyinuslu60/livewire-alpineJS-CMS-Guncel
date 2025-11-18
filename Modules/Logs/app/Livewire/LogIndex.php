@@ -2,12 +2,12 @@
 
 namespace Modules\Logs\Livewire;
 
-use App\Support\Pagination;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Logs\Models\UserLog;
 use Modules\Logs\Services\LogService;
+use Modules\User\Services\UserService;
 
 /**
  * @property string|null $search
@@ -45,9 +45,12 @@ class LogIndex extends Component
 
     protected LogService $logService;
 
+    protected UserService $userService;
+
     public function boot()
     {
         $this->logService = app(LogService::class);
+        $this->userService = app(UserService::class);
     }
 
     protected $queryString = [
@@ -116,6 +119,8 @@ class LogIndex extends Component
             $this->bulkAction = '';
 
             session()->flash('success', $message);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
@@ -128,6 +133,8 @@ class LogIndex extends Component
         try {
             $this->logService->delete($id);
             session()->flash('success', 'Log kaydı başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -140,6 +147,8 @@ class LogIndex extends Component
         try {
             $this->logService->clearAll();
             session()->flash('success', 'Tüm log kayıtları başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Log kayıtları silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -162,6 +171,8 @@ class LogIndex extends Component
 
             // JavaScript indirme için veri hazırla
             $this->dispatch('download-csv', data: $export['data'], filename: $export['filename']);
+        } catch (\InvalidArgumentException $e) {
+            $this->dispatch('show-error', $e->getMessage());
         } catch (\Exception $e) {
             $this->dispatch('show-error', 'Log kayıtları dışa aktarılırken bir hata oluştu: '.$e->getMessage());
         }
@@ -193,7 +204,7 @@ class LogIndex extends Component
         return view($view, [
             'logs' => $this->getLogs(),
             'actions' => UserLog::ACTIONS,
-            'users' => \App\Models\User::select('id', 'name')->orderBy('name')->get(),
+            'users' => $this->userService->getQuery()->select('id', 'name')->orderBy('name')->get(),
         ])->extends('layouts.admin')->section('content');
     }
 }

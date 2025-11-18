@@ -2,13 +2,12 @@
 
 namespace Modules\Authors\Livewire;
 
-use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\Authors\Models\Author;
 use Modules\Authors\Services\AuthorService;
+use Modules\User\Services\UserService;
 
 class AuthorCreate extends Component
 {
@@ -42,9 +41,12 @@ class AuthorCreate extends Component
 
     protected AuthorService $authorService;
 
+    protected UserService $userService;
+
     public function boot()
     {
         $this->authorService = app(AuthorService::class);
+        $this->userService = app(UserService::class);
     }
 
     protected $rules = [
@@ -94,7 +96,8 @@ class AuthorCreate extends Component
 
     public function render()
     {
-        $users = User::whereDoesntHave('authorProfile')
+        $users = $this->userService->getQuery()
+            ->whereDoesntHave('authorProfile')
             ->whereRelation('roles', 'name', 'yazar')
             ->get();
 

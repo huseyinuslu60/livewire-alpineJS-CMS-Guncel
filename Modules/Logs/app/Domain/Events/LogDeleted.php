@@ -13,4 +13,3 @@ class LogDeleted
         $this->log = $log;
     }
 }
-

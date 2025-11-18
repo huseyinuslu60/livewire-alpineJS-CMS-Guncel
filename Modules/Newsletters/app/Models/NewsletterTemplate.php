@@ -4,6 +4,26 @@ namespace Modules\Newsletters\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $description
+ * @property string|null $header_html
+ * @property string|null $content_html
+ * @property string|null $footer_html
+ * @property array|null $styles
+ * @property string|null $preview_image
+ * @property bool $is_active
+ * @property int $sort_order
+ * @property string|null $created_at
+ * @property string|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterTemplate sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterTemplate search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterTemplate active()
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterTemplate ordered()
+ */
 class NewsletterTemplate extends Model
 {
     protected $fillable = [

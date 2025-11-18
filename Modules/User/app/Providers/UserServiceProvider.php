@@ -38,7 +38,7 @@ class UserServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->register(RouteServiceProvider::class);
-        
+
         // Register Repository bindings
         $this->app->bind(
             \Modules\User\Domain\Repositories\UserRepositoryInterface::class,

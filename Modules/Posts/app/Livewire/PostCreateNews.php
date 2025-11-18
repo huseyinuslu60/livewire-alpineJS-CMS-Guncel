@@ -8,19 +8,33 @@ use App\Services\ValueObjects\Slug;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\AgencyNews\Models\AgencyNews;
-use Modules\Categories\Models\Category;
+use Modules\AgencyNews\Services\AgencyNewsService;
+use Modules\Categories\Services\CategoryService;
+use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Domain\ValueObjects\PostType;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
+/**
+ * @property CategoryService $categoryService
+ * @property AgencyNewsService $agencyNewsService
+ */
 class PostCreateNews extends Component
 {
     use ValidationMessages, WithFileUploads;
+
+    protected CategoryService $categoryService;
+
+    protected AgencyNewsService $agencyNewsService;
+
+    public function boot()
+    {
+        $this->categoryService = app(CategoryService::class);
+        $this->agencyNewsService = app(AgencyNewsService::class);
+    }
 
     public string $title = '';
 
@@ -77,8 +91,9 @@ class PostCreateNews extends Component
 
     /**
      * Flag to track if image editor was used (to avoid saving empty spot_data)
+     * Must be public for Livewire serialization
      */
-    protected bool $imageEditorUsed = false;
+    public bool $imageEditorUsed = false;
 
     /** @var array<int> */
     public array $categoryIds = [];
@@ -107,7 +122,7 @@ class PostCreateNews extends Component
     {
         // WithFileUploads trait handles file serialization automatically
         // We can use $this->files directly, but filter out non-UploadedFile objects
-        if (empty($this->files) || !is_array($this->files)) {
+        if (empty($this->files) || ! is_array($this->files)) {
             return [];
         }
 
@@ -130,13 +145,14 @@ class PostCreateNews extends Component
                         $imageContent = @file_get_contents($editedPath);
                         if ($imageContent !== false) {
                             $tempDir = sys_get_temp_dir();
-                            $tempFileName = 'livewire-edited-' . uniqid() . '-' . $file->getClientOriginalName();
-                            $tempFilePath = $tempDir . '/' . $tempFileName;
+                            $tempFileName = 'livewire-edited-'.uniqid().'-'.$file->getClientOriginalName();
+                            $tempFilePath = $tempDir.'/'.$tempFileName;
                             file_put_contents($tempFilePath, $imageContent);
                             $filePath = $tempFilePath;
                         } else {
                             // Fallback to original file
                             $processedFiles[] = $file;
+
                             continue;
                         }
                     }
@@ -173,7 +189,7 @@ class PostCreateNews extends Component
     public function hydrate()
     {
         // Ensure files array is properly initialized
-        if (!is_array($this->files)) {
+        if (! is_array($this->files ?? null)) {
             $this->files = [];
         }
     }
@@ -213,8 +229,8 @@ class PostCreateNews extends Component
 
         // Eğer agency parametresi varsa, ajans haberinden verileri yükle
         if ($agency) {
-            $agencyNews = AgencyNews::find($agency);
-            if ($agencyNews) {
+            $agencyNews = $this->agencyNewsService->findById($agency);
+            if ($agencyNews !== null) {
                 $this->title = $agencyNews->title ?? '';
                 $this->summary = $agencyNews->summary ?? '';
                 $this->content = $agencyNews->content ?? '';
@@ -243,7 +259,7 @@ class PostCreateNews extends Component
             'summary' => 'required|string',
             'content' => 'required|string',
             'post_type' => 'required|in:'.implode(',', PostType::all()),
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
+            'post_position' => 'required|in:'.implode(',', PostPosition::all()),
             'status' => 'required|in:'.implode(',', PostStatus::all()),
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
@@ -267,7 +283,7 @@ class PostCreateNews extends Component
     public function updatedTagsInput($value)
     {
         // Ensure tagsInput is always a string to prevent Livewire serialization issues
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
         } else {
             // Clean up the string: remove extra spaces, ensure proper comma separation
@@ -316,10 +332,10 @@ class PostCreateNews extends Component
      * Note: We don't replace the UploadedFile object to avoid serialization issues.
      * Instead, we store the edited image path temporarily and use it during save.
      *
-     * @param string|int $identifier File index or file_id
-     * @param string $imageUrl Edited image URL
-     * @param string|null $tempPath Temporary file path
-     * @param array|string|null $editorData Image editor data (crop, effects, meta) - can be array or JSON string
+     * @param  string|int  $identifier  File index or file_id
+     * @param  string  $imageUrl  Edited image URL
+     * @param  string|null  $tempPath  Temporary file path
+     * @param  array|string|null  $editorData  Image editor data (crop, effects, meta) - can be array or JSON string
      */
     public function updateFilePreview($identifier, $imageUrl, $tempPath = null, $editorData = null)
     {
@@ -344,15 +360,25 @@ class PostCreateNews extends Component
                     } else {
                         LogHelper::warning('PostCreateNews updateFilePreview - Failed to decode JSON editorData', [
                             'json_error' => json_last_error_msg(),
+                            'index' => $index,
                         ]);
                         $editorData = null;
                     }
                 }
 
-                    if ($editorData !== null && is_array($editorData)) {
-                        $this->imageEditorData[$index] = $editorData;
-                        $this->imageEditorUsed = true; // Mark that image editor was used
-                    }
+                if ($editorData !== null && is_array($editorData)) {
+                    $this->imageEditorData[$index] = $editorData;
+                    $this->imageEditorUsed = true; // Mark that image editor was used
+
+                    LogHelper::info('PostCreateNews updateFilePreview - Stored editor data', [
+                        'index' => $index,
+                        'has_textObjects' => isset($editorData['textObjects']) && ! empty($editorData['textObjects']),
+                        'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
+                        'has_effects' => isset($editorData['effects']),
+                        'has_crop' => isset($editorData['crop']),
+                        'has_canvas' => isset($editorData['canvas']),
+                    ]);
+                }
             } else {
                 LogHelper::warning('PostCreateNews updateFilePreview - editorData is null', [
                     'index' => $index,
@@ -375,7 +401,6 @@ class PostCreateNews extends Component
 
         Gate::authorize('create posts');
 
-
         // Set saving flag and skip render to avoid checksum issues
         $this->isSaving = true;
         $this->skipRender();
@@ -390,7 +415,7 @@ class PostCreateNews extends Component
             } else {
                 // Slug varsa ama unique değilse, unique yap
                 $slug = Slug::fromString($this->slug);
-                if (!$slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
+                if (! $slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
                     $slug = $slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
                     $this->slug = $slug->toString();
                 }
@@ -412,18 +437,21 @@ class PostCreateNews extends Component
             if (strlen($this->title) > 255) {
                 $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
                 $this->isSaving = false;
+
                 return;
             }
 
             if (strlen($this->summary) > 5000) {
                 $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
                 $this->isSaving = false;
+
                 return;
             }
 
             if (strlen($this->content) > 100000) {
                 $this->addError('content', 'İçerik çok uzun (maksimum 100.000 karakter).');
                 $this->isSaving = false;
+
                 return;
             }
 
@@ -432,7 +460,6 @@ class PostCreateNews extends Component
             // Process edited files if any
             // WithFileUploads trait handles file serialization, so we can use $this->files directly
             $filesToSave = $this->processEditedFiles();
-
 
             $formData = [
                 'title' => $this->title,
@@ -453,7 +480,7 @@ class PostCreateNews extends Component
                 'no_ads' => $this->no_ads,
             ];
 
-            $post = $postsService->create(
+            $post = $this->getPostsService()->create(
                 $formData,
                 $filesToSave,
                 $this->categoryIds,
@@ -465,9 +492,9 @@ class PostCreateNews extends Component
             $spotData = [];
 
             // Add image data if we have image files AND image editor was used
-            if ($this->imageEditorUsed && !empty($this->files) && $post->primaryFile) {
+            if ($this->imageEditorUsed && ! empty($this->files) && $post->primaryFile) {
                 // Get image dimensions and hash
-                $imagePath = public_path('storage/' . $post->primaryFile->file_path);
+                $imagePath = public_path('storage/'.$post->primaryFile->file_path);
                 $width = null;
                 $height = null;
                 $hash = null;
@@ -486,7 +513,26 @@ class PostCreateNews extends Component
 
                 // Get image editor data if available (from image editor modal)
                 $primaryFileIndex = $this->primaryFileIndex;
+
+                // Debug: Log available editor data
+                LogHelper::info('PostCreateNews savePost - Getting editor data', [
+                    'primaryFileIndex' => $primaryFileIndex,
+                    'imageEditorData_keys' => array_keys($this->imageEditorData),
+                    'imageEditorData_count' => count($this->imageEditorData),
+                ]);
+
+                // Try to get editor data from primaryFileIndex, or try all indices
                 $editorData = $this->imageEditorData[$primaryFileIndex] ?? null;
+
+                // If not found at primaryFileIndex, try to find it in any index
+                if ($editorData === null && ! empty($this->imageEditorData)) {
+                    // Get first available editor data
+                    $editorData = reset($this->imageEditorData);
+                    LogHelper::warning('PostCreateNews savePost - editorData not found at primaryFileIndex, using first available', [
+                        'primaryFileIndex' => $primaryFileIndex,
+                        'used_index' => key($this->imageEditorData),
+                    ]);
+                }
 
                 // Extract crop, effects, and meta from editor data
                 $desktopCrop = [];
@@ -538,15 +584,16 @@ class PostCreateNews extends Component
                     LogHelper::warning('PostCreateNews savePost - textObjects not found in editorData');
                 }
 
-                // Ensure arrays are properly formatted
-                $desktopCrop = is_array($desktopCrop) ? $desktopCrop : [];
-                $mobileCrop = is_array($mobileCrop) ? $mobileCrop : [];
-                $imageEffects = is_array($imageEffects) ? $imageEffects : [];
-                $imageMeta = is_array($imageMeta) ? $imageMeta : [
-                    'alt' => $post->primaryFile->alt_text ?? null,
-                    'credit' => null,
-                    'source' => null,
-                ];
+                // Extract canvas dimensions for scaling textObjects on reload
+                $canvasDimensions = ['width' => 0, 'height' => 0];
+                if ($editorData !== null && isset($editorData['canvas']) && is_array($editorData['canvas'])) {
+                    $canvasDimensions = [
+                        'width' => isset($editorData['canvas']['width']) ? (int) $editorData['canvas']['width'] : 0,
+                        'height' => isset($editorData['canvas']['height']) ? (int) $editorData['canvas']['height'] : 0,
+                    ];
+                }
+
+                // Arrays are already initialized above, no need to check again
 
                 $spotData['image'] = [
                     'original' => [
@@ -568,13 +615,40 @@ class PostCreateNews extends Component
                     'effects' => $imageEffects,
                     'meta' => $imageMeta,
                     'textObjects' => $textObjects,
+                    'canvas' => $canvasDimensions,
                 ];
             }
 
-            // Only save spot_data if image editor was used
-            if ($this->imageEditorUsed) {
+            // Only save spot_data if image editor was used AND we have actual data
+            if ($this->imageEditorUsed && isset($spotData['image'])) {
+                LogHelper::info('PostCreateNews savePost - Saving spot_data', [
+                    'has_spot_data' => isset($spotData['image']),
+                    'has_image' => true,
+                    'has_textObjects' => ! empty(($spotData['image']['textObjects'] ?? [])),
+                    'textObjects_count' => count(($spotData['image']['textObjects'] ?? [])),
+                    'has_effects' => ! empty(($spotData['image']['effects'] ?? [])),
+                    'primaryFileIndex' => $this->primaryFileIndex,
+                    'imageEditorData_keys' => array_keys($this->imageEditorData),
+                ]);
                 $post->spot_data = $spotData;
                 $post->save();
+            } else {
+                if ($this->imageEditorUsed) {
+                    LogHelper::warning('PostCreateNews savePost - imageEditorUsed is true but spot_data is empty', [
+                        'has_spot_data' => ! empty($spotData),
+                        'has_image' => isset($spotData['image']),
+                        'has_files' => ! empty($this->files),
+                        'has_primaryFile' => $post->primaryFile !== null,
+                        'imageEditorData_count' => count($this->imageEditorData),
+                        'primaryFileIndex' => $this->primaryFileIndex,
+                    ]);
+                } else {
+                    LogHelper::warning('PostCreateNews savePost - imageEditorUsed is false, not saving spot_data', [
+                        'has_files' => ! empty($this->files),
+                        'has_primaryFile' => $post->primaryFile !== null,
+                        'imageEditorData_count' => count($this->imageEditorData),
+                    ]);
+                }
             }
 
             $this->dispatch('post-created');
@@ -586,6 +660,10 @@ class PostCreateNews extends Component
             session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));
 
             return redirect()->route('posts.index');
+        } catch (\InvalidArgumentException $e) {
+            // Validation hataları - direkt mesaj göster
+            $this->isSaving = false;
+            $this->addError('general', $e->getMessage());
         } catch (\Exception $e) {
             // Hata durumunda flag'i temizle
             $this->isSaving = false;
@@ -599,13 +677,14 @@ class PostCreateNews extends Component
     {
         // Sadece news kategorilerini getir - cache ile optimize et
         $categories = \Illuminate\Support\Facades\Cache::remember('posts:categories:news', 300, function () {
-            return Category::where('status', 'active')
+            return $this->categoryService->getQuery()
+                ->where('status', 'active')
                 ->where('type', 'news')
                 ->orderBy('name')
                 ->get();
         });
 
-        $postPositions = Post::POSITIONS;
+        $postPositions = PostPosition::all();
         $postStatuses = PostStatus::all();
 
         /** @var view-string $view */
@@ -616,4 +695,3 @@ class PostCreateNews extends Component
             ->section('content');
     }
 }
-

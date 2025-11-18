@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         // Admin kullanıcısı zaten RolePermissionSeeder'da oluşturuluyor
         // Bu seeder sadece ek kullanıcılar için kullanılabilir
 
-        // Test kullanıcıları - Admin rolü ver
+        // Hüseyin USLU - Sadece Super Admin rolü
         $huseyin = User::firstOrCreate(
             ['email' => 'huseyinusluu@gmail.com'],
             [
@@ -26,7 +26,7 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Hüseyin'e admin rolü ver
-        $huseyin->assignRole('admin');
+        // Tüm rolleri kaldır ve sadece super admin rolü ver
+        $huseyin->syncRoles(['super_admin']);
     }
 }

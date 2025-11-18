@@ -18,6 +18,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $created_at
  * @property string|null $updated_at
  * @property string|null $deleted_at
+ * @property-read string|null $redirect_url
+ * @property-read bool $is_expired
+ * @property-read string $status_label
+ * @property-read string|null $formatted_end_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute active()
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute inactive()
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute expired()
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute notExpired()
+ * @method static \Illuminate\Database\Eloquent\Builder|Lastminute ordered()
  */
 class Lastminute extends Model
 {

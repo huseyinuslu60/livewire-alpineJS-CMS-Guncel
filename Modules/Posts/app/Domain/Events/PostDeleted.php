@@ -6,7 +6,7 @@ use Modules\Posts\Models\Post;
 
 /**
  * Post Deleted Domain Event
- * 
+ *
  * Bir post silindiğinde fırlatılır.
  */
 class PostDeleted
@@ -18,4 +18,3 @@ class PostDeleted
         $this->post = $post;
     }
 }
-

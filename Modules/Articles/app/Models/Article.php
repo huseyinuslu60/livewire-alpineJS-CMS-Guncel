@@ -26,6 +26,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $created_at
  * @property string|null $updated_at
  * @property string|null $deleted_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Article ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Article sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Article ofAuthor($authorId)
+ * @method static \Illuminate\Database\Eloquent\Builder|Article search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Article published()
+ * @method static \Illuminate\Database\Eloquent\Builder|Article mainPage()
+ * @method static \Illuminate\Database\Eloquent\Builder|Article commentable()
+ * @method static \Illuminate\Database\Eloquent\Builder|Article forSite($siteId)
  */
 class Article extends Model
 {

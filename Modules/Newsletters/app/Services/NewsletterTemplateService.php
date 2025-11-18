@@ -16,7 +16,9 @@ use Modules\Newsletters\Models\NewsletterTemplate;
 class NewsletterTemplateService
 {
     protected SlugGenerator $slugGenerator;
+
     protected NewsletterTemplateValidator $templateValidator;
+
     protected NewsletterTemplateRepositoryInterface $templateRepository;
 
     public function __construct(
@@ -40,7 +42,7 @@ class NewsletterTemplateService
 
             return DB::transaction(function () use ($data) {
                 // Generate slug if not provided
-                if (empty($data['slug']) && !empty($data['name'])) {
+                if (empty($data['slug']) && ! empty($data['name'])) {
                     $slug = $this->slugGenerator->generate($data['name'], NewsletterTemplate::class, 'slug', 'id');
                     $data['slug'] = $slug->toString();
                 }
@@ -137,7 +139,7 @@ class NewsletterTemplateService
     {
         try {
             return DB::transaction(function () use ($template) {
-                $template->update(['is_active' => !$template->is_active]);
+                $template->update(['is_active' => ! $template->is_active]);
 
                 LogHelper::info('NewsletterTemplate aktif durumu değiştirildi', [
                     'template_id' => $template->id,
@@ -154,5 +156,31 @@ class NewsletterTemplateService
             throw $e;
         }
     }
-}
 
+    /**
+     * Find a template by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $templateId): NewsletterTemplate
+    {
+        $template = $this->templateRepository->findById($templateId);
+
+        if (! $template) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Newsletter template not found');
+        }
+
+        return $template;
+    }
+
+    /**
+     * Get query builder for templates
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Newsletters\Models\NewsletterTemplate>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->templateRepository->getQuery();
+    }
+}

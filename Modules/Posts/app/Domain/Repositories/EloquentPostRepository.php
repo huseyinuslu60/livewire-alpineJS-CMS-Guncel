@@ -41,6 +41,7 @@ class EloquentPostRepository implements PostRepositoryInterface
     public function update(Post $post, array $data): Post
     {
         $post->update($data);
+
         return $post->fresh();
     }
 
@@ -65,5 +66,25 @@ class EloquentPostRepository implements PostRepositoryInterface
 
         return $query->exists();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Post::query();
+    }
+
+    /**
+     * Find posts by IDs
+     */
+    public function findByIds(array $postIds): \Illuminate\Database\Eloquent\Collection
+    {
+        return Post::whereIn('post_id', $postIds)->get();
+    }
+
+    /**
+     * Bulk update posts by IDs
+     */
+    public function bulkUpdate(array $postIds, array $data): int
+    {
+        return Post::whereIn('post_id', $postIds)->update($data);
+    }
+}

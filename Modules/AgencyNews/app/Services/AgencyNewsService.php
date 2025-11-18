@@ -16,7 +16,9 @@ use Modules\AgencyNews\Models\AgencyNews;
 class AgencyNewsService
 {
     protected SlugGenerator $slugGenerator;
+
     protected AgencyNewsValidator $agencyNewsValidator;
+
     protected AgencyNewsRepositoryInterface $agencyNewsRepository;
 
     public function __construct(
@@ -40,7 +42,7 @@ class AgencyNewsService
 
             return DB::transaction(function () use ($data) {
                 // Generate slug if not provided
-                if (empty($data['slug']) && !empty($data['title'])) {
+                if (empty($data['slug']) && ! empty($data['title'])) {
                     $slug = $this->slugGenerator->generate($data['title'], AgencyNews::class, 'slug', 'record_id');
                     $data['slug'] = $slug->toString();
                 }
@@ -129,5 +131,31 @@ class AgencyNewsService
             throw $e;
         }
     }
-}
 
+    /**
+     * Find an agency news by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $recordId): AgencyNews
+    {
+        $agencyNews = $this->agencyNewsRepository->findById($recordId);
+
+        if (! $agencyNews) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Agency news not found');
+        }
+
+        return $agencyNews;
+    }
+
+    /**
+     * Get query builder for agency news
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\AgencyNews\Models\AgencyNews>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->agencyNewsRepository->getQuery();
+    }
+}

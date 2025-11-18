@@ -5,11 +5,23 @@ namespace App\Services;
 use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Modules\Articles\Models\Article;
-use Modules\Posts\Models\Post;
+use Modules\Articles\Services\ArticleService;
+use Modules\Posts\Services\PostsService;
 
 class AIContentSuggestionService
 {
+    protected PostsService $postsService;
+
+    protected ArticleService $articleService;
+
+    public function __construct(
+        ?PostsService $postsService = null,
+        ?ArticleService $articleService = null
+    ) {
+        $this->postsService = $postsService ?? app(PostsService::class);
+        $this->articleService = $articleService ?? app(ArticleService::class);
+    }
+
     public function getContentSuggestions($limit = 5)
     {
         // Cache süresi 30 dakika - 30 dakikalık bloklar halinde cache key oluştur
@@ -19,14 +31,15 @@ class AIContentSuggestionService
 
         return Cache::remember($cacheKey, 1800, function () use ($limit) {
             // Haftalık en popüler içerikleri al
-            $popularPosts = Post::query()
+            $popularPosts = $this->postsService->getQuery()
                 ->ofStatus('published')
                 ->where('created_at', '>=', now()->subWeek())
                 ->popular()
                 ->limit(10)
                 ->get(['title', 'summary', 'post_type', 'view_count']);
 
-            $popularArticles = Article::where('status', 'published')
+            $popularArticles = $this->articleService->getQuery()
+                ->where('status', 'published')
                 ->where('created_at', '>=', now()->subWeek())
                 ->orderBy('hit', 'desc')
                 ->limit(10)
@@ -292,7 +305,7 @@ class AIContentSuggestionService
         }
 
         // Tüm AI servisleri başarısız olursa boş dizi döndür (fallback'e geçilecek)
-        \Log::warning('AI servisleri başarısız oldu, fallback önerileri kullanılacak');
+        LogHelper::warning('AI servisleri başarısız oldu, fallback önerileri kullanılacak');
 
         return [];
     }
@@ -302,7 +315,7 @@ class AIContentSuggestionService
         $apiKey = config('services.openai.api_key');
 
         if (empty($apiKey)) {
-            \Log::warning('OpenAI API key bulunamadı');
+            LogHelper::warning('OpenAI API key bulunamadı');
 
             return null;
         }
@@ -347,7 +360,7 @@ class AIContentSuggestionService
                 } else {
                     $errorBody = $response->body();
                     $statusCode = $response->status();
-                    \Log::error("OpenAI API Error [{$statusCode}]: {$errorBody}");
+                    LogHelper::error("OpenAI API Error [{$statusCode}]: {$errorBody}");
 
                     // Don't retry on 4xx errors (client errors)
                     if ($statusCode >= 400 && $statusCode < 500) {
@@ -357,20 +370,20 @@ class AIContentSuggestionService
 
             } catch (\Illuminate\Http\Client\ConnectionException $e) {
                 $lastException = $e;
-                \Log::warning("OpenAI connection error (attempt {$attempt}): ".$e->getMessage());
+                LogHelper::warning("OpenAI connection error (attempt {$attempt}): ".$e->getMessage());
             } catch (\Illuminate\Http\Client\RequestException $e) {
                 $lastException = $e;
-                \Log::warning("OpenAI request error (attempt {$attempt}): ".$e->getMessage());
+                LogHelper::warning("OpenAI request error (attempt {$attempt}): ".$e->getMessage());
             } catch (\Exception $e) {
                 $lastException = $e;
-                \Log::error("OpenAI API Error (attempt {$attempt}): ".$e->getMessage());
+                LogHelper::error("OpenAI API Error (attempt {$attempt}): ".$e->getMessage());
                 // Don't retry on unexpected errors
                 break;
             }
         }
 
         if ($lastException) {
-            \Log::error('OpenAI API failed after all retries: '.$lastException->getMessage());
+            LogHelper::error('OpenAI API failed after all retries: '.$lastException->getMessage());
         }
 
         return null;
@@ -382,7 +395,7 @@ class AIContentSuggestionService
             $apiKey = config('services.anthropic.api_key');
 
             if (empty($apiKey)) {
-                \Log::warning('Anthropic API key bulunamadı');
+                LogHelper::warning('Anthropic API key bulunamadı');
 
                 return null;
             }
@@ -408,11 +421,11 @@ class AIContentSuggestionService
             if ($response->successful()) {
                 return $response->json();
             } else {
-                \Log::error('Claude API Error: '.$response->body());
+                LogHelper::error('Claude API Error: '.$response->body());
             }
 
         } catch (\Exception $e) {
-            \Log::error('Claude API Error: '.$e->getMessage());
+            LogHelper::error('Claude API Error: '.$e->getMessage());
         }
 
         return null;
@@ -473,7 +486,7 @@ Sadece başlıkları listele, açıklama ekleme. Örnek format:
         }
 
         if (empty($content)) {
-            \Log::warning('AI yanıtı boş');
+            LogHelper::warning('AI yanıtı boş');
 
             return [];
         }
@@ -517,7 +530,7 @@ Sadece başlıkları listele, açıklama ekleme. Örnek format:
         }
 
         // Yeterli öneri yoksa boş döndür (fallback'e geçilecek)
-        \Log::warning('AI yeterli öneri üretemedi: '.count($suggestions).' öneri bulundu');
+        LogHelper::warning('AI yeterli öneri üretemedi: '.count($suggestions).' öneri bulundu');
 
         return $suggestions;
     }

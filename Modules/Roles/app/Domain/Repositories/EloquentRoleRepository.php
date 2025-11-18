@@ -18,12 +18,16 @@ class EloquentRoleRepository implements RoleRepositoryInterface
 
     public function create(array $data): Role
     {
-        return Role::create($data);
+        /** @var Role $role */
+        $role = Role::create($data);
+
+        return $role;
     }
 
     public function update(Role $role, array $data): Role
     {
         $role->update($data);
+
         return $role->fresh();
     }
 
@@ -31,5 +35,14 @@ class EloquentRoleRepository implements RoleRepositoryInterface
     {
         return $role->delete();
     }
-}
 
+    public function findByIds(array $roleIds): \Illuminate\Database\Eloquent\Collection
+    {
+        return Role::whereIn('id', $roleIds)->get();
+    }
+
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Role::query();
+    }
+}

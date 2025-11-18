@@ -23,6 +23,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $image
  * @property string|null $created_at
  * @property string|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Author ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Author sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Author search(?string $term)
  */
 class Author extends Model
 {

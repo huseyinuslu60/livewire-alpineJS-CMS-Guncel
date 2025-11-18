@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Newsletter Validator Domain Service
- * 
+ *
  * Newsletter iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Newsletter name is required and max 255 characters
@@ -16,9 +16,9 @@ class NewsletterValidator
 {
     /**
      * Newsletter data'nın validasyonunu yap
-     * 
-     * @param array $data Newsletter data
-     * @return void
+     *
+     * @param  array  $data  Newsletter data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -38,4 +38,3 @@ class NewsletterValidator
         }
     }
 }
-

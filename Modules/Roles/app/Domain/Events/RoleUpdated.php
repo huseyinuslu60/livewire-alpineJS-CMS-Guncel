@@ -7,6 +7,7 @@ use Spatie\Permission\Models\Role;
 class RoleUpdated
 {
     public Role $role;
+
     public array $changedAttributes;
 
     public function __construct(Role $role, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class RoleUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

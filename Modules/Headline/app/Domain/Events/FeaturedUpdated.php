@@ -7,6 +7,7 @@ use Modules\Headline\app\Models\Featured;
 class FeaturedUpdated
 {
     public Featured $featured;
+
     public array $changedAttributes;
 
     public function __construct(Featured $featured, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class FeaturedUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

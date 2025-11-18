@@ -7,6 +7,7 @@ use Modules\Banks\Models\Stock;
 class StockUpdated
 {
     public Stock $stock;
+
     public array $changedAttributes;
 
     public function __construct(Stock $stock, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class StockUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

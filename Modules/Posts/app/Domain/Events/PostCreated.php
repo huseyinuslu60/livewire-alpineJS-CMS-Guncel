@@ -6,7 +6,7 @@ use Modules\Posts\Models\Post;
 
 /**
  * Post Created Domain Event
- * 
+ *
  * Bir post oluşturulduğunda fırlatılır.
  */
 class PostCreated
@@ -18,4 +18,3 @@ class PostCreated
         $this->post = $post;
     }
 }
-

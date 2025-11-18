@@ -13,4 +13,3 @@ class LastminuteCreated
         $this->lastminute = $lastminute;
     }
 }
-

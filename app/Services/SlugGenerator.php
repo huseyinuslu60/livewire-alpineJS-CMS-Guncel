@@ -8,23 +8,21 @@ use Illuminate\Support\Str;
 
 /**
  * Generic Slug Generator Service
- * 
+ *
  * Tüm modüllerde kullanılabilir ortak slug generator.
  * Herhangi bir Eloquent model için unique slug oluşturur.
- * 
- * @package App\Services
  */
 class SlugGenerator
 {
     /**
      * String'den unique slug oluştur
-     * 
-     * @param string $source Slug oluşturulacak kaynak metin (title, name, vb.)
-     * @param string $modelClass Eloquent model class name (örn: Post::class)
-     * @param string $slugColumn Slug kolon adı (varsayılan: 'slug')
-     * @param string $idColumn ID kolon adı (varsayılan: model'in primary key'i)
-     * @param int|null $excludeId Bu ID'yi hariç tut (update işlemleri için)
-     * @return Slug
+     *
+     * @param  string  $source  Slug oluşturulacak kaynak metin (title, name, vb.)
+     * @param  string  $modelClass  Eloquent model class name (örn: Post::class)
+     * @param  string  $slugColumn  Slug kolon adı (varsayılan: 'slug')
+     * @param  string  $idColumn  ID kolon adı (varsayılan: model'in primary key'i)
+     * @param  int|null  $excludeId  Bu ID'yi hariç tut (update işlemleri için)
+     *
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      */
@@ -32,14 +30,14 @@ class SlugGenerator
         string $source,
         string $modelClass,
         string $slugColumn = 'slug',
-        string $idColumn = null,
+        ?string $idColumn = null,
         ?int $excludeId = null
     ): Slug {
         if (empty(trim($source))) {
             throw new \InvalidArgumentException('Slug kaynağı boş olamaz');
         }
 
-        if (!is_subclass_of($modelClass, Model::class)) {
+        if (! is_subclass_of($modelClass, Model::class)) {
             throw new \InvalidArgumentException("{$modelClass} bir Eloquent Model değil");
         }
 
@@ -62,12 +60,12 @@ class SlugGenerator
                 $query->where($idColumn, '!=', $excludeId);
             }
 
-            if (!$query->exists()) {
+            if (! $query->exists()) {
                 break;
             }
 
             // Slug zaten varsa, sonuna sayı ekle
-            $slug = $originalSlug . '-' . $counter;
+            $slug = $originalSlug.'-'.$counter;
             $counter++;
 
             // Sonsuz döngüyü önle (maksimum 1000 deneme)
@@ -81,22 +79,21 @@ class SlugGenerator
 
     /**
      * Mevcut slug'ın unique olup olmadığını kontrol et
-     * 
-     * @param Slug $slug Kontrol edilecek slug
-     * @param string $modelClass Eloquent model class name
-     * @param string $slugColumn Slug kolon adı
-     * @param string $idColumn ID kolon adı
-     * @param int|null $excludeId Bu ID'yi hariç tut
-     * @return bool
+     *
+     * @param  Slug  $slug  Kontrol edilecek slug
+     * @param  string  $modelClass  Eloquent model class name
+     * @param  string  $slugColumn  Slug kolon adı
+     * @param  string  $idColumn  ID kolon adı
+     * @param  int|null  $excludeId  Bu ID'yi hariç tut
      */
     public function isUnique(
         Slug $slug,
         string $modelClass,
         string $slugColumn = 'slug',
-        string $idColumn = null,
+        ?string $idColumn = null,
         ?int $excludeId = null
     ): bool {
-        if (!is_subclass_of($modelClass, Model::class)) {
+        if (! is_subclass_of($modelClass, Model::class)) {
             throw new \InvalidArgumentException("{$modelClass} bir Eloquent Model değil");
         }
 
@@ -111,7 +108,6 @@ class SlugGenerator
             $query->where($idColumn, '!=', $excludeId);
         }
 
-        return !$query->exists();
+        return ! $query->exists();
     }
 }
-

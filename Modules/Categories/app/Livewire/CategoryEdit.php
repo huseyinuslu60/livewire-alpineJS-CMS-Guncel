@@ -5,7 +5,6 @@ namespace Modules\Categories\Livewire;
 use App\Services\SlugGenerator;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Categories\Models\Category;
 use Modules\Categories\Services\CategoryService;
@@ -78,7 +77,7 @@ class CategoryEdit extends Component
 
         // Eğer $category string ise, Category model'ini bul
         if (is_string($category)) {
-            $this->category = Category::findOrFail($category);
+            $this->category = $this->categoryService->findById((int) $category);
         } else {
             $this->category = $category;
         }
@@ -97,7 +96,7 @@ class CategoryEdit extends Component
 
     public function updatedName()
     {
-        if (! $this->isSlugEditable && !empty($this->name)) {
+        if (! $this->isSlugEditable && ! empty($this->name)) {
             $slugGenerator = app(SlugGenerator::class);
             $slug = $slugGenerator->generate($this->name, Category::class, 'slug', 'category_id', $this->category->category_id ?? null);
             $this->slug = $slug->toString();
@@ -142,6 +141,9 @@ class CategoryEdit extends Component
             session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'category'));
 
             return redirect()->route('categories.index');
+        } catch (\InvalidArgumentException $e) {
+            $this->isLoading = false;
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->isLoading = false;
             session()->flash('error', 'Kategori güncellenirken hata oluştu: '.$e->getMessage());
@@ -155,7 +157,8 @@ class CategoryEdit extends Component
 
     public function render()
     {
-        $parentCategories = Category::whereNull('parent_id')
+        $parentCategories = $this->categoryService->getQuery()
+            ->whereNull('parent_id')
             ->where('category_id', '!=', $this->category->category_id)
             ->orderBy('name')
             ->get();

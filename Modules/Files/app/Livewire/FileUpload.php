@@ -2,6 +2,7 @@
 
 namespace Modules\Files\Livewire;
 
+use App\Support\Sanitizer;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
@@ -120,16 +121,26 @@ class FileUpload extends Component
                 // Post ID'yi URL'den al (medya kütüphanesi için)
                 $postId = request()->get('post_id'); // Null olabilir
 
+                // Clean and sanitize file title
+                $titleWithoutExtension = pathinfo($originalName, PATHINFO_FILENAME);
+                $sanitizedTitle = Sanitizer::sanitizeFileName($titleWithoutExtension);
+
                 // Veritabanına kaydet
                 $this->fileService->create([
                     'post_id' => $postId, // Null olabilir
-                    'title' => $originalName,
+                    'title' => $sanitizedTitle,
                     'alt_text' => $description['alt_text'] ?? '',
                     'caption' => $description['caption'] ?? '',
                     'primary' => false, // Ana dosya seçeneği kaldırıldı
                 ], $file, 'files');
 
                 $uploadedCount++;
+            } catch (\InvalidArgumentException $e) {
+                // Validation hataları için özel mesaj
+                $this->errorMessage = $e->getMessage();
+                $this->showErrorMessage = true;
+
+                return;
             } catch (\Exception $e) {
                 $this->errorMessage = 'Dosya yüklenirken hata oluştu: '.$e->getMessage();
                 $this->showErrorMessage = true;
@@ -139,11 +150,15 @@ class FileUpload extends Component
         }
 
         session()->flash('success', $this->createContextualSuccessMessage('uploaded', 'name', 'file'));
+
+        // Hata mesajlarını temizle
+        $this->showErrorMessage = false;
+        $this->errorMessage = '';
+
         $this->reset(['files', 'fileDescriptions', 'allFiles', 'allDescriptions']);
         // Parent component'e modal'ı kapatmasını ve listeyi yenilemesini söyle
         $this->dispatch('closeUploadModal');
         $this->dispatch('filesUploaded');
-
     }
 
     public function removeFile($index)

@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Role Validator Domain Service
- * 
+ *
  * Role iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Role name is required and max 255 characters
@@ -16,10 +16,10 @@ class RoleValidator
 {
     /**
      * Role data'nın validasyonunu yap
-     * 
-     * @param array $data Role data
-     * @param int|null $excludeId Role ID to exclude (for updates)
-     * @return void
+     *
+     * @param  array  $data  Role data
+     * @param  int|null  $excludeId  Role ID to exclude (for updates)
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data, ?int $excludeId = null): void
@@ -39,4 +39,3 @@ class RoleValidator
         }
     }
 }
-

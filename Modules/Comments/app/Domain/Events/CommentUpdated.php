@@ -10,6 +10,7 @@ class CommentUpdated
     use Dispatchable;
 
     public Comment $comment;
+
     public array $changedAttributes;
 
     public function __construct(Comment $comment, array $changedAttributes = [])
@@ -18,4 +19,3 @@ class CommentUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

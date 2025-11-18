@@ -6,14 +6,16 @@ use InvalidArgumentException;
 
 /**
  * Newsletter Mail Status Value Object
- * 
+ *
  * Newsletter mail durumlarını type-safe olarak yönetir.
  * Business rule: Sadece geçerli mail durumları kabul edilir.
  */
 final class NewsletterMailStatus
 {
     public const PENDING = 'pending';
+
     public const SENT = 'sent';
+
     public const FAILED = 'failed';
 
     private const VALID_STATUSES = [
@@ -158,11 +160,10 @@ final class NewsletterMailStatus
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz newsletter mail durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

@@ -7,6 +7,7 @@ use App\Models\User;
 class UserUpdated
 {
     public User $user;
+
     public array $changedAttributes;
 
     public function __construct(User $user, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class UserUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

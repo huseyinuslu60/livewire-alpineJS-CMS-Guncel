@@ -13,4 +13,3 @@ class UserCreated
         $this->user = $user;
     }
 }
-

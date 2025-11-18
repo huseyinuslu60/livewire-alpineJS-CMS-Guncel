@@ -7,8 +7,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Posts\Models\Post;
+use Modules\Categories\Services\CategoryService;
+use Modules\Posts\Domain\ValueObjects\PostStatus;
+use Modules\Posts\Domain\ValueObjects\PostType;
 use Modules\Posts\Services\PostsService;
+use Modules\User\Services\UserService;
 
 /**
  * @property string|null $search
@@ -50,9 +53,15 @@ class PostIndex extends Component
 
     protected PostsService $postsService;
 
+    protected UserService $userService;
+
+    protected CategoryService $categoryService;
+
     public function boot()
     {
         $this->postsService = app(PostsService::class);
+        $this->userService = app(UserService::class);
+        $this->categoryService = app(CategoryService::class);
     }
 
     protected $queryString = [
@@ -94,7 +103,6 @@ class PostIndex extends Component
         }
 
         try {
-            $posts = Post::whereIn('post_id', $this->selectedPosts);
             $selectedCount = count($this->selectedPosts);
 
             switch ($this->bulkAction) {
@@ -127,6 +135,8 @@ class PostIndex extends Component
             $this->bulkAction = '';
 
             session()->flash('success', $message);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
@@ -137,10 +147,12 @@ class PostIndex extends Component
         Gate::authorize('delete posts');
 
         try {
-            $post = Post::findOrFail($id);
+            $post = $this->postsService->findById($id);
             $this->postsService->delete($post);
 
             session()->flash('success', 'Haber başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Haber silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -151,12 +163,14 @@ class PostIndex extends Component
         Gate::authorize('edit posts');
 
         try {
-            $post = Post::findOrFail($id);
+            $post = $this->postsService->findById($id);
             $this->postsService->toggleMainPage($post);
 
             $visibility = $post->is_mainpage ? 'gösterilecek' : 'gizlenecek';
 
             session()->flash('success', "Yazı ana sayfada {$visibility}.");
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -164,7 +178,7 @@ class PostIndex extends Component
 
     public function getPosts()
     {
-        $query = Post::query()
+        $query = $this->postsService->getQuery()
             ->with(['author', 'primaryFile', 'categories', 'tags', 'creator', 'updater']);
 
         if ($this->search !== null) {
@@ -234,14 +248,16 @@ class PostIndex extends Component
     public function render()
     {
         // Sadece yazı oluşturan kullanıcıları getir (küçük referans listesi - limit ile)
-        $editors = \App\Models\User::whereHas('posts')
+        $editors = $this->userService->getQuery()
+            ->whereHas('posts')
             ->select('id', 'name')
             ->orderBy('name')
             ->limit(100) // Referans listesi için limit
             ->get();
 
         // Kategorileri getir (küçük referans listesi - limit ile)
-        $categories = \Modules\Categories\Models\Category::select('category_id', 'name')
+        $categories = $this->categoryService->getQuery()
+            ->select('category_id', 'name')
             ->orderBy('name')
             ->limit(200) // Referans listesi için limit
             ->get();
@@ -251,8 +267,8 @@ class PostIndex extends Component
 
         return view($view, [
             'posts' => $this->getPosts(),
-            'postTypes' => Post::getTypeLabels(),
-            'postStatuses' => Post::getStatusLabels(),
+            'postTypes' => PostType::labels(),
+            'postStatuses' => PostStatus::labels(),
             'editors' => $editors,
             'categories' => $categories,
         ])->extends('layouts.admin')->section('content');

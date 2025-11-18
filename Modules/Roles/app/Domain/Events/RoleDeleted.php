@@ -13,4 +13,3 @@ class RoleDeleted
         $this->role = $role;
     }
 }
-

@@ -5,11 +5,17 @@ namespace Modules\Headline\Http\Livewire;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Modules\Headline\app\Models\Featured;
 use Modules\Headline\Services\FeaturedService;
 
 class Manage extends Component
 {
+    protected FeaturedService $featuredService;
+
+    public function boot()
+    {
+        $this->featuredService = app(FeaturedService::class);
+    }
+
     // Public properties
     public string $activeZone = 'manset';
 
@@ -51,7 +57,7 @@ class Manage extends Component
     public ?string $schedEndsAt = null;
 
     // Data properties
-    /** @var array<string, \Illuminate\Support\Collection<int>> */
+    /** @var array<string, \Illuminate\Database\Eloquent\Collection<int, \Modules\Headline\app\Models\Featured>> */
     public $pinnedByZone = [];
 
     /** @var \Illuminate\Support\Collection<int, \Modules\Posts\Models\Post> */
@@ -140,8 +146,9 @@ class Manage extends Component
 
         // If no ordered array provided, get current order from DOM
         if (empty($ordered)) {
+            /** @var \Illuminate\Support\Collection<int, \Modules\Headline\app\Models\Featured> $pinnedItems */
             $pinnedItems = $this->pinnedByZone[$zone];
-            $ordered = $pinnedItems->map(function ($item) {
+            $ordered = $pinnedItems->map(function (\Modules\Headline\app\Models\Featured $item) {
                 return [
                     'subject_type' => $item->subject_type,
                     'subject_id' => $item->subject_id,
@@ -173,21 +180,28 @@ class Manage extends Component
         $this->schedSubjectId = $subjectId;
 
         // Mevcut zamanlama bilgilerini yükle
-        $featured = Featured::where('zone', $zone)
+        $featured = $this->featuredService->getQuery()
+            ->where('zone', $zone)
             ->where('subject_type', $subjectType)
             ->where('subject_id', $subjectId)
             ->first();
 
         if ($featured) {
-            $this->schedStartsAt = $featured->starts_at ?
-                (is_string($featured->starts_at) ?
-                    Carbon::parse($featured->starts_at)->format('Y-m-d\TH:i') :
-                    $featured->starts_at->format('Y-m-d\TH:i')) :
+            /** @var \Modules\Headline\app\Models\Featured $featured */
+            /** @var \Carbon\Carbon|\DateTime|string|null $startsAt */
+            $startsAt = $featured->starts_at;
+            /** @var \Carbon\Carbon|\DateTime|string|null $endsAt */
+            $endsAt = $featured->ends_at;
+
+            $this->schedStartsAt = ($startsAt !== null) ?
+                (is_string($startsAt) ?
+                    Carbon::parse($startsAt)->format('Y-m-d\TH:i') :
+                    ($startsAt instanceof \DateTimeInterface ? $startsAt->format('Y-m-d\TH:i') : null)) :
                 null;
-            $this->schedEndsAt = $featured->ends_at ?
-                (is_string($featured->ends_at) ?
-                    Carbon::parse($featured->ends_at)->format('Y-m-d\TH:i') :
-                    $featured->ends_at->format('Y-m-d\TH:i')) :
+            $this->schedEndsAt = ($endsAt !== null) ?
+                (is_string($endsAt) ?
+                    Carbon::parse($endsAt)->format('Y-m-d\TH:i') :
+                    ($endsAt instanceof \DateTimeInterface ? $endsAt->format('Y-m-d\TH:i') : null)) :
                 null;
         } else {
             $this->schedStartsAt = null;

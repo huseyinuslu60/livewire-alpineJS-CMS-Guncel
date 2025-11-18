@@ -13,4 +13,3 @@ class NewsletterCreated
         $this->newsletter = $newsletter;
     }
 }
-

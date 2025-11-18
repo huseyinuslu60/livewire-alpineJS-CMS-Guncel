@@ -16,7 +16,9 @@ use Modules\Lastminutes\Models\Lastminute;
 class LastminuteService
 {
     protected SlugGenerator $slugGenerator;
+
     protected LastminuteValidator $lastminuteValidator;
+
     protected LastminuteRepositoryInterface $lastminuteRepository;
 
     public function __construct(
@@ -40,7 +42,7 @@ class LastminuteService
 
             return DB::transaction(function () use ($data) {
                 // Generate slug if not provided
-                if (empty($data['slug']) && !empty($data['title'])) {
+                if (empty($data['slug']) && ! empty($data['title'])) {
                     $slug = $this->slugGenerator->generate($data['title'], Lastminute::class, 'slug', 'lastminute_id');
                     $data['slug'] = $slug->toString();
                 }
@@ -105,6 +107,22 @@ class LastminuteService
     }
 
     /**
+     * Find a lastminute by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $lastminuteId): Lastminute
+    {
+        $lastminute = $this->lastminuteRepository->findById($lastminuteId);
+
+        if (! $lastminute) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Lastminute not found');
+        }
+
+        return $lastminute;
+    }
+
+    /**
      * Delete a lastminute
      */
     public function delete(Lastminute $lastminute): void
@@ -129,5 +147,15 @@ class LastminuteService
             throw $e;
         }
     }
-}
 
+    /**
+     * Get query builder for lastminutes
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Lastminutes\Models\Lastminute>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->lastminuteRepository->getQuery();
+    }
+}

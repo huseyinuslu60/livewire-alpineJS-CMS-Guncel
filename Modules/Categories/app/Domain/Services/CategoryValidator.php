@@ -8,7 +8,7 @@ use Modules\Categories\Domain\ValueObjects\CategoryType;
 
 /**
  * Category Validator Domain Service
- * 
+ *
  * Category iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Category name is required and max 255 characters
@@ -19,9 +19,9 @@ class CategoryValidator
 {
     /**
      * Category data'nın validasyonunu yap
-     * 
-     * @param array $data Category data
-     * @return void
+     *
+     * @param  array  $data  Category data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -56,9 +56,9 @@ class CategoryValidator
 
     /**
      * Category type validasyonu
-     * 
-     * @param string $type Category type
-     * @return void
+     *
+     * @param  string  $type  Category type
+     *
      * @throws InvalidArgumentException
      */
     public function validateType(string $type): void
@@ -72,9 +72,9 @@ class CategoryValidator
 
     /**
      * Category status validasyonu
-     * 
-     * @param string $status Category status
-     * @return void
+     *
+     * @param  string  $status  Category status
+     *
      * @throws InvalidArgumentException
      */
     public function validateStatus(string $status): void
@@ -86,4 +86,3 @@ class CategoryValidator
         }
     }
 }
-

@@ -23,6 +23,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $answer_title
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property-read string $status_label
+ * @property-read string|null $formatted_created_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|InvestorQuestion ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|InvestorQuestion sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|InvestorQuestion search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|InvestorQuestion pending()
+ * @method static \Illuminate\Database\Eloquent\Builder|InvestorQuestion answered()
+ * @method static \Illuminate\Database\Eloquent\Builder|InvestorQuestion rejected()
  */
 class InvestorQuestion extends Model
 {

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int|null $slot
  * @property string|null $starts_at
  * @property string|null $ends_at
+ * @property bool $is_active
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property string|null $created_at
@@ -29,6 +30,7 @@ class Featured extends Model
         'slot',
         'starts_at',
         'ends_at',
+        'is_active',
         'created_by',
         'updated_by',
     ];
@@ -36,6 +38,7 @@ class Featured extends Model
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     /**

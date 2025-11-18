@@ -13,7 +13,9 @@ use InvalidArgumentException;
 final class InvestorQuestionStatus
 {
     public const PENDING = 'pending';
+
     public const ANSWERED = 'answered';
+
     public const REJECTED = 'rejected';
 
     private const VALID_STATUSES = [
@@ -141,15 +143,22 @@ final class InvestorQuestionStatus
     }
 
     /**
+     * Geçerli tüm durumları label'larıyla döndür (alias)
+     */
+    public static function labels(): array
+    {
+        return self::STATUS_LABELS;
+    }
+
+    /**
      * InvestorQuestionStatus validation
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz investor question durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

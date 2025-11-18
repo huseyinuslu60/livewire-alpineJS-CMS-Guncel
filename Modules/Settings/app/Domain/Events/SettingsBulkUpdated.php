@@ -5,6 +5,7 @@ namespace Modules\Settings\Domain\Events;
 class SettingsBulkUpdated
 {
     public int $updatedCount;
+
     public array $settingIds;
 
     public function __construct(int $updatedCount, array $settingIds)
@@ -13,4 +14,3 @@ class SettingsBulkUpdated
         $this->settingIds = $settingIds;
     }
 }
-

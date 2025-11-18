@@ -335,4 +335,43 @@ class Sanitizer
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     }
+
+    /**
+     * Dosya ismini temizle: özel karakterleri, boşlukları kaldır ve slugify et
+     * Extension olmadan sadece isim kısmını döndürür
+     */
+    public static function sanitizeFileName(string $fileName): string
+    {
+        // Extension'ı ayır, sadece isim kısmını al
+        $nameWithoutExtension = pathinfo($fileName, PATHINFO_FILENAME);
+
+        // Boş isim kontrolü
+        if (empty($nameWithoutExtension)) {
+            return 'file';
+        }
+
+        // Küçük harfe çevir
+        $nameWithoutExtension = mb_strtolower($nameWithoutExtension, 'UTF-8');
+
+        // Türkçe karakterleri İngilizce karşılıklarına çevir
+        $turkishChars = ['ç', 'ğ', 'ı', 'ö', 'ş', 'ü', 'Ç', 'Ğ', 'İ', 'Ö', 'Ş', 'Ü'];
+        $englishChars = ['c', 'g', 'i', 'o', 's', 'u', 'c', 'g', 'i', 'o', 's', 'u'];
+        $nameWithoutExtension = str_replace($turkishChars, $englishChars, $nameWithoutExtension);
+
+        // Özel karakterleri kaldır (sadece harf, rakam, tire ve alt çizgi bırak)
+        $nameWithoutExtension = preg_replace('/[^a-z0-9\-_]/', '-', $nameWithoutExtension);
+
+        // Birden fazla tireyi tek tireye çevir
+        $nameWithoutExtension = preg_replace('/-+/', '-', $nameWithoutExtension);
+
+        // Başta ve sonda tire varsa kaldır
+        $nameWithoutExtension = trim($nameWithoutExtension, '-');
+
+        // Boş kaldıysa 'file' kullan
+        if (empty($nameWithoutExtension)) {
+            return 'file';
+        }
+
+        return $nameWithoutExtension;
+    }
 }

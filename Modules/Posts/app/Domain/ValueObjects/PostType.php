@@ -6,14 +6,16 @@ use InvalidArgumentException;
 
 /**
  * Post Type Value Object
- * 
+ *
  * Post tiplerini type-safe olarak yönetir.
  * Business rule: Sadece geçerli post tipleri kabul edilir.
  */
 final class PostType
 {
     public const NEWS = 'news';
+
     public const GALLERY = 'gallery';
+
     public const VIDEO = 'video';
 
     private const VALID_TYPES = [
@@ -141,15 +143,22 @@ final class PostType
     }
 
     /**
+     * Geçerli tüm tipleri label'larıyla döndür (alias)
+     */
+    public static function labels(): array
+    {
+        return self::TYPE_LABELS;
+    }
+
+    /**
      * PostType validation
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_TYPES, true)) {
+        if (! in_array($value, self::VALID_TYPES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz post tipi: %s. Geçerli tipler: %s', $value, implode(', ', self::VALID_TYPES))
             );
         }
     }
 }
-

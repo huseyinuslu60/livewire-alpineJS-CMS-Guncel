@@ -17,18 +17,19 @@ class FileValidator
     /**
      * File data'nın validasyonunu yap
      *
-     * @param array $data File data
-     * @return void
+     * @param  array  $data  File data
+     * @param  bool  $isUpdate  Update işlemi mi? (true ise title zorunlu değil)
+     *
      * @throws InvalidArgumentException
      */
-    public function validate(array $data): void
+    public function validate(array $data, bool $isUpdate = false): void
     {
-        // Title validation
-        if (empty($data['title'])) {
+        // Title validation (sadece create işleminde zorunlu)
+        if (! $isUpdate && empty($data['title'])) {
             throw new InvalidArgumentException('Dosya başlığı zorunludur.');
         }
 
-        if (strlen($data['title']) > 255) {
+        if (isset($data['title']) && strlen($data['title']) > 255) {
             throw new InvalidArgumentException('Dosya başlığı maksimum 255 karakter olabilir.');
         }
 
@@ -36,6 +37,15 @@ class FileValidator
         if (isset($data['file_path']) && empty($data['file_path'])) {
             throw new InvalidArgumentException('Dosya yolu zorunludur.');
         }
+
+        // Alt text validation (if provided)
+        if (isset($data['alt_text']) && strlen($data['alt_text']) > 255) {
+            throw new InvalidArgumentException('Alt metin maksimum 255 karakter olabilir.');
+        }
+
+        // Caption validation (if provided)
+        if (isset($data['caption']) && strlen($data['caption']) > 10000) {
+            throw new InvalidArgumentException('Açıklama maksimum 10000 karakter olabilir.');
+        }
     }
 }
-

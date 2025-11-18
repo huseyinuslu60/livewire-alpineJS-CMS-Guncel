@@ -8,32 +8,40 @@ use App\Services\ValueObjects\Slug;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
 use Modules\Posts\Domain\Events\PostCreated;
 use Modules\Posts\Domain\Events\PostDeleted;
 use Modules\Posts\Domain\Events\PostUpdated;
+use Modules\Posts\Domain\Repositories\PostFileRepositoryInterface;
 use Modules\Posts\Domain\Repositories\PostRepositoryInterface;
+use Modules\Posts\Domain\Repositories\TagRepositoryInterface;
 use Modules\Posts\Domain\Services\PostValidator;
-use Modules\Posts\Domain\ValueObjects\PostType;
-use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
-use Modules\Posts\Models\Tag;
 
 class PostsService
 {
     protected SlugGenerator $slugGenerator;
+
     protected PostValidator $postValidator;
+
     protected PostRepositoryInterface $postRepository;
+
+    protected PostFileRepositoryInterface $postFileRepository;
+
+    protected TagRepositoryInterface $tagRepository;
 
     public function __construct(
         ?SlugGenerator $slugGenerator = null,
         ?PostValidator $postValidator = null,
-        ?PostRepositoryInterface $postRepository = null
+        ?PostRepositoryInterface $postRepository = null,
+        ?PostFileRepositoryInterface $postFileRepository = null,
+        ?TagRepositoryInterface $tagRepository = null
     ) {
         $this->slugGenerator = $slugGenerator ?? app(SlugGenerator::class);
         $this->postValidator = $postValidator ?? app(PostValidator::class);
         $this->postRepository = $postRepository ?? app(PostRepositoryInterface::class);
+        $this->postFileRepository = $postFileRepository ?? app(PostFileRepositoryInterface::class);
+        $this->tagRepository = $tagRepository ?? app(TagRepositoryInterface::class);
     }
 
     /**
@@ -159,9 +167,10 @@ class PostsService
     {
         try {
             return DB::transaction(function () use ($postIds) {
-                $posts = Post::whereIn('post_id', $postIds)->get();
+                $posts = $this->postRepository->findByIds($postIds);
                 $deletedCount = 0;
 
+                /** @var Post $post */
                 foreach ($posts as $post) {
                     $this->delete($post);
                     $deletedCount++;
@@ -190,8 +199,7 @@ class PostsService
     {
         try {
             return DB::transaction(function () use ($postIds, $status) {
-                $updated = Post::whereIn('post_id', $postIds)
-                    ->update(['status' => $status]);
+                $updated = $this->postRepository->bulkUpdate($postIds, ['status' => $status]);
 
                 LogHelper::info('Yazılar toplu durum güncellendi', [
                     'count' => $updated,
@@ -218,8 +226,7 @@ class PostsService
     {
         try {
             return DB::transaction(function () use ($postIds, $inNewsletter) {
-                $updated = Post::whereIn('post_id', $postIds)
-                    ->update(['in_newsletter' => $inNewsletter]);
+                $updated = $this->postRepository->bulkUpdate($postIds, ['in_newsletter' => $inNewsletter]);
 
                 LogHelper::info('Yazılar toplu newsletter bayrağı güncellendi', [
                     'count' => $updated,
@@ -240,13 +247,42 @@ class PostsService
     }
 
     /**
+     * Find a post by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $postId): Post
+    {
+        $post = $this->postRepository->findById($postId);
+
+        if (! $post) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Post not found');
+        }
+
+        return $post;
+    }
+
+    /**
+     * Get query builder for posts
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Posts\Models\Post>
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Posts\Models\Post>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->postRepository->getQuery();
+    }
+
+    /**
      * Toggle post mainpage visibility
      */
     public function toggleMainPage(Post $post): Post
     {
         try {
             return DB::transaction(function () use ($post) {
-                $post->update(['is_mainpage' => !$post->is_mainpage]);
+                $post->update(['is_mainpage' => ! $post->is_mainpage]);
 
                 LogHelper::info('Yazı ana sayfa görünürlüğü değiştirildi', [
                     'post_id' => $post->post_id,
@@ -264,7 +300,6 @@ class PostsService
         }
     }
 
-
     /**
      * Store files for a post.
      */
@@ -274,79 +309,79 @@ class PostsService
             $uploadedFiles = [];
             $galleryData = [];
 
-        foreach ($files as $index => $file) {
-            if ($file instanceof UploadedFile) {
-                $path = $this->storeFile($file, $post->post_id);
+            foreach ($files as $index => $file) {
+                if ($file instanceof UploadedFile) {
+                    $path = $this->storeFile($file, $post->post_id);
 
-                // content için gerçek file_path ile kaydet
-                $filename = $file->getClientOriginalName();
-                $description = $fileDescriptions[$filename]['description'] ?? '';
-                $altText = $fileDescriptions[$filename]['alt_text'] ?? '';
+                    // content için gerçek file_path ile kaydet
+                    $filename = $file->getClientOriginalName();
+                    $description = $fileDescriptions[$filename]['description'] ?? '';
+                    $altText = $fileDescriptions[$filename]['alt_text'] ?? '';
 
-                LogHelper::info('PostsService::storeFiles - Dosya işleniyor:', [
-                    'index' => $index,
-                    'filename' => $filename,
-                    'description' => $description,
-                    'description_length' => strlen($description),
-                    'alt_text' => $altText,
-                    'fileDescriptions_keys' => array_keys($fileDescriptions),
-                ]);
+                    LogHelper::info('PostsService::storeFiles - Dosya işleniyor:', [
+                        'index' => $index,
+                        'filename' => $filename,
+                        'description' => $description,
+                        'description_length' => strlen($description),
+                        'alt_text' => $altText,
+                        'fileDescriptions_keys' => array_keys($fileDescriptions),
+                    ]);
 
-                $uploadedFiles[] = [
-                    'post_id' => $post->post_id,
-                    'title' => $file->getClientOriginalName(),
-                    'type' => $type ?? 'news',
-                    'file_path' => $path,
-                    'primary' => $primaryIndex === $index,
-                    'order' => $index,
-                    'caption' => $description, // Description'ı caption olarak kaydet
-                    'alt_text' => $altText, // Alt text'i kaydet
-                ];
+                    $uploadedFiles[] = [
+                        'post_id' => $post->post_id,
+                        'title' => $file->getClientOriginalName(),
+                        'type' => $type ?? 'news',
+                        'file_path' => $path,
+                        'primary' => $primaryIndex === $index,
+                        'order' => $index,
+                        'caption' => $description, // Description'ı caption olarak kaydet
+                        'alt_text' => $altText, // Alt text'i kaydet
+                    ];
 
-                $galleryData[] = [
-                    'order' => $index,
-                    'filename' => $filename,
-                    'file_path' => $path, // Gerçek file_path
-                    'type' => $file->getMimeType(),
-                    'is_primary' => $primaryIndex === $index,
-                    'uploaded_at' => now()->toISOString(),
-                    'description' => $description,
-                    'alt_text' => $altText,
-                ];
-            }
-        }
-
-        if (! empty($uploadedFiles)) {
-            // Edit sayfasında yeni resim eklerken mevcut ana resmi koru
-            // Sadece yeni eklenen resimler için primary flag'leri false yap
-            foreach ($uploadedFiles as &$file) {
-                $file['primary'] = false; // Yeni eklenen resimler ana resim olmasın
+                    $galleryData[] = [
+                        'order' => $index,
+                        'filename' => $filename,
+                        'file_path' => $path, // Gerçek file_path
+                        'type' => $file->getMimeType(),
+                        'is_primary' => $primaryIndex === $index,
+                        'uploaded_at' => now()->toISOString(),
+                        'description' => $description,
+                        'alt_text' => $altText,
+                    ];
+                }
             }
 
-            // Add timestamps to each file record
-            $now = now();
-            foreach ($uploadedFiles as &$file) {
-                $file['created_at'] = $now;
-                $file['updated_at'] = $now;
-            }
-
-            // Create file records
-            File::insert($uploadedFiles);
-
-            // Gallery için content güncelleme
-            if (! empty($galleryData) && $type === 'gallery') {
-                // file_path'leri doldur
-                $fileIndex = 0;
-                foreach ($galleryData as &$data) {
-                    if (isset($uploadedFiles[$fileIndex])) {
-                        $data['file_path'] = $uploadedFiles[$fileIndex]['file_path'];
-                    }
-                    $fileIndex++;
+            if (! empty($uploadedFiles)) {
+                // Edit sayfasında yeni resim eklerken mevcut ana resmi koru
+                // Sadece yeni eklenen resimler için primary flag'leri false yap
+                foreach ($uploadedFiles as &$file) {
+                    $file['primary'] = false; // Yeni eklenen resimler ana resim olmasın
                 }
 
-                $this->addFilesToGallery($post, $galleryData);
+                // Add timestamps to each file record
+                $now = now();
+                foreach ($uploadedFiles as &$file) {
+                    $file['created_at'] = $now;
+                    $file['updated_at'] = $now;
+                }
+
+                // Create file records
+                File::insert($uploadedFiles);
+
+                // Gallery için content güncelleme
+                if (! empty($galleryData) && $type === 'gallery') {
+                    // file_path'leri doldur
+                    $fileIndex = 0;
+                    foreach ($galleryData as &$data) {
+                        if (isset($uploadedFiles[$fileIndex])) {
+                            $data['file_path'] = $uploadedFiles[$fileIndex]['file_path'];
+                        }
+                        $fileIndex++;
+                    }
+
+                    $this->addFilesToGallery($post, $galleryData);
+                }
             }
-        }
         } catch (\Exception $e) {
             LogHelper::error('PostsService storeFiles error', [
                 'post_id' => $post->post_id,
@@ -375,13 +410,19 @@ class PostsService
     public function setPrimaryFile(Post $post, int $primaryIndex): void
     {
         // Reset all primary flags for this post
-        File::where('post_id', $post->post_id)->update(['primary' => false]);
+        $this->postFileRepository->updateByPostId($post->post_id, ['primary' => false]);
 
         // Set the specified file as primary
-        File::where('post_id', $post->post_id)
+        $files = $this->postFileRepository->getQuery()
+            ->where('post_id', $post->post_id)
             ->skip($primaryIndex)
             ->take(1)
-            ->update(['primary' => true]);
+            ->get();
+
+        /** @var \Modules\Posts\Models\File $file */
+        foreach ($files as $file) {
+            $this->postFileRepository->update($file, ['primary' => true]);
+        }
     }
 
     /**
@@ -405,7 +446,7 @@ class PostsService
 
             // Sync tags with timestamps
             if (! empty($tagIds)) {
-                $tags = Tag::getByNames($tagIds);
+                $tags = $this->tagRepository->getByNames($tagIds);
                 $tagData = [];
                 $now = now();
                 foreach (collect($tags)->pluck('tag_id') as $tagId) {
@@ -426,7 +467,6 @@ class PostsService
             throw $e;
         }
     }
-
 
     // ============================================
     // GALERI İŞLEMLERİ
@@ -464,9 +504,15 @@ class PostsService
                 foreach ($galleryData as $item) {
                     $filePath = $item['file_path'] ?? '';
                     if (! empty($filePath)) {
-                        File::where('post_id', $post->post_id)
+                        /** @var \Modules\Posts\Models\File|null $file */
+                        $file = $this->postFileRepository->getQuery()
+                            ->where('post_id', $post->post_id)
                             ->where('file_path', $filePath)
-                            ->update(['caption' => $item['description'] ?? '']);
+                            ->first();
+
+                        if ($file) {
+                            $this->postFileRepository->update($file, ['caption' => $item['description'] ?? '']);
+                        }
                     }
                 }
 
@@ -711,18 +757,18 @@ class PostsService
                 $post->update(['content' => json_encode($updatedContentData, JSON_UNESCAPED_UNICODE)]);
             } else {
                 // İlk resim ekleniyor
-            $post->update(['content' => json_encode($galleryData, JSON_UNESCAPED_UNICODE)]);
-        }
+                $post->update(['content' => json_encode($galleryData, JSON_UNESCAPED_UNICODE)]);
+            }
 
-        // Debug için (sadece development'ta)
-        if (config('app.debug')) {
-            LogHelper::info('PostsService galeriye dosyalar eklendi:', [
-                'post_id' => $post->post_id,
-                'existing_count' => count($existingContentData),
-                'new_count' => count($galleryData),
-                'total_count' => count($updatedContentData ?? $galleryData),
-            ]);
-        }
+            // Debug için (sadece development'ta)
+            if (config('app.debug')) {
+                LogHelper::info('PostsService galeriye dosyalar eklendi:', [
+                    'post_id' => $post->post_id,
+                    'existing_count' => count($existingContentData),
+                    'new_count' => count($galleryData),
+                    'total_count' => count($updatedContentData ?? $galleryData),
+                ]);
+            }
         } catch (\Exception $e) {
             LogHelper::error('PostsService addFilesToGallery error', [
                 'post_id' => $post->post_id,

@@ -355,6 +355,24 @@
                     </div>
 
                     <form wire:submit.prevent="updateFile">
+                        @if($showErrorMessage && $errorMessage)
+                        <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-exclamation-circle text-red-500"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-medium text-red-800">{{ $errorMessage }}</p>
+                                </div>
+                                <div class="ml-auto pl-3">
+                                    <button wire:click="$set('showErrorMessage', false)" type="button" class="text-red-400 hover:text-red-600">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
+
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">

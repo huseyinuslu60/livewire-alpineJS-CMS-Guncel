@@ -6,7 +6,6 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Authors\Models\Author;
 use Modules\Authors\Services\AuthorService;
 
 /**
@@ -47,11 +46,13 @@ class AuthorIndex extends Component
         Gate::authorize('edit authors');
 
         try {
-            $author = Author::findOrFail($authorId);
+            $author = $this->authorService->findById($authorId);
             $this->authorService->toggleMainpage($author);
 
             $visibility = $author->show_on_mainpage ? 'gösterilecek' : 'gizlenecek';
             session()->flash('success', "Yazar ana sayfada {$visibility}.");
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -62,11 +63,13 @@ class AuthorIndex extends Component
         Gate::authorize('edit authors');
 
         try {
-            $author = Author::findOrFail($authorId);
+            $author = $this->authorService->findById($authorId);
             $this->authorService->toggleStatus($author);
 
             $status = $author->status ? 'aktif' : 'pasif';
             session()->flash('success', "Yazar durumu {$status} olarak güncellendi.");
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Yazar durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -100,10 +103,12 @@ class AuthorIndex extends Component
         Gate::authorize('delete authors');
 
         try {
-            $author = Author::findOrFail($authorId);
+            $author = $this->authorService->findById($authorId);
             $this->authorService->delete($author);
 
             session()->flash('success', 'Yazar başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Yazar silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -111,7 +116,8 @@ class AuthorIndex extends Component
 
     public function render()
     {
-        $query = Author::with('user');
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Authors\Models\Author> $query */
+        $query = $this->authorService->getQuery()->with('user');
 
         if ($this->search !== null) {
             $query->search($this->search);

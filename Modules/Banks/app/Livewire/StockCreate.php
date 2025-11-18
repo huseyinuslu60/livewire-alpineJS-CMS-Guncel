@@ -4,7 +4,6 @@ namespace Modules\Banks\Livewire;
 
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Modules\Banks\Models\Stock;
 use Modules\Banks\Services\StockService;
 
 class StockCreate extends Component
@@ -106,6 +105,8 @@ class StockCreate extends Component
             session()->flash('success', 'Hisse senedi başarıyla oluşturuldu.');
 
             return redirect()->route('banks.stocks.index');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Hisse senedi oluşturulurken bir hata oluştu: '.$e->getMessage());
         }

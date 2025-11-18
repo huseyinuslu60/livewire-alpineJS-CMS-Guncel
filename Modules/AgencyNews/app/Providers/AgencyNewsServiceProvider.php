@@ -38,7 +38,7 @@ class AgencyNewsServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
-        
+
         // Register Repository bindings
         $this->app->bind(
             \Modules\AgencyNews\Domain\Repositories\AgencyNewsRepositoryInterface::class,

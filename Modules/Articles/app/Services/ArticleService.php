@@ -17,7 +17,9 @@ use Modules\Articles\Models\Article;
 class ArticleService
 {
     protected SlugGenerator $slugGenerator;
+
     protected ArticleValidator $articleValidator;
+
     protected ArticleRepositoryInterface $articleRepository;
 
     public function __construct(
@@ -44,7 +46,7 @@ class ArticleService
 
             return DB::transaction(function () use ($data) {
                 // Generate slug if not provided
-                if (empty($data['slug']) && !empty($data['title'])) {
+                if (empty($data['slug']) && ! empty($data['title'])) {
                     $slug = $this->slugGenerator->generate($data['title'], Article::class, 'slug', 'article_id');
                     $data['slug'] = $slug->toString();
                 }
@@ -179,13 +181,29 @@ class ArticleService
     }
 
     /**
+     * Find an article by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $articleId): Article
+    {
+        $article = $this->articleRepository->findById($articleId);
+
+        if (! $article) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Article not found');
+        }
+
+        return $article;
+    }
+
+    /**
      * Toggle article mainpage visibility
      */
     public function toggleMainPage(Article $article): Article
     {
         try {
             return DB::transaction(function () use ($article) {
-                $article->update(['show_on_mainpage' => !$article->show_on_mainpage]);
+                $article->update(['show_on_mainpage' => ! $article->show_on_mainpage]);
 
                 LogHelper::info('Makale ana sayfa görünürlüğü değiştirildi', [
                     'article_id' => $article->article_id,
@@ -202,5 +220,17 @@ class ArticleService
             throw $e;
         }
     }
-}
 
+    /**
+     * Get query builder for articles
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Articles\Models\Article>
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Articles\Models\Article>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->articleRepository->getQuery();
+    }
+}

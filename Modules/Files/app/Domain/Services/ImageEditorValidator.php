@@ -2,12 +2,12 @@
 
 namespace Modules\Files\Domain\Services;
 
-use InvalidArgumentException;
 use Illuminate\Http\UploadedFile;
+use InvalidArgumentException;
 
 /**
  * ImageEditor Validator Domain Service
- * 
+ *
  * ImageEditor iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Image file must be valid
@@ -18,19 +18,19 @@ class ImageEditorValidator
 {
     /**
      * Image file validasyonu
-     * 
-     * @param UploadedFile $image Image file
-     * @return void
+     *
+     * @param  UploadedFile  $image  Image file
+     *
      * @throws InvalidArgumentException
      */
     public function validateImage(UploadedFile $image): void
     {
-        if (!$image->isValid()) {
+        if (! $image->isValid()) {
             throw new InvalidArgumentException('Geçersiz dosya yüklendi');
         }
 
         // Check if it's an image
-        if (!str_starts_with($image->getMimeType(), 'image/')) {
+        if (! str_starts_with($image->getMimeType(), 'image/')) {
             throw new InvalidArgumentException('Yüklenen dosya bir resim değil');
         }
 
@@ -41,4 +41,3 @@ class ImageEditorValidator
         }
     }
 }
-

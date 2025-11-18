@@ -2,13 +2,12 @@
 
 namespace Modules\Articles\Livewire;
 
-use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Modules\Articles\Models\Article;
 use Modules\Articles\Services\ArticleService;
+use Modules\User\Services\UserService;
 
 class ArticleCreate extends Component
 {
@@ -36,9 +35,12 @@ class ArticleCreate extends Component
 
     protected ArticleService $articleService;
 
+    protected UserService $userService;
+
     public function boot()
     {
         $this->articleService = app(ArticleService::class);
+        $this->userService = app(UserService::class);
     }
 
     protected $rules = [
@@ -99,6 +101,8 @@ class ArticleCreate extends Component
             session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'article'));
 
             return redirect()->route('articles.index');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Makale oluşturulurken bir hata oluştu: '.$e->getMessage());
         }
@@ -107,7 +111,8 @@ class ArticleCreate extends Component
     public function render()
     {
         // Yazar ve editör rolündeki kullanıcıları getir
-        $authors = User::select('id', 'name')
+        $authors = $this->userService->getQuery()
+            ->select('id', 'name')
             ->whereHas('roles', function ($query) {
                 $query->whereIn('name', ['yazar', 'editor']);
             })

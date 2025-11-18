@@ -1,8 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Modules\Newsletters\Http\Controllers\NewslettersController;
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider within a group which
+| contains the "api" middleware group. Now create something great!
+|
+*/
 
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
-    Route::apiResource('newsletters', NewslettersController::class)->names('newsletters');
-});
+// API routes will be added here when needed

@@ -10,6 +10,7 @@ use Modules\Articles\Models\Article;
 class ArticleUpdated
 {
     public Article $article;
+
     public array $changedAttributes;
 
     public function __construct(Article $article, array $changedAttributes = [])
@@ -18,4 +19,3 @@ class ArticleUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

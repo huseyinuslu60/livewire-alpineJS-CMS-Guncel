@@ -73,7 +73,7 @@ class SiteSettings extends Component
     {
         try {
             // File upload handling
-            $setting = SiteSetting::find($settingId);
+            $setting = $this->settingsService->getSettingById($settingId);
             if ($setting && $setting->type === 'image' && is_object($value)) {
                 $value = $value->store('settings', 'public');
             }
@@ -81,9 +81,11 @@ class SiteSettings extends Component
             $this->settingsService->updateSetting($settingId, $value);
 
             $this->dispatch('setting-updated', [
-                'key' => $setting?->key ?? '',
+                'key' => $setting !== null ? $setting->key : '',
                 'value' => $value,
             ]);
+        } catch (\InvalidArgumentException $e) {
+            $this->addError('settings', $e->getMessage());
         } catch (\Exception $e) {
             $this->addError('settings', 'Ayar güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -101,7 +103,7 @@ class SiteSettings extends Component
             foreach ($this->settings as $group => $groupSettings) {
                 foreach ($groupSettings as $setting) {
                     if (isset($setting['value']) && isset($setting['id'])) {
-                        $siteSetting = SiteSetting::find($setting['id']);
+                        $siteSetting = $this->settingsService->getSettingById($setting['id']);
                         if ($siteSetting && $siteSetting->type === 'image' && is_object($setting['value'])) {
                             // Dosyayı storage'a kaydet
                             $setting['value'] = $setting['value']->store('settings', 'public');
@@ -121,6 +123,9 @@ class SiteSettings extends Component
 
             // Ayarları yeniden yükle ki güncel değerler görünsün
             $this->loadSettings();
+        } catch (\InvalidArgumentException $e) {
+            \App\Helpers\LogHelper::warning('Settings save validation hatası', ['error' => $e->getMessage()]);
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             \App\Helpers\LogHelper::error('Settings save hatası', ['error' => $e->getMessage()]);
             session()->flash('error', 'Ayarlar kaydedilirken bir hata oluştu: '.$e->getMessage());

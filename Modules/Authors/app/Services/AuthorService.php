@@ -18,7 +18,9 @@ use Modules\Authors\Models\Author;
 class AuthorService
 {
     protected SlugGenerator $slugGenerator;
+
     protected AuthorValidator $authorValidator;
+
     protected AuthorRepositoryInterface $authorRepository;
 
     public function __construct(
@@ -42,7 +44,7 @@ class AuthorService
 
             return DB::transaction(function () use ($data, $image) {
                 // Generate slug if not provided
-                if (empty($data['slug']) && !empty($data['title'])) {
+                if (empty($data['slug']) && ! empty($data['title'])) {
                     $slug = $this->slugGenerator->generate($data['title'], Author::class, 'slug', 'author_id');
                     $data['slug'] = $slug->toString();
                 }
@@ -161,7 +163,7 @@ class AuthorService
     {
         try {
             return DB::transaction(function () use ($author) {
-                $author->update(['show_on_mainpage' => !$author->show_on_mainpage]);
+                $author->update(['show_on_mainpage' => ! $author->show_on_mainpage]);
 
                 LogHelper::info('Yazar ana sayfa görünürlüğü değiştirildi', [
                     'author_id' => $author->author_id,
@@ -186,7 +188,7 @@ class AuthorService
     {
         try {
             return DB::transaction(function () use ($author) {
-                $author->update(['status' => !$author->status]);
+                $author->update(['status' => ! $author->status]);
 
                 LogHelper::info('Yazar durumu değiştirildi', [
                     'author_id' => $author->author_id,
@@ -203,5 +205,28 @@ class AuthorService
             throw $e;
         }
     }
-}
 
+    /**
+     * Find an author by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $authorId): Author
+    {
+        $author = $this->authorRepository->findById($authorId);
+
+        if (! $author) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Author not found');
+        }
+
+        return $author;
+    }
+
+    /**
+     * Get query builder for authors
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->authorRepository->getQuery();
+    }
+}

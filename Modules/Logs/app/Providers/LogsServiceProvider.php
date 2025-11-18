@@ -38,7 +38,7 @@ class LogsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->register(EventServiceProvider::class);
-        
+
         // Register Repository bindings
         $this->app->bind(
             \Modules\Logs\Domain\Repositories\LogRepositoryInterface::class,

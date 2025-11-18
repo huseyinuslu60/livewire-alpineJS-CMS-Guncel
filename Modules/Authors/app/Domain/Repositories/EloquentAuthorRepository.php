@@ -24,6 +24,7 @@ class EloquentAuthorRepository implements AuthorRepositoryInterface
     public function update(Author $author, array $data): Author
     {
         $author->update($data);
+
         return $author->fresh();
     }
 
@@ -38,7 +39,12 @@ class EloquentAuthorRepository implements AuthorRepositoryInterface
         if ($excludeId !== null) {
             $query->where('author_id', '!=', $excludeId);
         }
+
         return $query->exists();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Author::query();
+    }
+}

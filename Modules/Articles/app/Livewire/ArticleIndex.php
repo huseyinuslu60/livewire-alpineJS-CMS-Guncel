@@ -3,7 +3,6 @@
 namespace Modules\Articles\Livewire;
 
 use App\Helpers\SystemHelper;
-use App\Models\User;
 use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -11,6 +10,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\Articles\Models\Article;
 use Modules\Articles\Services\ArticleService;
+use Modules\User\Services\UserService;
 
 /**
  * @property string|null $search
@@ -118,7 +118,7 @@ class ArticleIndex extends Component
 
     public function deleteArticle($articleId)
     {
-        $article = Article::findOrFail($articleId);
+        $article = $this->articleService->findById($articleId);
 
         // Yetki bazlı kontrol: delete own articles veya delete all articles
         if (Auth::user()->can('delete all articles')) {
@@ -136,6 +136,8 @@ class ArticleIndex extends Component
             $this->articleService->delete($article);
 
             session()->flash('success', 'Makale başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Makale silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -148,10 +150,12 @@ class ArticleIndex extends Component
         }
 
         try {
-            $article = Article::findOrFail($articleId);
+            $article = $this->articleService->findById($articleId);
             $this->articleService->toggleStatus($article);
 
             session()->flash('success', 'Makale durumu güncellendi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Makale durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -164,10 +168,12 @@ class ArticleIndex extends Component
         }
 
         try {
-            $article = Article::findOrFail($articleId);
+            $article = $this->articleService->findById($articleId);
             $this->articleService->toggleMainPage($article);
 
             session()->flash('success', 'Ana sayfa durumu güncellendi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -205,7 +211,8 @@ class ArticleIndex extends Component
         $articles = $query->paginate(Pagination::clamp($this->perPage));
 
         // Sadece view all articles yetkisi olanlar yazar listesini görebilir
-        $authors = Auth::user()->can('view all articles') ? User::select('id', 'name')->get() : collect();
+        $userService = app(UserService::class);
+        $authors = Auth::user()->can('view all articles') ? $userService->getQuery()->select('id', 'name')->get() : collect();
         $statuses = [
             'draft' => 'Pasif',
             'published' => 'Aktif',

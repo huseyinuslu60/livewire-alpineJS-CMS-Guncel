@@ -223,7 +223,7 @@ import { mountLivewireAlpineLifecycle } from './livewire-alpine-lifecycle';
 import './admin-layout';
 
 // Image Editor - Alpine.js başlatılmadan önce kaydet
-import { registerImageEditor } from './image-editor';
+import { registerImageEditor } from './image-editor/index';
 
 // AlpineJS Singleton Pattern - Çift başlatmayı önle
 // Alpine başlatılmadan önce global Alpine component'lerin tanımlı olduğundan emin ol

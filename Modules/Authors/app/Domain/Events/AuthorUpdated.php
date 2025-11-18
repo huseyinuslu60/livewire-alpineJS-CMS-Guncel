@@ -7,6 +7,7 @@ use Modules\Authors\Models\Author;
 class AuthorUpdated
 {
     public Author $author;
+
     public array $changedAttributes;
 
     public function __construct(Author $author, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class AuthorUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

@@ -17,6 +17,16 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $order
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property-read string $url
+ * @property-read string $original_name
+ * @property-read int $file_size
+ * @property-read string $extension
+ * @property-read string $mime_type
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|File ofType($mimeType)
+ * @method static \Illuminate\Database\Eloquent\Builder|File sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|File search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|File images()
  */
 class File extends Model
 {

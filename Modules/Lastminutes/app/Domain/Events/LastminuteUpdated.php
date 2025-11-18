@@ -7,6 +7,7 @@ use Modules\Lastminutes\Models\Lastminute;
 class LastminuteUpdated
 {
     public Lastminute $lastminute;
+
     public array $changedAttributes;
 
     public function __construct(Lastminute $lastminute, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class LastminuteUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

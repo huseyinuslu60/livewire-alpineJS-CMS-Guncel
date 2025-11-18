@@ -7,6 +7,7 @@ use Modules\Newsletters\Models\Newsletter;
 class NewsletterUpdated
 {
     public Newsletter $newsletter;
+
     public array $changedAttributes;
 
     public function __construct(Newsletter $newsletter, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class NewsletterUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

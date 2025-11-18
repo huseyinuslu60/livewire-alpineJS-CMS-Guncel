@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $order
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property string|null $original_name
+ * @property string|null $mime_type
+ * @property string|null $url
  */
 class File extends Model
 {

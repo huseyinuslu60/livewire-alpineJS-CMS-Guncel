@@ -51,6 +51,24 @@
         </div>
     @endif
 
+    @if($showErrorMessage && $errorMessage)
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 shadow-sm">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-500 text-lg"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-red-800">{{ $errorMessage }}</p>
+                </div>
+                <div class="ml-auto pl-3">
+                    <button wire:click="$set('showErrorMessage', false)" type="button" class="text-red-400 hover:text-red-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <form wire:submit.prevent="uploadFiles">
         <!-- Dosya Seçimi -->
         <div class="mb-6">

@@ -17,7 +17,7 @@ class CommentValidator
             throw new InvalidArgumentException('Comment name cannot be empty.');
         }
 
-        if (isset($data['email']) && !empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        if (isset($data['email']) && ! empty($data['email']) && ! filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Invalid email format.');
         }
 
@@ -28,4 +28,3 @@ class CommentValidator
         // Add more specific validation rules here if needed
     }
 }
-

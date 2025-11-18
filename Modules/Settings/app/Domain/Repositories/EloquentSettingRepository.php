@@ -19,6 +19,7 @@ class EloquentSettingRepository implements SettingRepositoryInterface
     public function update(SiteSetting $setting, array $data): SiteSetting
     {
         $setting->update($data);
+
         return $setting->fresh();
     }
 
@@ -37,4 +38,3 @@ class EloquentSettingRepository implements SettingRepositoryInterface
         return $updatedCount;
     }
 }
-

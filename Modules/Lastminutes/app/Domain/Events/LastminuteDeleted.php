@@ -13,4 +13,3 @@ class LastminuteDeleted
         $this->lastminute = $lastminute;
     }
 }
-

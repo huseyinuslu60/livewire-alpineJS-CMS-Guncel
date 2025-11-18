@@ -16,4 +16,3 @@ class ArticleDeleted
         $this->article = $article;
     }
 }
-

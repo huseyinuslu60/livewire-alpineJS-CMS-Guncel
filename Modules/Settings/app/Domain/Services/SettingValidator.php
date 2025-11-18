@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Setting Validator Domain Service
- * 
+ *
  * Setting iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Setting ID must be valid
@@ -16,10 +16,10 @@ class SettingValidator
 {
     /**
      * Setting data'nın validasyonunu yap
-     * 
-     * @param int $settingId Setting ID
-     * @param mixed $value Setting value
-     * @return void
+     *
+     * @param  int  $settingId  Setting ID
+     * @param  mixed  $value  Setting value
+     *
      * @throws InvalidArgumentException
      */
     public function validate(int $settingId, $value): void
@@ -37,15 +37,15 @@ class SettingValidator
 
     /**
      * Bulk settings validation
-     * 
-     * @param array $settings Array of ['id' => int, 'value' => mixed]
-     * @return void
+     *
+     * @param  array  $settings  Array of ['id' => int, 'value' => mixed]
+     *
      * @throws InvalidArgumentException
      */
     public function validateBulk(array $settings): void
     {
         foreach ($settings as $setting) {
-            if (!isset($setting['id']) || !isset($setting['value'])) {
+            if (! isset($setting['id']) || ! isset($setting['value'])) {
                 throw new InvalidArgumentException('Geçersiz ayar formatı. Her ayar id ve value içermelidir.');
             }
 
@@ -53,4 +53,3 @@ class SettingValidator
         }
     }
 }
-

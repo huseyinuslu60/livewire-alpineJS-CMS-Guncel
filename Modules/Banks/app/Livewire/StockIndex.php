@@ -6,7 +6,6 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Banks\Models\Stock;
 use Modules\Banks\Services\StockService;
 
 class StockIndex extends Component
@@ -71,7 +70,7 @@ class StockIndex extends Component
         }
 
         try {
-            $stocks = Stock::whereIn('stock_id', $this->selectedStocks);
+            $stocks = $this->stockService->getQuery()->whereIn('stock_id', $this->selectedStocks);
             $selectedCount = count($this->selectedStocks);
 
             switch ($this->bulkAction) {
@@ -96,6 +95,8 @@ class StockIndex extends Component
             $this->bulkAction = '';
 
             session()->flash('success', $message);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Toplu işlem sırasında bir hata oluştu: '.$e->getMessage());
         }
@@ -108,10 +109,12 @@ class StockIndex extends Component
         }
 
         try {
-            $stock = Stock::findOrFail($id);
+            $stock = $this->stockService->findById($id);
             $this->stockService->delete($stock);
 
             session()->flash('success', 'Hisse senedi başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Hisse senedi silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -119,11 +122,14 @@ class StockIndex extends Component
 
     public function getStocks()
     {
-        return Stock::query()
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Banks\Models\Stock> $query */
+        $query = $this->stockService->getQuery()
             ->with(['creator', 'updater'])
             ->search($this->search ?? null)
             ->ofStatus($this->status ?? null)
-            ->sortedLatest('created_at')
+            ->sortedLatest('created_at');
+
+        return $query
             ->paginate(Pagination::clamp($this->perPage));
     }
 

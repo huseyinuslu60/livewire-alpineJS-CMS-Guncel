@@ -14,52 +14,48 @@ interface PostRepositoryInterface
 {
     /**
      * Find post by ID
-     *
-     * @param int $postId
-     * @return Post|null
      */
     public function findById(int $postId): ?Post;
 
     /**
      * Find post by slug
-     *
-     * @param string $slug
-     * @return Post|null
      */
     public function findBySlug(string $slug): ?Post;
 
     /**
      * Create a new post
-     *
-     * @param array $data
-     * @return Post
      */
     public function create(array $data): Post;
 
     /**
      * Update an existing post
-     *
-     * @param Post $post
-     * @param array $data
-     * @return Post
      */
     public function update(Post $post, array $data): Post;
 
     /**
      * Delete a post
-     *
-     * @param Post $post
-     * @return bool
      */
     public function delete(Post $post): bool;
 
     /**
      * Check if slug exists
-     *
-     * @param string $slug
-     * @param int|null $excludeId
-     * @return bool
      */
     public function slugExists(string $slug, ?int $excludeId = null): bool;
-}
 
+    /**
+     * Get query builder for posts
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder;
+
+    /**
+     * Find posts by IDs
+     */
+    public function findByIds(array $postIds): \Illuminate\Database\Eloquent\Collection;
+
+    /**
+     * Bulk update posts by IDs
+     *
+     * @return int Number of updated records
+     */
+    public function bulkUpdate(array $postIds, array $data): int;
+}

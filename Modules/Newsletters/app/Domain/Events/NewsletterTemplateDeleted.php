@@ -13,4 +13,3 @@ class NewsletterTemplateDeleted
         $this->template = $template;
     }
 }
-

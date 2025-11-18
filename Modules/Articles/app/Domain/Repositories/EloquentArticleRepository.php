@@ -39,6 +39,7 @@ class EloquentArticleRepository implements ArticleRepositoryInterface
     public function update(Article $article, array $data): Article
     {
         $article->update($data);
+
         return $article->fresh();
     }
 
@@ -56,12 +57,16 @@ class EloquentArticleRepository implements ArticleRepositoryInterface
     public function slugExists(string $slug, ?int $excludeId = null): bool
     {
         $query = Article::where('slug', $slug);
-        
+
         if ($excludeId !== null) {
             $query->where('article_id', '!=', $excludeId);
         }
-        
+
         return $query->exists();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Article::query();
+    }
+}

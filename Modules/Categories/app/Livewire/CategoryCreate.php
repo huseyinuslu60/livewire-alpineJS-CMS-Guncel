@@ -5,7 +5,6 @@ namespace Modules\Categories\Livewire;
 use App\Services\SlugGenerator;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Modules\Categories\Models\Category;
 use Modules\Categories\Services\CategoryService;
@@ -77,7 +76,7 @@ class CategoryCreate extends Component
 
     public function updatedName()
     {
-        if (! $this->isSlugEditable && !empty($this->name)) {
+        if (! $this->isSlugEditable && ! empty($this->name)) {
             $slugGenerator = app(SlugGenerator::class);
             $slug = $slugGenerator->generate($this->name, Category::class, 'slug', 'category_id');
             $this->slug = $slug->toString();
@@ -119,6 +118,9 @@ class CategoryCreate extends Component
             session()->flash('success', $this->createContextualSuccessMessage('created', 'name', 'category'));
 
             return redirect()->route('categories.index');
+        } catch (\InvalidArgumentException $e) {
+            $this->isLoading = false;
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->isLoading = false;
             session()->flash('error', 'Kategori oluşturulurken hata oluştu: '.$e->getMessage());
@@ -127,7 +129,8 @@ class CategoryCreate extends Component
 
     public function render()
     {
-        $parentCategories = Category::whereNull('parent_id')
+        $parentCategories = $this->categoryService->getQuery()
+            ->whereNull('parent_id')
             ->orderBy('name')
             ->get();
 

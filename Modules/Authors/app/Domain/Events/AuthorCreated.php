@@ -13,4 +13,3 @@ class AuthorCreated
         $this->author = $author;
     }
 }
-

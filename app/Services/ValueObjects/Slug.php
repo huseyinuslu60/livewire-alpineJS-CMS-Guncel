@@ -6,11 +6,9 @@ use InvalidArgumentException;
 
 /**
  * Slug Value Object
- * 
+ *
  * Tüm modüllerde kullanılabilir ortak Slug ValueObject.
  * Business rule: Slug boş olamaz, sadece alfanumerik karakterler ve tire içerebilir.
- * 
- * @package App\Services\ValueObjects
  */
 final class Slug
 {
@@ -24,9 +22,9 @@ final class Slug
 
     /**
      * String'den Slug oluştur
-     * 
-     * @param string $value Slug değeri
-     * @return self
+     *
+     * @param  string  $value  Slug değeri
+     *
      * @throws InvalidArgumentException
      */
     public static function fromString(string $value): self
@@ -36,8 +34,6 @@ final class Slug
 
     /**
      * Slug'ı string olarak döndür
-     * 
-     * @return string
      */
     public function toString(): string
     {
@@ -46,8 +42,6 @@ final class Slug
 
     /**
      * Slug'ı string olarak döndür (magic method)
-     * 
-     * @return string
      */
     public function __toString(): string
     {
@@ -56,9 +50,8 @@ final class Slug
 
     /**
      * İki slug'ı karşılaştır
-     * 
-     * @param Slug $other Karşılaştırılacak slug
-     * @return bool
+     *
+     * @param  Slug  $other  Karşılaştırılacak slug
      */
     public function equals(Slug $other): bool
     {
@@ -67,8 +60,6 @@ final class Slug
 
     /**
      * Slug'ın boş olup olmadığını kontrol et
-     * 
-     * @return bool
      */
     public function isEmpty(): bool
     {
@@ -77,9 +68,9 @@ final class Slug
 
     /**
      * Slug validation
-     * 
-     * @param string $value Slug değeri
-     * @return void
+     *
+     * @param  string  $value  Slug değeri
+     *
      * @throws InvalidArgumentException
      */
     private function validate(string $value): void
@@ -89,7 +80,7 @@ final class Slug
         }
 
         // Slug sadece alfanumerik karakterler, tire ve alt çizgi içerebilir
-        if (!preg_match('/^[a-z0-9_-]+$/', $value)) {
+        if (! preg_match('/^[a-z0-9_-]+$/', $value)) {
             throw new InvalidArgumentException('Slug sadece küçük harf, rakam, tire ve alt çizgi içerebilir');
         }
 
@@ -99,4 +90,3 @@ final class Slug
         }
     }
 }
-

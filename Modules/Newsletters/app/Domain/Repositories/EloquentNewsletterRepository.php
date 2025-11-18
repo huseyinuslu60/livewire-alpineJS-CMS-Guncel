@@ -19,6 +19,7 @@ class EloquentNewsletterRepository implements NewsletterRepositoryInterface
     public function update(Newsletter $newsletter, array $data): Newsletter
     {
         $newsletter->update($data);
+
         return $newsletter->fresh();
     }
 
@@ -27,4 +28,3 @@ class EloquentNewsletterRepository implements NewsletterRepositoryInterface
         return $newsletter->delete();
     }
 }
-

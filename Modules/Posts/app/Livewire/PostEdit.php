@@ -284,7 +284,7 @@ class PostEdit extends Component
                 // Order'a göre sırala
                 $sortedGalleryData = collect($galleryData)->sortBy('order')->values()->toArray();
 
-                $this->existingFiles = collect($sortedGalleryData)->map(function ($fileData, $index) {
+                $this->existingFiles = collect($sortedGalleryData)->map(function (array $fileData, int $index) {
                     // file_id'yi koru - eğer yoksa file_path'den hash oluştur (kalıcı olması için)
                     $fileId = $fileData['file_id'] ?? null;
 
@@ -337,7 +337,7 @@ class PostEdit extends Component
                 'primary' => true,
                 'type' => $primaryFile->mime_type ?? 'image/jpeg',
                 'order' => 0,
-                'uploaded_at' => $primaryFile->created_at ? $primaryFile->created_at->toISOString() : now()->toISOString(),
+                'uploaded_at' => $primaryFile->created_at ? (is_object($primaryFile->created_at) ? $primaryFile->created_at->toISOString() : (string) $primaryFile->created_at) : now()->toISOString(),
             ];
             $this->primaryFileId = (string) $primaryFile->file_id;
         }
@@ -487,11 +487,11 @@ class PostEdit extends Component
             }
 
             // Ensure all arrays are properly formatted
-            $desktopCrop = is_array($this->desktopCrop) ? $this->desktopCrop : [];
-            $mobileCrop = is_array($this->mobileCrop) ? $this->mobileCrop : [];
+            $desktopCrop = $this->desktopCrop ?? [];
+            $mobileCrop = $this->mobileCrop ?? [];
 
             // Effects - use existing or defaults (never empty array)
-            $imageEffects = is_array($this->imageEffects) && !empty($this->imageEffects)
+            $imageEffects = (! empty($this->imageEffects))
                 ? $this->imageEffects
                 : [
                     'brightness' => 100,
@@ -502,9 +502,9 @@ class PostEdit extends Component
                     'blur' => 0,
                 ];
 
-            $imageMeta = is_array($this->imageMeta) ? $this->imageMeta : [];
-            $textObjects = is_array($this->imageTextObjects) ? $this->imageTextObjects : [];
-            $canvasDimensions = is_array($this->canvasDimensions) ? $this->canvasDimensions : ['width' => 0, 'height' => 0];
+            $imageMeta = $this->imageMeta ?? [];
+            $textObjects = $this->imageTextObjects ?? [];
+            $canvasDimensions = $this->canvasDimensions ?? ['width' => 0, 'height' => 0];
 
             LogHelper::info('PostEdit buildSpotDataArray - Building spot_data', [
                 'textObjects_count' => count($textObjects),
@@ -752,7 +752,7 @@ class PostEdit extends Component
             $galleryData = $this->post->gallery_data;
 
             if (is_array($galleryData) && ! empty($galleryData)) {
-                $this->existingFiles = collect($galleryData)->map(function ($fileData, $index) {
+                $this->existingFiles = collect($galleryData)->map(function (array $fileData, int $index) {
                     // Create sayfasındaki gibi unique ID oluştur
                     $fileId = uniqid('existing_', true);
 
@@ -1518,16 +1518,16 @@ class PostEdit extends Component
             // Check if we have image editor data (even if imageEditorUsed flag is not set)
             // This handles cases where updateFilePreview was called but flag wasn't set
             $hasImageEditorData = $this->imageEditorUsed
-                || !empty($this->imageEffects)
-                || !empty($this->imageTextObjects)
-                || !empty($this->desktopCrop)
-                || !empty($this->mobileCrop)
-                || (!empty($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0));
+                || ! empty($this->imageEffects)
+                || ! empty($this->imageTextObjects)
+                || ! empty($this->desktopCrop)
+                || ! empty($this->mobileCrop)
+                || (! empty($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0));
 
             $spotDataArray = null;
             if ($hasImageEditorData && $hasPrimaryFile) {
                 // If imageEditorUsed is false but we have data, set it to true
-                if (!$this->imageEditorUsed) {
+                if (! $this->imageEditorUsed) {
                     $this->imageEditorUsed = true;
                     LogHelper::info('PostEdit updatePost - imageEditorUsed was false but image editor data exists, setting to true');
                 }
@@ -1541,7 +1541,7 @@ class PostEdit extends Component
                     'imageEditorUsed' => $this->imageEditorUsed,
                     'hasImageEditorData' => $hasImageEditorData,
                 ]);
-            } elseif (!$hasPrimaryFile) {
+            } elseif (! $hasPrimaryFile) {
                 // Primary file was removed, clear spot_data
                 LogHelper::info('PostEdit updatePost - Primary file removed, clearing spot_data', [
                     'has_primary_file' => $hasPrimaryFile,
@@ -1551,10 +1551,10 @@ class PostEdit extends Component
             } else {
                 LogHelper::warning('PostEdit updatePost - No image editor data to save', [
                     'imageEditorUsed' => $this->imageEditorUsed,
-                    'has_effects' => !empty($this->imageEffects),
-                    'has_textObjects' => !empty($this->imageTextObjects),
-                    'has_crop' => !empty($this->desktopCrop) || !empty($this->mobileCrop),
-                    'has_canvas' => !empty($this->canvasDimensions),
+                    'has_effects' => ! empty($this->imageEffects),
+                    'has_textObjects' => ! empty($this->imageTextObjects),
+                    'has_crop' => ! empty($this->desktopCrop) || ! empty($this->mobileCrop),
+                    'has_canvas' => ! empty($this->canvasDimensions),
                 ]);
             }
 
@@ -1581,11 +1581,11 @@ class PostEdit extends Component
             // 3. Primary file still exists
             // Check again if we have image editor data (in case it was set during update)
             $hasImageEditorDataAfterUpdate = $this->imageEditorUsed
-                || !empty($this->imageEffects)
-                || !empty($this->imageTextObjects)
-                || !empty($this->desktopCrop)
-                || !empty($this->mobileCrop)
-                || (!empty($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0));
+                || ! empty($this->imageEffects)
+                || ! empty($this->imageTextObjects)
+                || ! empty($this->desktopCrop)
+                || ! empty($this->mobileCrop)
+                || (! empty($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0));
 
             // NEW: Update spot_data['image'] from primary_image_spot_data if provided
             // This allows JS editor to directly update spot_data via Livewire property
@@ -1610,14 +1610,14 @@ class PostEdit extends Component
                 }
             }
 
-            if ($hasImageEditorDataAfterUpdate && ! empty($spotDataArray) && isset($spotDataArray['image']) && $hasPrimaryFileAfterUpdate) {
+            if ($hasImageEditorDataAfterUpdate && isset($spotDataArray['image']) && $hasPrimaryFileAfterUpdate) {
                 LogHelper::info('PostEdit updatePost - Saving spot_data after PostsService->update()', [
-                    'has_spot_data' => ! empty($spotDataArray),
-                    'has_image' => isset($spotDataArray['image']),
-                    'has_textObjects' => isset($spotDataArray['image']['textObjects']) && ! empty($spotDataArray['image']['textObjects']),
-                    'textObjects_count' => isset($spotDataArray['image']['textObjects']) ? count($spotDataArray['image']['textObjects']) : 0,
-                    'has_effects' => isset($spotDataArray['image']['effects']) && ! empty($spotDataArray['image']['effects']),
-                    'effects' => $spotDataArray['image']['effects'] ?? [],
+                    'has_spot_data' => isset($spotDataArray['image']),
+                    'has_image' => true,
+                    'has_textObjects' => ! empty(($spotDataArray['image']['textObjects'] ?? [])),
+                    'textObjects_count' => count(($spotDataArray['image']['textObjects'] ?? [])),
+                    'has_effects' => ! empty(($spotDataArray['image']['effects'] ?? [])),
+                    'effects' => ($spotDataArray['image']['effects'] ?? []),
                     'has_canvas' => isset($spotDataArray['image']['canvas']),
                     'canvas' => $spotDataArray['image']['canvas'] ?? [],
                     'originalImagePath' => $this->originalImagePath,
@@ -1663,7 +1663,7 @@ class PostEdit extends Component
                     'post_id' => $this->post->post_id,
                     'spot_data_saved' => ! empty($this->post->spot_data),
                 ]);
-            } elseif (!$hasPrimaryFileAfterUpdate) {
+            } elseif (! $hasPrimaryFileAfterUpdate) {
                 // Primary file was removed, clear spot_data
                 $this->post->spot_data = null;
                 $this->post->save();
@@ -1685,10 +1685,10 @@ class PostEdit extends Component
             } else {
                 LogHelper::info('PostEdit updatePost - No image editor data, not saving spot_data', [
                     'imageEditorUsed' => $this->imageEditorUsed,
-                    'has_effects' => !empty($this->imageEffects),
-                    'has_textObjects' => !empty($this->imageTextObjects),
-                    'has_crop' => !empty($this->desktopCrop) || !empty($this->mobileCrop),
-                    'has_canvas' => !empty($this->canvasDimensions),
+                    'has_effects' => ! empty($this->imageEffects),
+                    'has_textObjects' => ! empty($this->imageTextObjects),
+                    'has_crop' => ! empty($this->desktopCrop) || ! empty($this->mobileCrop),
+                    'has_canvas' => ! empty($this->canvasDimensions),
                 ]);
             }
 
@@ -1818,7 +1818,7 @@ class PostEdit extends Component
                         }
 
                         // Veritabanından yeni dosyaları ekle
-                        $this->existingFiles = collect($galleryData)->map(function ($fileData, $index) use ($existingFilesByPath) {
+                        $this->existingFiles = collect($galleryData)->map(function (array $fileData, int $index) use ($existingFilesByPath) {
                             $filePath = $fileData['file_path'] ?? '';
 
                             // Mevcut existingFiles'da varsa açıklamaları koru
@@ -1918,6 +1918,7 @@ class PostEdit extends Component
             // Dosyayı silmek yerine, sadece post ilişkisini kaldır (arşivde kalsın)
             // Böylece ileride "arşivden seç" özelliği ile tekrar kullanılabilir
             if (isset($file['file_id']) && is_numeric($file['file_id'])) {
+                /** @var \Modules\Posts\Models\File|null $fileModel */
                 $fileModel = $this->post->files->firstWhere('file_id', (int) $file['file_id']);
                 if ($fileModel) {
                     // Dosyayı silmek yerine, sadece post ilişkisini kaldır
@@ -2027,9 +2028,10 @@ class PostEdit extends Component
                 'alt' => 'Alt metin',
             ];
 
-            if (isset($maxLengths[$field]) && strlen($value) > $maxLengths[$field]) {
+            $maxLength = $maxLengths[$field] ?? PHP_INT_MAX;
+            if (strlen($value) > $maxLength) {
                 $fieldName = $fieldNames[$field] ?? $field;
-                throw new \InvalidArgumentException("{$fieldName} en fazla {$maxLengths[$field]} karakter olabilir");
+                throw new \InvalidArgumentException("{$fieldName} en fazla {$maxLength} karakter olabilir");
             }
 
             // Map field names to database columns
@@ -2062,6 +2064,7 @@ class PostEdit extends Component
                     // If fileId is numeric (existing file in database), update database
                     // Eager loaded files collection'ından bul (N+1 query önleme)
                     if (is_numeric($fileId)) {
+                        /** @var \Modules\Posts\Models\File|null $fileModel */
                         $fileModel = $this->post->files->firstWhere('file_id', (int) $fileId);
                         if ($fileModel) {
                             $this->postFileRepository->update($fileModel, [$dbField => $value]);
@@ -2080,6 +2083,7 @@ class PostEdit extends Component
                                 ->where('file_path', $file['path'])
                                 ->first();
                             if ($fm) {
+                                /** @var \Modules\Posts\Models\File $fm */
                                 $realId = $fm->file_id;
                             }
                         }
@@ -2090,6 +2094,7 @@ class PostEdit extends Component
                                 ->orderBy('created_at', 'desc')
                                 ->first();
                             if ($fmName) {
+                                /** @var \Modules\Posts\Models\File $fmName */
                                 $realId = $fmName->file_id;
                             }
                         }
@@ -2099,6 +2104,7 @@ class PostEdit extends Component
                                 ->where('order', (int) $file['order'])
                                 ->first();
                             if ($fmOrder) {
+                                /** @var \Modules\Posts\Models\File $fmOrder */
                                 $realId = $fmOrder->file_id;
                             }
                         }
@@ -2216,41 +2222,40 @@ class PostEdit extends Component
     public function removePrimaryFile()
     {
         try {
-            if ($this->post->primaryFile) {
-                $primaryFile = $this->post->primaryFile;
-
+            $primaryFile = $this->post->primaryFile;
+            if ($primaryFile) {
                 // Dosyayı silmek yerine, sadece post ilişkisini kaldır (arşivde kalsın)
                 // Böylece ileride "arşivden seç" özelliği ile tekrar kullanılabilir
                 $primaryFile->post_id = null;
                 $primaryFile->primary = false; // Primary flag'ini de kaldır
                 $primaryFile->save();
+            }
 
-                // Primary file ID'yi sıfırla
-                $this->primaryFileId = null;
+            // Primary file ID'yi sıfırla
+            $this->primaryFileId = null;
 
-                // Reset image editor properties
-                $this->resetImageEditorProperties();
+            // Reset image editor properties
+            $this->resetImageEditorProperties();
 
-                // Primary file kaldırıldığında spot_data'yı sıfırla
+            // Primary file kaldırıldığında spot_data'yı sıfırla
+            $this->post->spot_data = null;
+            $this->post->save();
+
+            // Refresh post to ensure primaryFile relationship is updated
+            $this->post->refresh();
+
+            // Double-check: if primaryFile is still set after refresh, clear spot_data again
+            if ($this->post->primaryFile === null && $this->post->spot_data !== null) {
                 $this->post->spot_data = null;
                 $this->post->save();
-
-                // Refresh post to ensure primaryFile relationship is updated
                 $this->post->refresh();
-
-                // Double-check: if primaryFile is still set after refresh, clear spot_data again
-                if ($this->post->primaryFile === null && $this->post->spot_data !== null) {
-                    $this->post->spot_data = null;
-                    $this->post->save();
-                    $this->post->refresh();
-                }
-
-                LogHelper::info('PostEdit removePrimaryFile - Primary file relationship removed (file archived, not deleted)', [
-                    'post_id' => $this->post->post_id ?? null,
-                    'file_id' => $primaryFile->file_id ?? null,
-                    'spot_data_after' => $this->post->spot_data,
-                ]);
             }
+
+            LogHelper::info('PostEdit removePrimaryFile - Primary file relationship removed (file archived, not deleted)', [
+                'post_id' => $this->post->post_id ?? null,
+                'file_id' => ($primaryFile !== null ? $primaryFile->file_id : null),
+                'spot_data_after' => $this->post->spot_data,
+            ]);
         } catch (\Exception $e) {
             LogHelper::error('removePrimaryFile failed', [
                 'post_id' => $this->post->post_id ?? null,

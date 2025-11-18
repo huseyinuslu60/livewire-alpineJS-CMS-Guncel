@@ -7,7 +7,6 @@ use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Lastminutes\Models\Lastminute;
 use Modules\Lastminutes\Services\LastminuteService;
 
 class LastminuteIndex extends Component
@@ -73,7 +72,7 @@ class LastminuteIndex extends Component
     {
         Gate::authorize('delete lastminutes');
 
-        $lastminute = Lastminute::findOrFail($id);
+        $lastminute = $this->lastminuteService->findById($id);
         $this->lastminuteService->delete($lastminute);
 
         $this->dispatch('lastminute-deleted');
@@ -84,7 +83,7 @@ class LastminuteIndex extends Component
     {
         Gate::authorize('edit lastminutes');
 
-        $lastminute = Lastminute::findOrFail($id);
+        $lastminute = $this->lastminuteService->findById($id);
 
         if ($lastminute->status === 'active') {
             $lastminute->deactivate();
@@ -102,7 +101,7 @@ class LastminuteIndex extends Component
     {
         Gate::authorize('edit lastminutes');
 
-        $lastminute = Lastminute::findOrFail($id);
+        $lastminute = $this->lastminuteService->findById($id);
         $lastminute->markAsExpired();
 
         $this->dispatch('lastminute-expired');
@@ -111,7 +110,8 @@ class LastminuteIndex extends Component
 
     public function render()
     {
-        $query = Lastminute::query()
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Lastminutes\Models\Lastminute> $query */
+        $query = $this->lastminuteService->getQuery()
             ->search($this->search ?? null)
             ->ofStatus($this->status ?? null);
 

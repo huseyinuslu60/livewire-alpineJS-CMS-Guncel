@@ -13,7 +13,9 @@ use InvalidArgumentException;
 final class LastminuteStatus
 {
     public const ACTIVE = 'active';
+
     public const INACTIVE = 'inactive';
+
     public const EXPIRED = 'expired';
 
     private const VALID_STATUSES = [
@@ -145,11 +147,10 @@ final class LastminuteStatus
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz lastminute durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

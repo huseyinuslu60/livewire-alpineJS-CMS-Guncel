@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Posts\Domain\ValueObjects\PostStatus;
+use Modules\Posts\Domain\ValueObjects\PostType;
 
 /**
  * @property int $post_id
@@ -38,9 +40,27 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $gallery_data
  * @property string|null $tags
  * @property string|null $published_date
+ * @property array|null $spot_data
  * @property string|null $created_at
  * @property string|null $updated_at
  * @property string|null $deleted_at
+ * @property-read \Modules\Posts\Models\File|null $primaryFile
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Post ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Post ofType($type)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post ofEditor($editorId)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post inCategory($categoryId)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post searchForNewsletter(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post published()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post draft()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post archived()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post byType($type)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post byPosition($position)
+ * @method static \Illuminate\Database\Eloquent\Builder|Post mainPage()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post ordered()
+ * @method static \Illuminate\Database\Eloquent\Builder|Post popular()
  */
 class Post extends Model
 {
@@ -49,15 +69,6 @@ class Post extends Model
     protected $table = 'posts';
 
     protected $primaryKey = 'post_id';
-
-    public const POSITIONS = ['normal', 'manşet', 'sürmanşet', 'öne çıkanlar'];
-
-    public const POSITION_LABELS = [
-        'normal' => 'Normal',
-        'manşet' => 'Manşet',
-        'sürmanşet' => 'Sürmanşet',
-        'öne çıkanlar' => 'Öne Çıkanlar',
-    ];
 
     protected $fillable = [
         'author_id',
@@ -417,22 +428,34 @@ class Post extends Model
     // Türkçe etiket metodları
     public function getTypeLabel()
     {
-        return self::TYPE_LABELS[$this->post_type] ?? ucfirst($this->post_type);
+        try {
+            $postType = PostType::fromString($this->post_type);
+
+            return $postType->getLabel();
+        } catch (\InvalidArgumentException $e) {
+            return ucfirst($this->post_type);
+        }
     }
 
     public function getStatusLabel()
     {
-        return self::STATUS_LABELS[$this->status] ?? ucfirst($this->status);
+        try {
+            $postStatus = PostStatus::fromString($this->status);
+
+            return $postStatus->getLabel();
+        } catch (\InvalidArgumentException $e) {
+            return ucfirst($this->status);
+        }
     }
 
-    public static function getTypeLabels()
+    public static function getTypeLabels(): array
     {
-        return self::TYPE_LABELS;
+        return PostType::labels();
     }
 
-    public static function getStatusLabels()
+    public static function getStatusLabels(): array
     {
-        return self::STATUS_LABELS;
+        return PostStatus::labels();
     }
 
     /**
@@ -448,9 +471,10 @@ class Post extends Model
      */
     public function getOriginalImagePath(): ?string
     {
-        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['original']['path'])) {
+        if (! is_array($this->spot_data) || ! isset($this->spot_data['image']['original']['path'])) {
             return null;
         }
+
         return $this->spot_data['image']['original']['path'];
     }
 
@@ -459,10 +483,11 @@ class Post extends Model
      */
     public function getImageVariant(string $variant): ?array
     {
-        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['variants'][$variant])) {
+        if (! is_array($this->spot_data) || ! isset($this->spot_data['image']['variants'][$variant])) {
             return null;
         }
         $variantData = $this->spot_data['image']['variants'][$variant];
+
         return is_array($variantData) ? $variantData : null;
     }
 
@@ -471,10 +496,11 @@ class Post extends Model
      */
     public function getImageCrop(string $variant): ?array
     {
-        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['variants'][$variant]['crop'])) {
+        if (! is_array($this->spot_data) || ! isset($this->spot_data['image']['variants'][$variant]['crop'])) {
             return null;
         }
         $crop = $this->spot_data['image']['variants'][$variant]['crop'];
+
         return is_array($crop) ? $crop : null;
     }
 
@@ -483,10 +509,11 @@ class Post extends Model
      */
     public function getImageEffects(): ?array
     {
-        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['effects'])) {
+        if (! is_array($this->spot_data) || ! isset($this->spot_data['image']['effects'])) {
             return null;
         }
         $effects = $this->spot_data['image']['effects'];
+
         return is_array($effects) ? $effects : null;
     }
 
@@ -495,10 +522,11 @@ class Post extends Model
      */
     public function getImageMeta(): ?array
     {
-        if (!is_array($this->spot_data) || !isset($this->spot_data['image']['meta'])) {
+        if (! is_array($this->spot_data) || ! isset($this->spot_data['image']['meta'])) {
             return null;
         }
         $meta = $this->spot_data['image']['meta'];
+
         return is_array($meta) ? $meta : null;
     }
 
@@ -507,10 +535,11 @@ class Post extends Model
      */
     public function getSpotImageData(): ?array
     {
-        if (!is_array($this->spot_data) || !isset($this->spot_data['image'])) {
+        if (! is_array($this->spot_data) || ! isset($this->spot_data['image'])) {
             return null;
         }
         $image = $this->spot_data['image'];
+
         return is_array($image) ? $image : null;
     }
 
@@ -520,7 +549,7 @@ class Post extends Model
      */
     public function migrateLegacyImageDataToSpotData(): void
     {
-        if (!empty($this->spot_data) && isset($this->spot_data['image'])) {
+        if (! empty($this->spot_data) && isset($this->spot_data['image'])) {
             // Already migrated
             return;
         }

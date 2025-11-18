@@ -5,7 +5,6 @@ namespace Modules\Newsletters\Livewire;
 use App\Support\Pagination;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Newsletters\Models\NewsletterTemplate;
 use Modules\Newsletters\Services\NewsletterTemplateService;
 
 class TemplateIndex extends Component
@@ -50,8 +49,18 @@ class TemplateIndex extends Component
 
     public function toggleActive($templateId)
     {
-        $template = NewsletterTemplate::find($templateId);
-        if ($template) {
+        try {
+            $template = $this->templateService->findById($templateId);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        } catch (\Exception $e) {
+            session()->flash('error', 'Template bulunamadı.');
+
+            return;
+        }
+        if ($template !== null) {
             $this->templateService->toggleActive($template);
             session()->flash('success', 'Template durumu güncellendi!');
         }
@@ -59,8 +68,18 @@ class TemplateIndex extends Component
 
     public function deleteTemplate($templateId)
     {
-        $template = NewsletterTemplate::find($templateId);
-        if ($template) {
+        try {
+            $template = $this->templateService->findById($templateId);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        } catch (\Exception $e) {
+            session()->flash('error', 'Template bulunamadı.');
+
+            return;
+        }
+        if ($template !== null) {
             $this->templateService->delete($template);
             session()->flash('success', 'Template başarıyla silindi!');
         }
@@ -68,7 +87,8 @@ class TemplateIndex extends Component
 
     public function render()
     {
-        $query = NewsletterTemplate::query()
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Newsletters\Models\NewsletterTemplate> $query */
+        $query = $this->templateService->getQuery()
             ->search($this->search ?? null);
 
         // Sorting: Referans modül kalıbına göre

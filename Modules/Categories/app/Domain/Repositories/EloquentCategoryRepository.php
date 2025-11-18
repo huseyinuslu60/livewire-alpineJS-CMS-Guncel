@@ -39,6 +39,7 @@ class EloquentCategoryRepository implements CategoryRepositoryInterface
     public function update(Category $category, array $data): Category
     {
         $category->update($data);
+
         return $category->fresh();
     }
 
@@ -71,5 +72,9 @@ class EloquentCategoryRepository implements CategoryRepositoryInterface
     {
         return $category->children()->count() > 0;
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Category::query();
+    }
+}

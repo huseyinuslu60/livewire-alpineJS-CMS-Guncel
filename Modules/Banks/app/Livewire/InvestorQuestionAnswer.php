@@ -4,11 +4,18 @@ namespace Modules\Banks\Livewire;
 
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Modules\Banks\Models\InvestorQuestion;
+use Modules\Banks\Services\InvestorQuestionService;
 
 class InvestorQuestionAnswer extends Component
 {
     public ?\Modules\Banks\Models\InvestorQuestion $question = null;
+
+    protected InvestorQuestionService $investorQuestionService;
+
+    public function boot()
+    {
+        $this->investorQuestionService = app(InvestorQuestionService::class);
+    }
 
     public string $answer = '';
 
@@ -26,7 +33,7 @@ class InvestorQuestionAnswer extends Component
 
     public function mount($id)
     {
-        $this->question = InvestorQuestion::findOrFail($id);
+        $this->question = $this->investorQuestionService->findById($id);
 
         if ($this->question->status === 'answered') {
             $this->answer = $this->question->answer;
@@ -45,7 +52,8 @@ class InvestorQuestionAnswer extends Component
         try {
             if ($this->question->status === 'answered') {
                 // Cevabı güncelle
-                $this->question->updateAnswer(
+                $this->investorQuestionService->updateAnswer(
+                    $this->question,
                     $this->answer,
                     $this->answer_title,
                     Auth::id()
@@ -53,7 +61,8 @@ class InvestorQuestionAnswer extends Component
                 session()->flash('success', 'Cevap başarıyla güncellendi.');
             } else {
                 // Yeni cevap ekle
-                $this->question->markAsAnswered(
+                $this->investorQuestionService->markAsAnswered(
+                    $this->question,
                     $this->answer,
                     $this->answer_title,
                     Auth::id()
@@ -62,6 +71,8 @@ class InvestorQuestionAnswer extends Component
             }
 
             return redirect()->route('banks.investor-questions.index');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'İşlem sırasında bir hata oluştu: '.$e->getMessage());
         }
@@ -74,7 +85,7 @@ class InvestorQuestionAnswer extends Component
         }
 
         try {
-            $this->question->markAsRejected(Auth::id());
+            $this->investorQuestionService->markAsRejected($this->question, Auth::id());
 
             session()->flash('success', 'Soru reddedildi.');
 

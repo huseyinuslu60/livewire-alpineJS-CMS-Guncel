@@ -7,6 +7,7 @@ use Modules\Settings\Models\SiteSetting;
 class SettingUpdated
 {
     public SiteSetting $setting;
+
     public array $changedAttributes;
 
     public function __construct(SiteSetting $setting, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class SettingUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

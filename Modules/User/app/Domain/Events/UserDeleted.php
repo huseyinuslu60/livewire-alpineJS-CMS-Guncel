@@ -13,4 +13,3 @@ class UserDeleted
         $this->user = $user;
     }
 }
-

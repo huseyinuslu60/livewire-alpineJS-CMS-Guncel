@@ -37,7 +37,7 @@ class SettingsServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
-        
+
         // Register Repository bindings
         $this->app->bind(
             \Modules\Settings\Domain\Repositories\SettingRepositoryInterface::class,

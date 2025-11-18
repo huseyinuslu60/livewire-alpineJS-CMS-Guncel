@@ -6,14 +6,16 @@ use InvalidArgumentException;
 
 /**
  * Article Status Value Object
- * 
+ *
  * Article durumlarını type-safe olarak yönetir.
  * Business rule: Sadece geçerli article durumları kabul edilir.
  */
 final class ArticleStatus
 {
     public const DRAFT = 'draft';
+
     public const PUBLISHED = 'published';
+
     public const PENDING = 'pending';
 
     private const VALID_STATUSES = [
@@ -153,11 +155,10 @@ final class ArticleStatus
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz article durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

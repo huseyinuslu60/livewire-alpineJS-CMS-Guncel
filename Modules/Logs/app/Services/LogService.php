@@ -17,6 +17,7 @@ use Modules\Logs\Models\UserLog;
 class LogService
 {
     protected LogValidator $logValidator;
+
     protected LogRepositoryInterface $logRepository;
 
     public function __construct(
@@ -28,10 +29,23 @@ class LogService
     }
 
     /**
-     * Delete a single log
+     * Find a log by ID
      *
-     * @param  int  $logId
-     * @return bool
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $logId): UserLog
+    {
+        $log = $this->logRepository->findById($logId);
+
+        if (! $log) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Log not found');
+        }
+
+        return $log;
+    }
+
+    /**
+     * Delete a single log
      */
     public function delete(int $logId): bool
     {
@@ -39,11 +53,7 @@ class LogService
             // Validate log ID
             $this->logValidator->validateLogId($logId);
 
-            $log = $this->logRepository->findById($logId);
-            
-            if (!$log) {
-                throw new \Exception('Log kaydı bulunamadı');
-            }
+            $log = $this->findById($logId);
 
             $this->logRepository->delete($log);
 
@@ -68,8 +78,7 @@ class LogService
     /**
      * Delete multiple logs (bulk delete)
      *
-     * @param  array  $logIds
-     * @return int  Number of deleted logs
+     * @return int Number of deleted logs
      */
     public function deleteBulk(array $logIds): int
     {
@@ -100,8 +109,6 @@ class LogService
 
     /**
      * Clear all logs
-     *
-     * @return bool
      */
     public function clearAll(): bool
     {
@@ -128,37 +135,12 @@ class LogService
     /**
      * Get filtered logs with pagination
      *
-     * @param  array  $filters
-     * @param  int  $perPage
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     public function getFilteredLogs(array $filters = [], int $perPage = 15)
     {
-        $query = UserLog::query()->with(['user']);
-
-        // Search filter
-        if (! empty($filters['search'])) {
-            $query->search($filters['search']);
-        }
-
-        // Action filter
-        if (! empty($filters['action'])) {
-            $query->ofAction($filters['action']);
-        }
-
-        // User filter
-        if (! empty($filters['user_id'])) {
-            $query->ofUser($filters['user_id']);
-        }
-
-        // Date range filters
-        if (! empty($filters['date_from'])) {
-            $query->whereDate('created_at', '>=', $filters['date_from']);
-        }
-
-        if (! empty($filters['date_to'])) {
-            $query->whereDate('created_at', '<=', $filters['date_to']);
-        }
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Logs\Models\UserLog> $query */
+        $query = $this->logRepository->getFilteredQuery($filters);
 
         return $query
             ->sortedLatest('created_at')
@@ -168,34 +150,12 @@ class LogService
     /**
      * Export logs to CSV
      *
-     * @param  array  $filters
-     * @return array  ['data' => string, 'filename' => string]
+     * @return array ['data' => string, 'filename' => string]
      */
     public function exportToCsv(array $filters = []): array
     {
         try {
-            $query = UserLog::query()->with(['user']);
-
-            // Apply same filters as getFilteredLogs
-            if (! empty($filters['search'])) {
-                $query->search($filters['search']);
-            }
-
-            if (! empty($filters['action'])) {
-                $query->ofAction($filters['action']);
-            }
-
-            if (! empty($filters['user_id'])) {
-                $query->ofUser($filters['user_id']);
-            }
-
-            if (! empty($filters['date_from'])) {
-                $query->whereDate('created_at', '>=', $filters['date_from']);
-            }
-
-            if (! empty($filters['date_to'])) {
-                $query->whereDate('created_at', '<=', $filters['date_to']);
-            }
+            $query = $this->logRepository->getFilteredQuery($filters);
 
             // CSV header
             $csvData = "ID,User,Action,Model Type,Model ID,Description,IP Address,User Agent,Created At\n";
@@ -203,6 +163,8 @@ class LogService
             $hasLogs = false;
 
             // Export için chunk() kullan (büyük veri setleri için)
+            /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Logs\Models\UserLog> $query */
+            $query = $this->logRepository->getFilteredQuery($filters);
             $query->sortedLatest('created_at')->chunk(1000, function ($logs) use (&$csvData, &$hasLogs) {
                 $hasLogs = true;
                 foreach ($logs as $log) {
@@ -255,27 +217,11 @@ class LogService
 
     /**
      * Get log statistics
-     *
-     * @param  array  $filters
-     * @return array
      */
     public function getStatistics(array $filters = []): array
     {
         try {
-            $query = UserLog::query();
-
-            // Apply filters
-            if (! empty($filters['date_from'])) {
-                $query->whereDate('created_at', '>=', $filters['date_from']);
-            }
-
-            if (! empty($filters['date_to'])) {
-                $query->whereDate('created_at', '<=', $filters['date_to']);
-            }
-
-            if (! empty($filters['user_id'])) {
-                $query->ofUser($filters['user_id']);
-            }
+            $query = $this->logRepository->getFilteredQuery($filters);
 
             return [
                 'total' => $query->count(),
@@ -299,5 +245,14 @@ class LogService
             throw $e;
         }
     }
-}
 
+    /**
+     * Get query builder for logs
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Logs\Models\UserLog>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->logRepository->getQuery();
+    }
+}

@@ -6,7 +6,6 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Comments\Models\Comment;
 use Modules\Comments\Services\CommentService;
 
 /**
@@ -92,7 +91,7 @@ class CommentsIndex extends Component
         Gate::authorize('approve comments');
 
         try {
-            $comment = Comment::findOrFail($commentId);
+            $comment = $this->commentService->findById($commentId);
             $this->commentService->approve($comment);
 
             // Sayfa yeniden render'ını engelle
@@ -103,6 +102,8 @@ class CommentsIndex extends Component
 
             // Success mesajını JavaScript ile göster
             $this->dispatch('show-success', 'Yorum onaylandı.');
+        } catch (\InvalidArgumentException $e) {
+            $this->dispatch('show-error', $e->getMessage());
         } catch (\Exception $e) {
             $this->dispatch('show-error', 'Yorum onaylanırken bir hata oluştu: '.$e->getMessage());
         }
@@ -113,7 +114,7 @@ class CommentsIndex extends Component
         Gate::authorize('reject comments');
 
         try {
-            $comment = Comment::findOrFail($commentId);
+            $comment = $this->commentService->findById($commentId);
             $this->commentService->reject($comment);
 
             // Sayfa yeniden render'ını engelle
@@ -124,6 +125,8 @@ class CommentsIndex extends Component
 
             // Success mesajını JavaScript ile göster
             $this->dispatch('show-success', 'Yorum reddedildi.');
+        } catch (\InvalidArgumentException $e) {
+            $this->dispatch('show-error', $e->getMessage());
         } catch (\Exception $e) {
             $this->dispatch('show-error', 'Yorum reddedilirken bir hata oluştu: '.$e->getMessage());
         }
@@ -134,9 +137,11 @@ class CommentsIndex extends Component
         Gate::authorize('delete comments');
 
         try {
-            $comment = Comment::findOrFail($commentId);
+            $comment = $this->commentService->findById($commentId);
             $this->commentService->delete($comment);
             session()->flash('success', 'Yorum silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Yorum silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -147,7 +152,7 @@ class CommentsIndex extends Component
         Gate::authorize('approve comments');
 
         try {
-            $comment = Comment::findOrFail($commentId);
+            $comment = $this->commentService->findById($commentId);
             $newText = $this->editedCommentTexts[$commentId] ?? $comment->comment_text;
 
             $this->commentService->updateAndApprove($comment, $newText);
@@ -157,6 +162,8 @@ class CommentsIndex extends Component
 
             // Sadece bu yorumu yeniden render et, tüm sayfayı değil
             $this->dispatch('comment-updated', $commentId);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Yorum düzenlenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -167,7 +174,7 @@ class CommentsIndex extends Component
         Gate::authorize('update comments');
 
         try {
-            $comment = Comment::findOrFail($commentId);
+            $comment = $this->commentService->findById($commentId);
             $newText = $this->editedCommentTexts[$commentId] ?? $comment->comment_text;
 
             $this->commentService->update($comment, ['comment_text' => $newText]);
@@ -177,6 +184,8 @@ class CommentsIndex extends Component
 
             // Sadece bu yorumu yeniden render et, tüm sayfayı değil
             $this->dispatch('comment-updated', $commentId);
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Yorum güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -184,7 +193,8 @@ class CommentsIndex extends Component
 
     public function render()
     {
-        $query = Comment::query();
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Comments\Models\Comment> $query */
+        $query = $this->commentService->getQuery();
 
         if ($this->search !== null) {
             $query->search($this->search);
@@ -203,14 +213,10 @@ class CommentsIndex extends Component
 
         $comments = $query->paginate(Pagination::clamp($this->perPage));
 
-        $stats = [
-            'total' => Comment::count(),
-            'approved' => Comment::approved()->count(),
-            'pending' => Comment::pending()->count(),
-            'rejected' => Comment::rejected()->count(),
-        ];
+        $stats = $this->commentService->getStatistics();
 
         // Yeni yorumlar için başlangıç değerlerini ayarla
+        /** @var \Modules\Comments\Models\Comment $comment */
         foreach ($comments as $comment) {
             if (! isset($this->editedCommentTexts[$comment->comment_id])) {
                 $this->editedCommentTexts[$comment->comment_id] = $comment->comment_text;

@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Modules\User\Services\UserService;
-use Spatie\Permission\Models\Role;
 
 /**
  * @property string|null $search
@@ -95,7 +94,7 @@ class UserIndex extends Component
         Gate::authorize('delete users');
 
         try {
-            $user = User::findOrFail($userId);
+            $user = $this->userService->findById($userId);
 
             // Güvenlik: Super admin değilse, super_admin kullanıcısını silemez
             $currentUser = Auth::user();
@@ -107,6 +106,8 @@ class UserIndex extends Component
             $this->userService->delete($user);
 
             $this->successMessage = $this->createContextualSuccessMessage('deleted', 'name', 'user');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Kullanıcı silinirken hata oluştu: '.$e->getMessage());
         }
@@ -134,7 +135,7 @@ class UserIndex extends Component
         $users = $query->paginate(Pagination::clamp($this->perPage));
 
         // Roller için dropdown
-        $roles = Role::all();
+        $roles = app(\Modules\Roles\Services\RoleService::class)->getAll();
 
         /** @var view-string $view */
         $view = 'user::livewire.user-index';

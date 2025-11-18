@@ -141,17 +141,11 @@ class FileIndex extends Component
             if (empty($fileId)) {
                 $this->errorMessage = 'Geçersiz dosya ID.';
                 $this->showErrorMessage = true;
-                return;
-            }
-
-            $file = File::find($fileId);
-            if (! $file) {
-                $this->errorMessage = 'Dosya bulunamadı.';
-                $this->showErrorMessage = true;
 
                 return;
             }
 
+            $file = $this->fileService->findById($fileId);
             $this->fileService->delete($file);
 
             session()->flash('success', $this->createContextualSuccessMessage('deleted', 'name', 'file'));
@@ -173,18 +167,14 @@ class FileIndex extends Component
             if (empty($fileId)) {
                 $this->errorMessage = 'Geçersiz dosya ID.';
                 $this->showErrorMessage = true;
+
                 return;
             }
 
-            $file = File::find($fileId);
-            if ($file) {
-                $this->editingFile = $file;
-                $this->editAltText = $file->alt_text ?? '';
-                $this->editCaption = $file->caption ?? '';
-            } else {
-                $this->errorMessage = 'Dosya bulunamadı.';
-                $this->showErrorMessage = true;
-            }
+            $file = $this->fileService->findById($fileId);
+            $this->editingFile = $file;
+            $this->editAltText = $file->alt_text ?? '';
+            $this->editCaption = $file->caption ?? '';
         } catch (\Exception $e) {
             \App\Helpers\LogHelper::error('editFile failed', [
                 'fileId' => $fileId,
@@ -201,9 +191,10 @@ class FileIndex extends Component
 
         try {
             // Validation
-            if (!$this->editingFile) {
+            if (! $this->editingFile) {
                 $this->errorMessage = 'Düzenlenecek dosya seçilmedi.';
                 $this->showErrorMessage = true;
+
                 return;
             }
 
@@ -211,12 +202,14 @@ class FileIndex extends Component
             if (strlen($this->editAltText) > 255) {
                 $this->errorMessage = 'Alt metin en fazla 255 karakter olabilir.';
                 $this->showErrorMessage = true;
+
                 return;
             }
 
             if (strlen($this->editCaption) > 10000) {
                 $this->errorMessage = 'Açıklama en fazla 10000 karakter olabilir.';
                 $this->showErrorMessage = true;
+
                 return;
             }
 
@@ -227,11 +220,23 @@ class FileIndex extends Component
 
             session()->flash('success', $this->createContextualSuccessMessage('updated', 'name', 'file'));
 
+            // Hata mesajlarını temizle
+            $this->showErrorMessage = false;
+            $this->errorMessage = '';
+
             // Form'u reset et ve modal'ı kapat
             $this->resetEditForm();
+        } catch (\InvalidArgumentException $e) {
+            // Validation hataları için özel mesaj
+            \App\Helpers\LogHelper::error('updateFile validation failed', [
+                'fileId' => $this->editingFile !== null ? $this->editingFile->file_id : null,
+                'error' => $e->getMessage(),
+            ]);
+            $this->errorMessage = $e->getMessage();
+            $this->showErrorMessage = true;
         } catch (\Exception $e) {
             \App\Helpers\LogHelper::error('updateFile failed', [
-                'fileId' => $this->editingFile?->file_id ?? null,
+                'fileId' => $this->editingFile !== null ? $this->editingFile->file_id : null,
                 'error' => $e->getMessage(),
             ]);
             $this->errorMessage = 'Dosya güncellenirken hata oluştu: '.$e->getMessage();
@@ -244,6 +249,8 @@ class FileIndex extends Component
         $this->editingFile = null;
         $this->editAltText = '';
         $this->editCaption = '';
+        $this->showErrorMessage = false;
+        $this->errorMessage = '';
     }
 
     public function closeEditModal()
@@ -315,10 +322,13 @@ class FileIndex extends Component
             return;
         }
 
-        $selectedFiles = File::whereIn('file_id', $this->selectedFiles)->get();
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Files\Models\File> $selectedFiles */
+        $selectedFiles = $this->fileService->getQuery()
+            ->whereIn('file_id', $this->selectedFiles)
+            ->get();
 
         // JavaScript ile parent window'a gönder
-        $files = $selectedFiles->map(function ($file) {
+        $files = $selectedFiles->map(function (\Modules\Files\Models\File $file) {
             return [
                 'id' => $file->file_id,
                 'title' => $file->title,
@@ -334,7 +344,8 @@ class FileIndex extends Component
 
     public function getFiles()
     {
-        $query = File::query(); // Tüm dosyaları göster
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Files\Models\File> $query */
+        $query = $this->fileService->getQuery();
 
         if ($this->search !== null) {
             $query->search($this->search);

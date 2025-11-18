@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * User Validator Domain Service
- * 
+ *
  * User iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - User name is required and max 255 characters
@@ -17,9 +17,9 @@ class UserValidator
 {
     /**
      * User data'nın validasyonunu yap
-     * 
-     * @param array $data User data
-     * @return void
+     *
+     * @param  array  $data  User data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -38,16 +38,15 @@ class UserValidator
             throw new InvalidArgumentException('E-posta adresi zorunludur.');
         }
 
-        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Geçersiz e-posta adresi formatı.');
         }
 
         // Password validation (if provided)
-        if (isset($data['password']) && !empty($data['password'])) {
+        if (isset($data['password']) && ! empty($data['password'])) {
             if (strlen($data['password']) < 8) {
                 throw new InvalidArgumentException('Şifre en az 8 karakter olmalıdır.');
             }
         }
     }
 }
-

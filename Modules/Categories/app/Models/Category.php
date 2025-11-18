@@ -5,7 +5,6 @@ namespace Modules\Categories\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 /**
  * @property int $category_id
@@ -22,6 +21,14 @@ use Illuminate\Support\Str;
  * @property int|null $site_id
  * @property string|null $created_at
  * @property string|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Category ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Category sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Category ofType($type)
+ * @method static \Illuminate\Database\Eloquent\Builder|Category search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Category active()
+ * @method static \Illuminate\Database\Eloquent\Builder|Category menu()
+ * @method static \Illuminate\Database\Eloquent\Builder|Category root()
  */
 class Category extends Model
 {

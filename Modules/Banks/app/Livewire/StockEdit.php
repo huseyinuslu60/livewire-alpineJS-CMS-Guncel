@@ -5,7 +5,7 @@ namespace Modules\Banks\Livewire;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Modules\Banks\Models\Stock;
+use Modules\Banks\Services\StockService;
 
 class StockEdit extends Component
 {
@@ -78,7 +78,7 @@ class StockEdit extends Component
 
     public function mount($id)
     {
-        $this->stock = Stock::findOrFail($id);
+        $this->stock = $this->stockService->findById($id);
 
         $this->name = $this->stock->name;
         $this->unvan = $this->stock->unvan;
@@ -137,6 +137,8 @@ class StockEdit extends Component
             session()->flash('success', 'Hisse senedi başarıyla güncellendi.');
 
             return redirect()->route('banks.stocks.index');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Hisse senedi güncellenirken bir hata oluştu: '.$e->getMessage());
         }

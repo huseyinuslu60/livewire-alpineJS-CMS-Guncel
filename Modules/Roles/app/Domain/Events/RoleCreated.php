@@ -13,4 +13,3 @@ class RoleCreated
         $this->role = $role;
     }
 }
-

@@ -11,4 +11,3 @@ class LogsCleared
         $this->deletedCount = $deletedCount;
     }
 }
-

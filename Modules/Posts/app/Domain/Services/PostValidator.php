@@ -7,7 +7,7 @@ use Modules\Posts\Domain\ValueObjects\PostType;
 
 /**
  * Post Validator Domain Service
- * 
+ *
  * Post iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Video posts must have embed_code
@@ -17,16 +17,16 @@ class PostValidator
 {
     /**
      * Post type'a göre özel validasyon kurallarını kontrol et
-     * 
-     * @param array $data Post data
-     * @return void
+     *
+     * @param  array  $data  Post data
+     *
      * @throws InvalidArgumentException
      */
     public function validatePostType(array $data): void
     {
         $postTypeValue = $data['post_type'] ?? null;
 
-        if (!$postTypeValue) {
+        if (! $postTypeValue) {
             return;
         }
 
@@ -50,9 +50,9 @@ class PostValidator
 
     /**
      * Post data'nın genel validasyonunu yap
-     * 
-     * @param array $data Post data
-     * @return void
+     *
+     * @param  array  $data  Post data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -70,4 +70,3 @@ class PostValidator
         $this->validatePostType($data);
     }
 }
-

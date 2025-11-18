@@ -88,6 +88,9 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
+        } catch (\InvalidArgumentException $e) {
+            $this->isLoading = false;
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->isLoading = false;
             session()->flash('error', 'Rol oluşturulurken hata oluştu: '.$e->getMessage());
@@ -166,6 +169,9 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
+        } catch (\InvalidArgumentException $e) {
+            $this->isLoading = false;
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->isLoading = false;
             session()->flash('error', 'Rol güncellenirken hata oluştu: '.$e->getMessage());
@@ -189,7 +195,7 @@ class RoleManagement extends Component
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
         }
 
-        $role = Role::findOrFail($roleId);
+        $role = $this->roleService->findById($roleId);
 
         // Süper Admin rolünü silmeyi engelle
         try {
@@ -257,6 +263,9 @@ class RoleManagement extends Component
 
             // Sayfayı yenile ki menü güncellensin
             $this->dispatch('refresh-page');
+        } catch (\InvalidArgumentException $e) {
+            $this->isLoading = false;
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->isLoading = false;
             session()->flash('error', 'Yetkiler güncellenirken hata oluştu: '.$e->getMessage());

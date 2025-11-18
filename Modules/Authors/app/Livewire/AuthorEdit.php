@@ -4,7 +4,6 @@ namespace Modules\Authors\Livewire;
 
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Modules\Authors\Models\Author;
@@ -72,7 +71,7 @@ class AuthorEdit extends Component
 
         // Eğer $author string ise, Author model'ini bul
         if (is_string($author) || is_numeric($author)) {
-            $this->author = Author::findOrFail($author);
+            $this->author = $this->authorService->findById((int) $author);
         } else {
             $this->author = $author;
         }

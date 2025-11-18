@@ -3,6 +3,7 @@
 namespace Modules\Files\Services;
 
 use App\Helpers\LogHelper;
+use App\Support\Sanitizer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -18,6 +19,7 @@ use Modules\Files\Models\File;
 class FileService
 {
     protected FileValidator $fileValidator;
+
     protected FileRepositoryInterface $fileRepository;
 
     public function __construct(
@@ -45,8 +47,14 @@ class FileService
                     $path = $uploadedFile->storeAs($storagePath, $fileName, 'public');
                     $data['file_path'] = str_replace('storage/', '', $path);
                     $data['type'] = $uploadedFile->getMimeType();
-                    $data['title'] = $data['title'] ?? $originalName;
+
+                    // Clean and sanitize file title (remove extension, slugify)
+                    $titleWithoutExtension = pathinfo($originalName, PATHINFO_FILENAME);
+                    $data['title'] = $data['title'] ?? Sanitizer::sanitizeFileName($titleWithoutExtension);
                 }
+
+                // Validate file data (create işlemi)
+                $this->fileValidator->validate($data, false);
 
                 $file = $this->fileRepository->create($data);
 
@@ -78,8 +86,8 @@ class FileService
     {
         try {
             return DB::transaction(function () use ($file, $data, $uploadedFile) {
-                // Validate file data
-                $this->fileValidator->validate($data);
+                // Validate file data (update işlemi - title zorunlu değil)
+                $this->fileValidator->validate($data, true);
                 // Handle file replacement if provided
                 if ($uploadedFile) {
                     // Delete old file
@@ -94,6 +102,12 @@ class FileService
                     $path = $uploadedFile->storeAs('files', $fileName, 'public');
                     $data['file_path'] = str_replace('storage/', '', $path);
                     $data['type'] = $uploadedFile->getMimeType();
+
+                    // Clean and sanitize file title if not provided
+                    if (! isset($data['title'])) {
+                        $titleWithoutExtension = pathinfo($originalName, PATHINFO_FILENAME);
+                        $data['title'] = Sanitizer::sanitizeFileName($titleWithoutExtension);
+                    }
                 }
 
                 $file = $this->fileRepository->update($file, $data);
@@ -163,9 +177,10 @@ class FileService
     {
         try {
             return DB::transaction(function () use ($fileIds) {
-                $files = File::whereIn('file_id', $fileIds)->get();
+                $files = $this->fileRepository->findByIds($fileIds);
                 $deletedCount = 0;
 
+                /** @var \Modules\Files\Models\File $file */
                 foreach ($files as $file) {
                     $this->delete($file);
                     $deletedCount++;
@@ -186,5 +201,28 @@ class FileService
             throw $e;
         }
     }
-}
 
+    /**
+     * Find a file by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $fileId): File
+    {
+        $file = $this->fileRepository->findById($fileId);
+
+        if (! $file) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('File not found');
+        }
+
+        return $file;
+    }
+
+    /**
+     * Get query builder for files
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->fileRepository->getQuery();
+    }
+}

@@ -13,4 +13,3 @@ class FeaturedCreated
         $this->featured = $featured;
     }
 }
-

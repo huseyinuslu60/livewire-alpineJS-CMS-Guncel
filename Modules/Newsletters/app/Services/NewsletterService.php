@@ -8,24 +8,27 @@ use Illuminate\Support\Facades\Event;
 use Modules\Newsletters\Domain\Events\NewsletterCreated;
 use Modules\Newsletters\Domain\Events\NewsletterDeleted;
 use Modules\Newsletters\Domain\Events\NewsletterUpdated;
+use Modules\Newsletters\Domain\Repositories\NewsletterPostRepositoryInterface;
 use Modules\Newsletters\Domain\Repositories\NewsletterRepositoryInterface;
 use Modules\Newsletters\Domain\Services\NewsletterValidator;
-use Modules\Newsletters\Domain\ValueObjects\NewsletterMailStatus;
-use Modules\Newsletters\Domain\ValueObjects\NewsletterStatus;
 use Modules\Newsletters\Models\Newsletter;
-use Modules\Newsletters\Models\NewsletterPost;
 
 class NewsletterService
 {
     protected NewsletterValidator $newsletterValidator;
+
     protected NewsletterRepositoryInterface $newsletterRepository;
+
+    protected NewsletterPostRepositoryInterface $newsletterPostRepository;
 
     public function __construct(
         ?NewsletterValidator $newsletterValidator = null,
-        ?NewsletterRepositoryInterface $newsletterRepository = null
+        ?NewsletterRepositoryInterface $newsletterRepository = null,
+        ?NewsletterPostRepositoryInterface $newsletterPostRepository = null
     ) {
         $this->newsletterValidator = $newsletterValidator ?? app(NewsletterValidator::class);
         $this->newsletterRepository = $newsletterRepository ?? app(NewsletterRepositoryInterface::class);
+        $this->newsletterPostRepository = $newsletterPostRepository ?? app(NewsletterPostRepositoryInterface::class);
     }
 
     /**
@@ -42,7 +45,7 @@ class NewsletterService
                 $newsletter = $this->newsletterRepository->create($data);
 
                 // Attach posts if provided
-                if (!empty($postIds)) {
+                if (! empty($postIds)) {
                     $this->attachPosts($newsletter, $postIds);
                 }
 
@@ -141,10 +144,10 @@ class NewsletterService
      */
     public function attachPosts(Newsletter $newsletter, array $postIds, ?int $order = null): void
     {
-        $order = $order ?? NewsletterPost::where('newsletter_id', $newsletter->newsletter_id)->max('order') ?? 0;
+        $order = $order ?? $this->newsletterPostRepository->getMaxOrder($newsletter->newsletter_id) ?? 0;
 
         foreach ($postIds as $index => $postId) {
-            NewsletterPost::updateOrCreate(
+            $this->newsletterPostRepository->updateOrCreate(
                 [
                     'newsletter_id' => $newsletter->newsletter_id,
                     'post_id' => $postId,
@@ -162,11 +165,11 @@ class NewsletterService
     public function syncPosts(Newsletter $newsletter, array $postIds): void
     {
         // Delete existing posts
-        $newsletter->newsletterPosts()->delete();
+        $this->newsletterPostRepository->deleteByNewsletterId($newsletter->newsletter_id);
 
         // Add new posts with order
         foreach ($postIds as $index => $postId) {
-            NewsletterPost::create([
+            $this->newsletterPostRepository->create([
                 'newsletter_id' => $newsletter->newsletter_id,
                 'post_id' => $postId,
                 'order' => $index + 1,
@@ -182,9 +185,11 @@ class NewsletterService
         try {
             DB::transaction(function () use ($newsletter, $orderedPostIds) {
                 foreach ($orderedPostIds as $index => $postId) {
-                    NewsletterPost::where('newsletter_id', $newsletter->newsletter_id)
-                        ->where('post_id', $postId)
-                        ->update(['order' => $index + 1]);
+                    $this->newsletterPostRepository->updateByNewsletterAndPost(
+                        $newsletter->newsletter_id,
+                        $postId,
+                        ['order' => $index + 1]
+                    );
                 }
             });
         } catch (\Exception $e) {
@@ -222,5 +227,20 @@ class NewsletterService
             throw $e;
         }
     }
-}
 
+    /**
+     * Find a newsletter by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $newsletterId): Newsletter
+    {
+        $newsletter = $this->newsletterRepository->findById($newsletterId);
+
+        if (! $newsletter) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Newsletter not found');
+        }
+
+        return $newsletter;
+    }
+}

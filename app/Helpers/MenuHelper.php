@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Services\MenuItemService;
 use Illuminate\Support\Facades\Cache;
 
 class MenuHelper
@@ -46,15 +47,18 @@ class MenuHelper
      */
     private static function buildMenu($user): array
     {
+        $menuItemService = app(MenuItemService::class);
 
         // Kullanıcının erişebileceği menü item'larını filtrele
-        $menuItems = \App\Models\MenuItem::whereNull('parent_id')
+        $menuItems = $menuItemService->getQuery()
+            ->whereNull('parent_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
 
         $menu = [];
 
+        /** @var \App\Models\MenuItem $item */
         foreach ($menuItems as $item) {
             // Permission kontrolü
             if (! self::canAccessMenuItem($user, $item)) {
@@ -82,13 +86,15 @@ class MenuHelper
             }
 
             // Alt menüleri çek
-            $submenus = \App\Models\MenuItem::where('parent_id', $item->id)
+            $submenus = $menuItemService->getQuery()
+                ->where('parent_id', $item->id)
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get();
 
             if ($submenus->count() > 0) {
                 $menuItem['submenu'] = [];
+                /** @var \App\Models\MenuItem $submenu */
                 foreach ($submenus as $submenu) {
                     // Alt menü için de permission kontrolü
                     if (! self::canAccessMenuItem($user, $submenu)) {
@@ -118,13 +124,15 @@ class MenuHelper
 
                     // Nested submenu kontrolü - eğer bu submenu'nun da alt menüleri varsa
                     if ($submenu->type === 'submenu') {
-                        $nestedSubmenus = \App\Models\MenuItem::where('parent_id', $submenu->id)
+                        $nestedSubmenus = $menuItemService->getQuery()
+                            ->where('parent_id', $submenu->id)
                             ->where('is_active', true)
                             ->orderBy('sort_order')
                             ->get();
 
                         if ($nestedSubmenus->count() > 0) {
                             $submenuItem['submenu'] = [];
+                            /** @var \App\Models\MenuItem $nestedSubmenu */
                             foreach ($nestedSubmenus as $nestedSubmenu) {
                                 $nestedItem = [
                                     'name' => $nestedSubmenu->name,
@@ -196,8 +204,7 @@ class MenuHelper
         foreach ($menu as $item) {
             // Modül kontrolü
             if (isset($item['module'])) {
-                $module = \App\Models\Module::where('name', $item['module'])->first();
-                $isActive = $module ? $module->is_active : false;
+                $isActive = \App\Models\Module::isActive($item['module']);
 
                 if (! $isActive) {
                     continue;
@@ -291,25 +298,40 @@ class MenuHelper
     /**
      * Menü item'ına erişim yetkisi kontrolü
      * Permission-based kontrol: Önce permission kontrolü yapılır, yoksa roles kontrolü yapılır
+     *
+     * @param  \App\Models\User  $user
+     * @param  \App\Models\MenuItem|array<string, mixed>  $item
      */
     private static function canAccessMenuItem($user, $item)
     {
+        // MenuItem modeli ise array'e çevir
+        if ($item instanceof \App\Models\MenuItem) {
+            $permission = $item->permission;
+            $roles = $item->roles ?? [];
+            $module = $item->module;
+        } else {
+            // Array ise direkt kullan
+            $permission = $item['permission'] ?? null;
+            $roles = $item['roles'] ?? [];
+            $module = $item['module'] ?? null;
+        }
+
         // 1. Permission kontrolü (öncelikli) - Eğer permission belirtilmişse, kullanıcının o permission'a sahip olması gerekir
-        if (isset($item['permission']) && ! empty($item['permission'])) {
-            if (! $user->can($item['permission'])) {
+        if (! empty($permission)) {
+            if (! $user->can($permission)) {
                 return false;
             }
         }
 
         // 2. Roles kontrolü - Eğer permission yoksa veya permission kontrolü geçtiyse, roles kontrolü yapılır
-        if (isset($item['roles']) && ! empty($item['roles'])) {
-            if (! self::hasRole($user, $item['roles'])) {
+        if (! empty($roles)) {
+            if (! self::hasRole($user, $roles)) {
                 return false;
             }
         }
 
         // 3. Modül kontrolü - Modül aktif değilse erişim yok
-        if (isset($item['module']) && ! SystemHelper::isModuleActive($item['module'])) {
+        if (! empty($module) && ! SystemHelper::isModuleActive($module)) {
             return false;
         }
 

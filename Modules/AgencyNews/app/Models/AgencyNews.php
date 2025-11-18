@@ -21,6 +21,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $created_at
  * @property string|null $updated_at
  * @property string|null $deleted_at
+ * @property-read string|null $image_url
+ * @property-read array $tags_array
+ * @property-read array $sites_array
+ * @property-read string $short_summary
+ * @property-read string $short_content
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews ofAgency($agencyId)
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews ofCategory($category)
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews withImage()
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews byAgency($agencyId)
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews byCategory($category)
+ * @method static \Illuminate\Database\Eloquent\Builder|AgencyNews forSite($siteId)
  */
 class AgencyNews extends Model
 {
@@ -84,8 +98,9 @@ class AgencyNews extends Model
         $slug = $baseSlug;
         $counter = 1;
 
-        // Unique slug oluştur
-        while (\Modules\Posts\Models\Post::where('slug', $slug)->exists()) {
+        // Unique slug oluştur - PostRepository kullanarak
+        $postRepository = app(\Modules\Posts\Domain\Repositories\PostRepositoryInterface::class);
+        while ($postRepository->slugExists($slug)) {
             $slug = $baseSlug.'-'.$counter;
             $counter++;
         }

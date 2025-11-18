@@ -13,4 +13,3 @@ class StockDeleted
         $this->stock = $stock;
     }
 }
-

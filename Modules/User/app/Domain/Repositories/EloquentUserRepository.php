@@ -24,6 +24,7 @@ class EloquentUserRepository implements UserRepositoryInterface
     public function update(User $user, array $data): User
     {
         $user->update($data);
+
         return $user->fresh();
     }
 
@@ -31,5 +32,9 @@ class EloquentUserRepository implements UserRepositoryInterface
     {
         return $user->delete();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query();
+    }
+}

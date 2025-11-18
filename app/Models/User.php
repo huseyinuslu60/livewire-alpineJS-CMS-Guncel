@@ -27,6 +27,10 @@ class User extends Authenticatable
      * @property string|null $remember_token
      * @property string|null $created_at
      * @property string|null $updated_at
+     * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Permission\Models\Role> $roles
+     *
+     * @method static \Illuminate\Database\Eloquent\Builder|User search(?string $term)
+     * @method static \Illuminate\Database\Eloquent\Builder|User sortedLatest($column = 'created_at')
      */
 
     /**

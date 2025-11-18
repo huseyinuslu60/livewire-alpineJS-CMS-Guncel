@@ -4,13 +4,19 @@ namespace Modules\Settings\Http\Livewire;
 
 use App\Helpers\LogHelper;
 use App\Helpers\MenuHelper;
-use App\Models\MenuItem;
+use App\Services\MenuItemService;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Spatie\Permission\Models\Role;
 
 class MenuManagement extends Component
 {
+    protected MenuItemService $menuItemService;
+
+    public function boot()
+    {
+        $this->menuItemService = app(MenuItemService::class);
+    }
+
     /** @var array<int, array{id: int, name: string, title: string, icon: string, type: string, route: string, permission: string, active_pattern: string, parent_id: int|null, sort_order: int, is_active: bool, children: array}> */
     public array $menuItems = [];
 
@@ -122,11 +128,10 @@ class MenuManagement extends Component
     public function loadData()
     {
         LogHelper::info('Loading menu data...');
-        $this->menuItems = MenuItem::with('parent', 'children')
-            ->whereNull('parent_id')
-            ->orderBy('sort_order')
-            ->get()
-            ->map(function ($item) {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\MenuItem> $rootItems */
+        $rootItems = $this->menuItemService->getRootItemsWithChildren();
+        $this->menuItems = $rootItems
+            ->map(function (\App\Models\MenuItem $item) {
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -139,7 +144,7 @@ class MenuManagement extends Component
                     'parent_id' => $item->parent_id,
                     'sort_order' => $item->sort_order,
                     'is_active' => $item->is_active,
-                    'children' => $item->children->map(function ($child) {
+                    'children' => $item->children->map(function (\App\Models\MenuItem $child) {
                         return [
                             'id' => $child->id,
                             'name' => $child->name,
@@ -152,7 +157,7 @@ class MenuManagement extends Component
                             'parent_id' => $child->parent_id,
                             'sort_order' => $child->sort_order,
                             'is_active' => $child->is_active,
-                            'children' => $child->children->map(function ($subChild) {
+                            'children' => $child->children->map(function (\App\Models\MenuItem $subChild) {
                                 return [
                                     'id' => $subChild->id,
                                     'name' => $subChild->name,
@@ -174,7 +179,7 @@ class MenuManagement extends Component
             ->toArray();
 
         LogHelper::info('Menu items loaded: '.count($this->menuItems));
-        $this->roles = Role::all()->pluck('name', 'id')->toArray();
+        $this->roles = app(\Modules\Roles\Services\RoleService::class)->getAll()->pluck('name', 'id')->toArray();
     }
 
     public function showCreateModal()
@@ -188,7 +193,7 @@ class MenuManagement extends Component
     {
         LogHelper::info('showEditModal called with ID: '.$itemId);
 
-        $item = MenuItem::find($itemId);
+        $item = $this->menuItemService->findById($itemId);
         if (! $item) {
             session()->flash('error', 'Menü öğesi bulunamadı.');
 
@@ -238,10 +243,10 @@ class MenuManagement extends Component
             ];
 
             if ($this->isEditing && $this->editingItem) {
-                $this->editingItem->update($data);
+                $this->menuItemService->update($this->editingItem, $data);
                 session()->flash('success', 'Menü öğesi başarıyla güncellendi.');
             } else {
-                MenuItem::create($data);
+                $this->menuItemService->create($data);
                 session()->flash('success', 'Menü öğesi başarıyla oluşturuldu.');
             }
 
@@ -258,6 +263,10 @@ class MenuManagement extends Component
             // Validation hatası - form kapanmaz, hatalar gösterilir
             $this->isLoading = false;
             throw $e;
+        } catch (\InvalidArgumentException $e) {
+            // Validation hataları - direkt mesaj göster
+            session()->flash('error', $e->getMessage());
+            $this->isLoading = false;
         } catch (\Exception $e) {
             session()->flash('error', 'Bir hata oluştu: '.$e->getMessage());
             $this->isLoading = false;
@@ -267,9 +276,9 @@ class MenuManagement extends Component
     public function deleteMenuItem($itemId)
     {
         try {
-            $item = MenuItem::find($itemId);
+            $item = $this->menuItemService->findById($itemId);
             if ($item) {
-                $item->delete();
+                $this->menuItemService->delete($item);
                 session()->flash('success', 'Menü öğesi başarıyla silindi.');
                 $this->loadData();
 
@@ -284,9 +293,9 @@ class MenuManagement extends Component
     public function toggleActive($itemId)
     {
         try {
-            $item = MenuItem::find($itemId);
+            $item = $this->menuItemService->findById($itemId);
             if ($item) {
-                $item->update(['is_active' => ! $item->is_active]);
+                $this->menuItemService->update($item, ['is_active' => ! $item->is_active]);
                 $this->loadData();
 
                 // Sidebar menü cache'ini temizle
@@ -339,8 +348,10 @@ class MenuManagement extends Component
                     $updateData['parent_id'] = ($item['parent_id'] === 0 || $item['parent_id'] === null) ? null : (int) $item['parent_id'];
                 }
 
-                MenuItem::where('id', $item['id'])
-                    ->update($updateData);
+                $menuItem = $this->menuItemService->findById($item['id']);
+                if ($menuItem) {
+                    $this->menuItemService->update($menuItem, $updateData);
+                }
             }
 
             $this->loadData();

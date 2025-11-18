@@ -13,8 +13,11 @@ use InvalidArgumentException;
 final class NewsletterStatus
 {
     public const DRAFT = 'draft';
+
     public const SENDING = 'sending';
+
     public const SENT = 'sent';
+
     public const FAILED = 'failed';
 
     private const VALID_STATUSES = [
@@ -178,11 +181,10 @@ final class NewsletterStatus
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz newsletter durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

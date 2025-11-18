@@ -13,4 +13,3 @@ class FileDeleted
         $this->file = $file;
     }
 }
-

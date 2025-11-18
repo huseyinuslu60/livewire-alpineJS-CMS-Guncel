@@ -9,19 +9,28 @@ use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
+use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
+/**
+ * @property PostsService $postsService
+ * @property CategoryService $categoryService
+ * @property SlugGenerator $slugGenerator
+ */
 class PostCreateGallery extends Component
 {
     use SecureFileUpload, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
+
+    protected CategoryService $categoryService;
+
+    protected SlugGenerator $slugGenerator;
 
     public string $title = '';
 
@@ -110,6 +119,7 @@ class PostCreateGallery extends Component
     public function boot()
     {
         $this->postsService = app(PostsService::class);
+        $this->categoryService = app(CategoryService::class);
         $this->slugGenerator = app(SlugGenerator::class);
     }
 
@@ -126,7 +136,7 @@ class PostCreateGallery extends Component
             'slug' => 'nullable|string|max:255',
             'summary' => 'required|string',
             'content' => 'nullable|string',
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
+            'post_position' => 'required|in:'.implode(',', PostPosition::all()),
             'status' => 'required|in:'.implode(',', PostStatus::all()),
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
@@ -152,7 +162,7 @@ class PostCreateGallery extends Component
     public function updatedTagsInput($value)
     {
         // Ensure tagsInput is always a string to prevent Livewire serialization issues
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
         } else {
             // Clean up the string: remove extra spaces, ensure proper comma separation
@@ -224,7 +234,7 @@ class PostCreateGallery extends Component
             } else {
                 // Slug varsa ama unique değilse, unique yap
                 $slug = Slug::fromString($this->slug);
-                if (!$this->slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
+                if (! $this->slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
                     $slug = $this->slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
                     $this->slug = $slug->toString();
                 }
@@ -263,12 +273,14 @@ class PostCreateGallery extends Component
             if (strlen($this->title) > 255) {
                 $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
                 $this->isSaving = false;
+
                 return;
             }
 
             if (strlen($this->summary) > 5000) {
                 $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
                 $this->isSaving = false;
+
                 return;
             }
 
@@ -354,7 +366,7 @@ class PostCreateGallery extends Component
             // Add image data if we have primary file AND image editor was used
             if ($this->imageEditorUsed && $post->primaryFile) {
                 // Get image dimensions and hash
-                $imagePath = public_path('storage/' . $post->primaryFile->file_path);
+                $imagePath = public_path('storage/'.$post->primaryFile->file_path);
                 $width = null;
                 $height = null;
                 $hash = null;
@@ -385,7 +397,7 @@ class PostCreateGallery extends Component
                     $primaryFileId = $this->primaryFileId;
                 }
                 // Fallback: use first fileId if available
-                if ($primaryFileId === null && !empty($this->uploadedFiles)) {
+                if ($primaryFileId === null && ! empty($this->uploadedFiles)) {
                     $primaryFileId = array_key_first($this->uploadedFiles);
                 }
 
@@ -439,16 +451,7 @@ class PostCreateGallery extends Component
                     }
                 }
 
-                // Ensure arrays are properly formatted
-                $desktopCrop = is_array($desktopCrop) ? $desktopCrop : [];
-                $mobileCrop = is_array($mobileCrop) ? $mobileCrop : [];
-                $imageEffects = is_array($imageEffects) ? $imageEffects : [];
-                $imageMeta = is_array($imageMeta) ? $imageMeta : [
-                    'alt' => $post->primaryFile->alt_text ?? null,
-                    'credit' => null,
-                    'source' => null,
-                ];
-                $textObjects = is_array($textObjects) ? $textObjects : [];
+                // Arrays are already initialized above, no need to check again
 
                 $spotData['image'] = [
                     'original' => [
@@ -520,6 +523,13 @@ class PostCreateGallery extends Component
             session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));
 
             return redirect()->route('posts.index');
+        } catch (\InvalidArgumentException $e) {
+            // Validation hataları - direkt mesaj göster
+            LogHelper::warning('PostCreateGallery validation failed', [
+                'post_type' => 'gallery',
+                'error' => $e->getMessage(),
+            ]);
+            $this->addError('general', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('PostsService hatası', [
                 'post_type' => 'gallery',
@@ -648,8 +658,8 @@ class PostCreateGallery extends Component
                     // Create temporary file in Livewire's temp directory
                     $tempDir = sys_get_temp_dir();
                     $oldFile = $this->uploadedFiles[$identifier]['file'];
-                    $tempFileName = 'livewire-' . uniqid() . '-' . $oldFile->getClientOriginalName();
-                    $tempFilePath = $tempDir . '/' . $tempFileName;
+                    $tempFileName = 'livewire-'.uniqid().'-'.$oldFile->getClientOriginalName();
+                    $tempFilePath = $tempDir.'/'.$tempFileName;
                     file_put_contents($tempFilePath, $imageContent);
 
                     // Get original file info
@@ -759,7 +769,6 @@ class PostCreateGallery extends Component
 
         $orderedIds = array_keys($this->imageOrder);
 
-
         return $orderedIds;
     }
 
@@ -813,7 +822,7 @@ class PostCreateGallery extends Component
         // Value validation ve normalize: null/undefined ise boş string yap
         if ($value === null || $value === '') {
             $value = '';
-        } elseif (!is_string($value)) {
+        } elseif (! is_string($value)) {
             // String'e çevir (güvenlik için)
             $value = (string) $value;
         }
@@ -821,13 +830,11 @@ class PostCreateGallery extends Component
         // Convert fileId to string for comparison
         $fileIdStr = (string) $fileId;
 
-
         // Update in memory (uploadedFiles array)
         // Try exact match first
         if (isset($this->uploadedFiles[$fileIdStr])) {
             $oldValue = $this->uploadedFiles[$fileIdStr][$field] ?? '';
             $this->uploadedFiles[$fileIdStr][$field] = $value;
-
 
             return;
         }
@@ -837,7 +844,6 @@ class PostCreateGallery extends Component
             if (strpos($key, $fileIdStr) !== false || strpos($fileIdStr, $key) !== false) {
                 $oldValue = $fileData[$field] ?? '';
                 $this->uploadedFiles[$key][$field] = $value;
-
 
                 return;
             }
@@ -966,12 +972,13 @@ class PostCreateGallery extends Component
     public function render()
     {
         // Sadece gallery kategorilerini getir
-        $categories = Category::where('status', 'active')
+        $categories = $this->categoryService->getQuery()
+            ->where('status', 'active')
             ->where('type', 'gallery')
             ->orderBy('name')
             ->get();
 
-        $postPositions = Post::POSITIONS;
+        $postPositions = PostPosition::all();
         $postStatuses = PostStatus::all();
 
         /** @var view-string $view */

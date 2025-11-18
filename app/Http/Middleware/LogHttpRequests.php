@@ -67,9 +67,9 @@ class LogHttpRequests
             method: $request->method(),
             metadata: [
                 'status_code' => $response->getStatusCode(),
-                'route_name' => $request->route()->getName(),
-                'controller' => $request->route()->getActionName(),
-                'parameters' => $request->route()->parameters(),
+                'route_name' => $request->route()?->getName(),
+                'controller' => $request->route()?->getActionName(),
+                'parameters' => $request->route()?->parameters() ?? [],
             ]
         );
     }

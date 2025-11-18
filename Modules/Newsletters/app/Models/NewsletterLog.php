@@ -15,6 +15,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $status
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property-read string $type_badge
+ * @property-read string $status_badge
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterLog ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterLog sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterLog ofType($type)
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterLog search(?string $term)
  */
 class NewsletterLog extends Model
 {

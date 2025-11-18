@@ -24,6 +24,7 @@ class EloquentAgencyNewsRepository implements AgencyNewsRepositoryInterface
     public function update(AgencyNews $agencyNews, array $data): AgencyNews
     {
         $agencyNews->update($data);
+
         return $agencyNews->fresh();
     }
 
@@ -38,7 +39,12 @@ class EloquentAgencyNewsRepository implements AgencyNewsRepositoryInterface
         if ($excludeId !== null) {
             $query->where('record_id', '!=', $excludeId);
         }
+
         return $query->exists();
     }
-}
 
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return AgencyNews::query();
+    }
+}

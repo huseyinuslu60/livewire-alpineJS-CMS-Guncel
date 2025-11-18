@@ -7,7 +7,7 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Newsletters\Models\NewsletterLog;
+use Modules\Newsletters\Services\NewsletterLogService;
 
 class NewsletterLogIndex extends Component
 {
@@ -27,6 +27,13 @@ class NewsletterLogIndex extends Component
 
     /** @var array<int> */
     public array $selectedLogs = [];
+
+    protected NewsletterLogService $newsletterLogService;
+
+    public function boot()
+    {
+        $this->newsletterLogService = app(NewsletterLogService::class);
+    }
 
     public bool $selectAll = false;
 
@@ -103,10 +110,11 @@ class NewsletterLogIndex extends Component
         }
 
         try {
-            $log = NewsletterLog::findOrFail($logId);
-            $log->delete();
+            $this->newsletterLogService->delete($logId);
 
             session()->flash('success', 'Log kaydı başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -114,7 +122,9 @@ class NewsletterLogIndex extends Component
 
     public function getLogs()
     {
-        $query = NewsletterLog::with(['newsletter', 'user'])
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Newsletters\Models\NewsletterLog> $query */
+        $query = $this->newsletterLogService->getQuery()
+            ->with(['newsletter', 'user'])
             ->search($this->search ?? null)
             ->ofType($this->typeFilter ?? null)
             ->ofStatus($this->statusFilter ?? null);

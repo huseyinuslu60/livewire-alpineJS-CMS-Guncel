@@ -5,25 +5,36 @@ namespace Modules\Headline\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Modules\Articles\Services\ArticleService;
+use Modules\Headline\app\Models\Featured;
 use Modules\Headline\Domain\Events\FeaturedCreated;
 use Modules\Headline\Domain\Events\FeaturedDeleted;
 use Modules\Headline\Domain\Events\FeaturedItemsReordered;
 use Modules\Headline\Domain\Events\FeaturedUpdated;
 use Modules\Headline\Domain\Repositories\FeaturedRepositoryInterface;
 use Modules\Headline\Domain\Services\FeaturedValidator;
-use Modules\Headline\app\Models\Featured;
+use Modules\Posts\Services\PostsService;
 
 class FeaturedService
 {
     protected FeaturedValidator $featuredValidator;
+
     protected FeaturedRepositoryInterface $featuredRepository;
+
+    protected PostsService $postsService;
+
+    protected ArticleService $articleService;
 
     public function __construct(
         ?FeaturedValidator $featuredValidator = null,
-        ?FeaturedRepositoryInterface $featuredRepository = null
+        ?FeaturedRepositoryInterface $featuredRepository = null,
+        ?PostsService $postsService = null,
+        ?ArticleService $articleService = null
     ) {
         $this->featuredValidator = $featuredValidator ?? app(FeaturedValidator::class);
         $this->featuredRepository = $featuredRepository ?? app(FeaturedRepositoryInterface::class);
+        $this->postsService = $postsService ?? app(PostsService::class);
+        $this->articleService = $articleService ?? app(ArticleService::class);
     }
 
     /**
@@ -38,35 +49,47 @@ class FeaturedService
         ?\DateTime $startsAt = null,
         ?\DateTime $endsAt = null
     ): Featured {
-        // Validate featured data
-        $this->featuredValidator->validate($zone, $subjectType, $subjectId, $startsAt, $endsAt);
+        try {
+            // Validate featured data
+            $this->featuredValidator->validate($zone, $subjectType, $subjectId, $startsAt, $endsAt);
 
-        $existing = $this->featuredRepository->findByZoneAndSubject($zone, $subjectType, $subjectId);
-        $isNew = $existing === null;
+            return DB::transaction(function () use ($zone, $subjectType, $subjectId, $slot, $priority, $startsAt, $endsAt) {
+                $existing = $this->featuredRepository->findByZoneAndSubject($zone, $subjectType, $subjectId);
+                $isNew = $existing === null;
 
-        $featured = $this->featuredRepository->updateOrCreate(
-            [
+                $featured = $this->featuredRepository->updateOrCreate(
+                    [
+                        'zone' => $zone,
+                        'subject_type' => $subjectType,
+                        'subject_id' => $subjectId,
+                    ],
+                    [
+                        'slot' => $slot,
+                        'priority' => $priority ?? 0,
+                        'starts_at' => $startsAt,
+                        'ends_at' => $endsAt,
+                        'is_active' => true,
+                    ]
+                );
+
+                // Fire domain event
+                if ($isNew) {
+                    Event::dispatch(new FeaturedCreated($featured));
+                } else {
+                    Event::dispatch(new FeaturedUpdated($featured, ['slot', 'priority', 'starts_at', 'ends_at']));
+                }
+
+                return $featured;
+            });
+        } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('FeaturedService upsert error', [
                 'zone' => $zone,
                 'subject_type' => $subjectType,
                 'subject_id' => $subjectId,
-            ],
-            [
-                'slot' => $slot,
-                'priority' => $priority ?? 0,
-                'starts_at' => $startsAt,
-                'ends_at' => $endsAt,
-                'is_active' => true,
-            ]
-        );
-
-        // Fire domain event
-        if ($isNew) {
-            Event::dispatch(new FeaturedCreated($featured));
-        } else {
-            Event::dispatch(new FeaturedUpdated($featured, ['slot', 'priority', 'starts_at', 'ends_at']));
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
-
-        return $featured;
     }
 
     /**
@@ -74,21 +97,33 @@ class FeaturedService
      */
     public function unpin(string $zone, string $subjectType, int $subjectId): bool
     {
-        $featured = $this->featuredRepository->findByZoneAndSubject($zone, $subjectType, $subjectId);
-        
-        if (!$featured) {
-            return false;
+        try {
+            return DB::transaction(function () use ($zone, $subjectType, $subjectId) {
+                $featured = $this->featuredRepository->findByZoneAndSubject($zone, $subjectType, $subjectId);
+
+                if (! $featured) {
+                    return false;
+                }
+
+                $deleted = $this->featuredRepository->deleteByZoneAndSubject($zone, $subjectType, $subjectId);
+
+                if ($deleted > 0) {
+                    // Fire domain event
+                    Event::dispatch(new FeaturedDeleted($featured));
+                    $this->bustZoneCache($zone);
+                }
+
+                return $deleted > 0;
+            });
+        } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('FeaturedService unpin error', [
+                'zone' => $zone,
+                'subject_type' => $subjectType,
+                'subject_id' => $subjectId,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
-
-        $deleted = $this->featuredRepository->deleteByZoneAndSubject($zone, $subjectType, $subjectId);
-
-        if ($deleted > 0) {
-            // Fire domain event
-            Event::dispatch(new FeaturedDeleted($featured));
-            $this->bustZoneCache($zone);
-        }
-
-        return $deleted > 0;
     }
 
     /**
@@ -100,7 +135,8 @@ class FeaturedService
             DB::beginTransaction();
 
             // Clear existing slots for this zone
-            $zoneItems = Featured::where('zone', $zone)->get();
+            $zoneItems = $this->featuredRepository->findByZone($zone);
+            /** @var \Modules\Headline\app\Models\Featured $item */
             foreach ($zoneItems as $item) {
                 $this->featuredRepository->update($item, ['slot' => null]);
             }
@@ -112,17 +148,17 @@ class FeaturedService
                     $item['subject_type'],
                     $item['subject_id']
                 );
-                
+
                 if ($featured) {
                     $this->featuredRepository->update($featured, ['slot' => $index + 1]);
                 }
             }
 
             DB::commit();
-            
+
             // Fire domain event
             Event::dispatch(new FeaturedItemsReordered($zone, $ordered));
-            
+
             $this->bustZoneCache($zone);
 
             return true;
@@ -241,16 +277,16 @@ class FeaturedService
     public function getSuggestions(string $zone, string $type = 'all', string $query = '', int $limit = 15, int $page = 1): \Illuminate\Support\Collection
     {
         // Get exclude IDs (no cache for real-time updates)
-        $excludeIds = Featured::where('zone', $zone)
-            ->pluck('subject_id')
-            ->toArray();
+        $excludeIds = $this->featuredRepository->getSubjectIdsByZone($zone);
 
         $offset = ($page - 1) * $limit;
         $suggestions = collect();
 
         if ($type === 'post' || $type === 'all') {
             // Sadece manşet, sürmanşet veya öne çıkan pozisyonundaki haberleri öner
-            $postQueryBuilder = \Modules\Posts\Models\Post::published()
+            /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Posts\Models\Post> $postQueryBuilder */
+            $postQueryBuilder = $this->postsService->getQuery()
+                ->published()
                 ->select('post_id', 'title', 'published_date', 'created_at', 'post_position')
                 ->whereNotIn('post_id', $excludeIds)
                 ->whereIn('post_position', ['manşet', 'sürmanşet', 'öne çıkanlar']);
@@ -264,27 +300,31 @@ class FeaturedService
                 $postQueryBuilder->where('title', $likeOp, "%{$safe}%");
             }
 
-            $postQuery = $postQueryBuilder
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Posts\Models\Post> $postCollection */
+            $postCollection = $postQueryBuilder
                 ->latest('published_date')
                 ->offset($offset)
                 ->limit($limit)
-                ->get()
-                ->map(function ($post) {
-                    return (object) [
-                        'id' => $post->post_id,
-                        'type' => 'post',
-                        'title' => $post->title,
-                        'published_date' => $post->published_date,
-                        'post_position' => $post->post_position,
-                        'subject' => $post,
-                    ];
-                });
+                ->get();
+
+            $postQuery = $postCollection->map(function (\Modules\Posts\Models\Post $post) {
+                return (object) [
+                    'id' => $post->post_id,
+                    'type' => 'post',
+                    'title' => $post->title,
+                    'published_date' => $post->published_date,
+                    'post_position' => $post->post_position,
+                    'subject' => $post,
+                ];
+            });
 
             $suggestions = $suggestions->merge($postQuery);
         }
 
         if ($type === 'article' || $type === 'all') {
-            $articleQueryBuilder = \Modules\Articles\Models\Article::where('status', 'published')
+            /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Articles\Models\Article> $articleQueryBuilder */
+            $articleQueryBuilder = $this->articleService->getQuery()
+                ->where('status', 'published')
                 ->select('article_id', 'title', 'published_at', 'created_at')
                 ->whereNotIn('article_id', $excludeIds);
 
@@ -297,20 +337,22 @@ class FeaturedService
                 $articleQueryBuilder->where('title', $likeOp, "%{$safe}%");
             }
 
-            $articleQuery = $articleQueryBuilder
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Articles\Models\Article> $articleCollection */
+            $articleCollection = $articleQueryBuilder
                 ->latest('published_at')
                 ->offset($offset)
                 ->limit($limit)
-                ->get()
-                ->map(function ($article) {
-                    return (object) [
-                        'id' => $article->article_id,
-                        'type' => 'article',
-                        'title' => $article->title,
-                        'published_date' => $article->published_at,
-                        'subject' => $article,
-                    ];
-                });
+                ->get();
+
+            $articleQuery = $articleCollection->map(function (\Modules\Articles\Models\Article $article) {
+                return (object) [
+                    'id' => $article->article_id,
+                    'type' => 'article',
+                    'title' => $article->title,
+                    'published_date' => $article->published_at,
+                    'subject' => $article,
+                ];
+            });
 
             $suggestions = $suggestions->merge($articleQuery);
         }
@@ -343,27 +385,40 @@ class FeaturedService
         int $subjectId,
         ?int $slot = null
     ): Featured {
-        // If no slot is specified, add to the beginning (slot 1)
-        if ($slot === null) {
-            // Get the highest slot number in this zone
-            $maxSlot = Featured::where('zone', $zone)
-                ->whereNotNull('slot')
-                ->max('slot') ?? 0;
+        try {
+            return DB::transaction(function () use ($zone, $subjectType, $subjectId, $slot) {
+                // If no slot is specified, add to the beginning (slot 1)
+                if ($slot === null) {
+                    // Get the highest slot number in this zone
+                    $maxSlot = $this->featuredRepository->getMaxSlotForZone($zone) ?? 0;
 
-            // Shift existing items down by 1, starting from the highest slot
-            for ($i = $maxSlot; $i >= 1; $i--) {
-                Featured::where('zone', $zone)
-                    ->where('slot', $i)
-                    ->update(['slot' => $i + 1]);
-            }
+                    // Shift existing items down by 1, starting from the highest slot
+                    for ($i = $maxSlot; $i >= 1; $i--) {
+                        $items = $this->featuredRepository->findByZoneAndSlot($zone, $i);
+                        /** @var \Modules\Headline\app\Models\Featured $item */
+                        foreach ($items as $item) {
+                            $this->featuredRepository->update($item, ['slot' => $i + 1]);
+                        }
+                    }
 
-            $slot = 1;
+                    $slot = 1;
+                }
+
+                $item = $this->upsert($zone, $subjectType, $subjectId, $slot);
+                $this->bustZoneCache($zone);
+
+                return $item;
+            });
+        } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('FeaturedService pin error', [
+                'zone' => $zone,
+                'subject_type' => $subjectType,
+                'subject_id' => $subjectId,
+                'slot' => $slot,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
-
-        $item = $this->upsert($zone, $subjectType, $subjectId, $slot);
-        $this->bustZoneCache($zone);
-
-        return $item;
     }
 
     /**
@@ -379,5 +434,13 @@ class FeaturedService
     ): Featured {
         // For scheduled items, don't use slots, use priority instead
         return $this->upsert($zone, $subjectType, $subjectId, null, $priority, $startsAt, $endsAt);
+    }
+
+    /**
+     * Get query builder for featured items
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->featuredRepository->getQuery();
     }
 }

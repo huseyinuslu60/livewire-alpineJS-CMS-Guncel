@@ -15,6 +15,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $verify_status
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property-read string $status_badge
+ * @property-read string $email_status_badge
+ * @property-read string $verify_status_badge
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterUser ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterUser sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|NewsletterUser search(?string $term)
  */
 class NewsletterUser extends Model
 {

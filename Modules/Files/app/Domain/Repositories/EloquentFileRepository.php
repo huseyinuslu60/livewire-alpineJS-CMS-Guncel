@@ -19,6 +19,7 @@ class EloquentFileRepository implements FileRepositoryInterface
     public function update(File $file, array $data): File
     {
         $file->update($data);
+
         return $file->fresh();
     }
 
@@ -26,5 +27,14 @@ class EloquentFileRepository implements FileRepositoryInterface
     {
         return $file->delete();
     }
-}
 
+    public function findByIds(array $fileIds): \Illuminate\Database\Eloquent\Collection
+    {
+        return File::whereIn('file_id', $fileIds)->get();
+    }
+
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return File::query();
+    }
+}

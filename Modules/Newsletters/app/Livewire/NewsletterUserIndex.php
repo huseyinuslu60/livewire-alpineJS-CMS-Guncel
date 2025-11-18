@@ -7,11 +7,19 @@ use App\Support\Pagination;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Modules\Newsletters\Models\NewsletterUser;
+use Modules\Newsletters\Domain\ValueObjects\NewsletterUserStatus;
+use Modules\Newsletters\Services\NewsletterUserService;
 
 class NewsletterUserIndex extends Component
 {
     use WithPagination;
+
+    protected NewsletterUserService $newsletterUserService;
+
+    public function boot()
+    {
+        $this->newsletterUserService = app(NewsletterUserService::class);
+    }
 
     public ?string $search = null;
 
@@ -58,7 +66,7 @@ class NewsletterUserIndex extends Component
     public function updatedSelectAll()
     {
         if ($this->selectAll) {
-            $this->selectedUsers = $this->getUsers()->pluck('user_id')->toArray();
+            $this->selectedUsers = $this->getUsersQuery()->pluck('user_id')->toArray();
         } else {
             $this->selectedUsers = [];
         }
@@ -66,7 +74,7 @@ class NewsletterUserIndex extends Component
 
     public function updatedSelectedUsers()
     {
-        $this->selectAll = count($this->selectedUsers) === $this->getUsers()->count();
+        $this->selectAll = count($this->selectedUsers) === $this->getUsersQuery()->count();
     }
 
     public function clearFilters()
@@ -103,10 +111,12 @@ class NewsletterUserIndex extends Component
         }
 
         try {
-            $user = NewsletterUser::findOrFail($userId);
-            $user->delete();
+            $user = $this->newsletterUserService->findById($userId);
+            $this->newsletterUserService->delete($user);
 
             session()->flash('success', 'Kullanıcı başarıyla silindi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Kullanıcı silinirken bir hata oluştu: '.$e->getMessage());
         }
@@ -119,30 +129,25 @@ class NewsletterUserIndex extends Component
         }
 
         try {
-            $user = NewsletterUser::findOrFail($userId);
-
-            $newStatus = match ($user->status) {
-                'active' => 'inactive',
-                'inactive' => 'active',
-                'unsubscribed' => 'active',
-                default => 'active'
-            };
-
-            $user->update(['status' => $newStatus]);
+            $user = $this->newsletterUserService->findById($userId);
+            $this->newsletterUserService->toggleStatus($user);
 
             session()->flash('success', 'Kullanıcı durumu güncellendi.');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Kullanıcı durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
     }
 
-    public function getUsers()
+    public function getUsersQuery()
     {
-        $query = NewsletterUser::query()
+        /** @var \Illuminate\Database\Eloquent\Builder<\Modules\Newsletters\Models\NewsletterUser> $query */
+        $query = $this->newsletterUserService->getQuery()
             ->search($this->search ?? null)
             ->ofStatus($this->statusFilter ?? null);
 
-        // 0-yutmayan filtre: emailStatusFilter
+        // Email status filter
         if ($this->emailStatusFilter !== null && $this->emailStatusFilter !== '') {
             $query->where('email_status', $this->emailStatusFilter);
         }
@@ -163,13 +168,9 @@ class NewsletterUserIndex extends Component
             abort(403, 'Abone görüntüleme yetkiniz bulunmuyor.');
         }
 
-        $users = $this->getUsers()->paginate(Pagination::clamp($this->perPage));
+        $users = $this->getUsersQuery()->paginate(Pagination::clamp($this->perPage));
 
-        $statuses = [
-            'active' => 'Aktif',
-            'inactive' => 'Pasif',
-            'unsubscribed' => 'Abonelikten Çıktı',
-        ];
+        $statuses = NewsletterUserStatus::labels();
 
         $emailStatuses = [
             'verified' => 'Doğrulanmış',

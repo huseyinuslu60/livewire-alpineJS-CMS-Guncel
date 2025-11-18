@@ -39,6 +39,12 @@ class FilesServiceProvider extends ServiceProvider
     {
         $this->app->register(EventServiceProvider::class);
         $this->app->register(RouteServiceProvider::class);
+
+        // Register Repository bindings
+        $this->app->bind(
+            \Modules\Files\Domain\Repositories\FileRepositoryInterface::class,
+            \Modules\Files\Domain\Repositories\EloquentFileRepository::class
+        );
     }
 
     /**

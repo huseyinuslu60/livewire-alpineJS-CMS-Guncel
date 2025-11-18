@@ -5,7 +5,6 @@ namespace Modules\Newsletters\Livewire;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Modules\Newsletters\Models\Newsletter;
 use Modules\Newsletters\Services\NewsletterService;
 
 class NewsletterEdit extends Component
@@ -56,7 +55,7 @@ class NewsletterEdit extends Component
         }
 
         if (is_string($newsletter) || is_numeric($newsletter)) {
-            $this->newsletter = Newsletter::findOrFail($newsletter);
+            $this->newsletter = $this->newsletterService->findById((int) $newsletter);
         } else {
             $this->newsletter = $newsletter;
         }

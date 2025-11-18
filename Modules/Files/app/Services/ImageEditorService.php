@@ -4,25 +4,28 @@ namespace Modules\Files\Services;
 
 use App\Helpers\LogHelper;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Modules\Files\Domain\Services\ImageEditorValidator;
-use Modules\Posts\Models\File as PostFile;
+use Modules\Posts\Domain\Repositories\PostFileRepositoryInterface;
 
 class ImageEditorService
 {
     protected ImageEditorValidator $imageEditorValidator;
 
-    public function __construct(?ImageEditorValidator $imageEditorValidator = null)
-    {
+    protected PostFileRepositoryInterface $postFileRepository;
+
+    public function __construct(
+        ?ImageEditorValidator $imageEditorValidator = null,
+        ?PostFileRepositoryInterface $postFileRepository = null
+    ) {
         $this->imageEditorValidator = $imageEditorValidator ?? app(ImageEditorValidator::class);
+        $this->postFileRepository = $postFileRepository ?? app(PostFileRepositoryInterface::class);
     }
 
     /**
      * Save edited image from image editor
      *
-     * @param  UploadedFile  $image
-     * @param  string|null  $fileId
-     * @param  int|null  $index
      * @return array<string, mixed>
      *
      * @throws \Exception
@@ -30,32 +33,34 @@ class ImageEditorService
     public function saveEditedImage(UploadedFile $image, ?string $fileId = null, ?int $index = null): array
     {
         try {
-            // Validate image
-            $this->imageEditorValidator->validateImage($image);
+            return DB::transaction(function () use ($image, $fileId, $index) {
+                // Validate image
+                $this->imageEditorValidator->validateImage($image);
 
-            // Generate storage path
-            $storagePath = $this->generateStoragePath();
-            $path = $image->store($storagePath, 'public');
+                // Generate storage path
+                $storagePath = $this->generateStoragePath();
+                $path = $image->store($storagePath, 'public');
 
-            if (! $path) {
-                throw new \RuntimeException('Dosya kaydedilemedi');
-            }
+                if (! $path) {
+                    throw new \RuntimeException('Dosya kaydedilemedi');
+                }
 
-            $imageUrl = asset('storage/'.$path);
+                $imageUrl = asset('storage/'.$path);
 
-            // Update Post File model if file_id provided
-            if ($fileId) {
-                $this->updatePostFile($fileId, $path, $image);
-            }
+                // Update Post File model if file_id provided
+                if ($fileId) {
+                    $this->updatePostFile($fileId, $path, $image);
+                }
 
-            return [
-                'image_url' => $imageUrl,
-                'temp_path' => $path,
-                'file_id' => $fileId,
-                'index' => $index,
-                'file_size' => $image->getSize(),
-                'mime_type' => $image->getMimeType(),
-            ];
+                return [
+                    'image_url' => $imageUrl,
+                    'temp_path' => $path,
+                    'file_id' => $fileId,
+                    'index' => $index,
+                    'file_size' => $image->getSize(),
+                    'mime_type' => $image->getMimeType(),
+                ];
+            });
         } catch (\Exception $e) {
             LogHelper::error('ImageEditorService saveEditedImage error', [
                 'file_id' => $fileId,
@@ -69,8 +74,6 @@ class ImageEditorService
 
     /**
      * Generate storage path for uploaded images
-     *
-     * @return string
      */
     protected function generateStoragePath(): string
     {
@@ -79,16 +82,11 @@ class ImageEditorService
 
     /**
      * Update Post File model with new image
-     *
-     * @param  string  $fileId
-     * @param  string  $newPath
-     * @param  UploadedFile  $image
-     * @return void
      */
     protected function updatePostFile(string $fileId, string $newPath, UploadedFile $image): void
     {
         try {
-            $file = PostFile::find($fileId);
+            $file = $this->postFileRepository->findById((int) $fileId);
 
             if (! $file) {
                 LogHelper::warning('Post file not found for update', [
@@ -103,7 +101,7 @@ class ImageEditorService
             $this->deleteOldFile($file->file_path);
 
             // Update file record
-            $file->update([
+            $this->postFileRepository->update($file, [
                 'file_path' => $newPath,
                 'file_size' => $image->getSize(),
                 'mime_type' => $image->getMimeType(),
@@ -128,9 +126,6 @@ class ImageEditorService
 
     /**
      * Delete old file from storage
-     *
-     * @param  string  $oldPath
-     * @return void
      */
     protected function deleteOldFile(string $oldPath): void
     {
@@ -154,4 +149,3 @@ class ImageEditorService
         }
     }
 }
-

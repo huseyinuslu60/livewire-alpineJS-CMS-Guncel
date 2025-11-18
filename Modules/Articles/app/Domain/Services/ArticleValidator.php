@@ -7,7 +7,7 @@ use Modules\Articles\Domain\ValueObjects\ArticleStatus;
 
 /**
  * Article Validator Domain Service
- * 
+ *
  * Article iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Article title is required and max 255 characters
@@ -18,9 +18,9 @@ class ArticleValidator
 {
     /**
      * Article data'nın validasyonunu yap
-     * 
-     * @param array $data Article data
-     * @return void
+     *
+     * @param  array  $data  Article data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -38,7 +38,7 @@ class ArticleValidator
         if (isset($data['status'])) {
             try {
                 $status = ArticleStatus::fromString($data['status']);
-                
+
                 // Published articles must have published_at
                 if ($status->isPublished() && empty($data['published_at'])) {
                     $data['published_at'] = now();
@@ -51,9 +51,9 @@ class ArticleValidator
 
     /**
      * Article status validasyonu
-     * 
-     * @param string $status Article status
-     * @return void
+     *
+     * @param  string  $status  Article status
+     *
      * @throws InvalidArgumentException
      */
     public function validateStatus(string $status): void
@@ -67,8 +67,8 @@ class ArticleValidator
 
     /**
      * Published article için published_at kontrolü
-     * 
-     * @param array $data Article data
+     *
+     * @param  array  $data  Article data
      * @return array Updated data with published_at if needed
      */
     public function ensurePublishedAt(array $data): array
@@ -87,4 +87,3 @@ class ArticleValidator
         return $data;
     }
 }
-

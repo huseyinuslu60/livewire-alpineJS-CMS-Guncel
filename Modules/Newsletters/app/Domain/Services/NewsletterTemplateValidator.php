@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * NewsletterTemplate Validator Domain Service
- * 
+ *
  * NewsletterTemplate iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Template name is required and max 255 characters
@@ -17,9 +17,9 @@ class NewsletterTemplateValidator
 {
     /**
      * NewsletterTemplate data'nın validasyonunu yap
-     * 
-     * @param array $data NewsletterTemplate data
-     * @return void
+     *
+     * @param  array  $data  NewsletterTemplate data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -52,4 +52,3 @@ class NewsletterTemplateValidator
         }
     }
 }
-

@@ -16,4 +16,3 @@ class CommentApproved
         $this->comment = $comment;
     }
 }
-

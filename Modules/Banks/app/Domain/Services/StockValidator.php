@@ -6,7 +6,7 @@ use InvalidArgumentException;
 
 /**
  * Stock Validator Domain Service
- * 
+ *
  * Stock iş kurallarını ve validasyon mantığını yönetir.
  * Business rules:
  * - Stock name is required and max 255 characters
@@ -15,9 +15,9 @@ class StockValidator
 {
     /**
      * Stock data'nın validasyonunu yap
-     * 
-     * @param array $data Stock data
-     * @return void
+     *
+     * @param  array  $data  Stock data
+     *
      * @throws InvalidArgumentException
      */
     public function validate(array $data): void
@@ -32,4 +32,3 @@ class StockValidator
         }
     }
 }
-

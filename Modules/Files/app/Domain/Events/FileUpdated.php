@@ -7,6 +7,7 @@ use Modules\Files\Models\File;
 class FileUpdated
 {
     public File $file;
+
     public array $changedAttributes;
 
     public function __construct(File $file, array $changedAttributes = [])
@@ -15,4 +16,3 @@ class FileUpdated
         $this->changedAttributes = $changedAttributes;
     }
 }
-

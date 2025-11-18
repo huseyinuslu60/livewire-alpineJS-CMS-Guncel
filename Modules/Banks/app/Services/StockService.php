@@ -15,6 +15,7 @@ use Modules\Banks\Models\Stock;
 class StockService
 {
     protected StockValidator $stockValidator;
+
     protected StockRepositoryInterface $stockRepository;
 
     public function __construct(
@@ -121,9 +122,10 @@ class StockService
     {
         try {
             return DB::transaction(function () use ($stockIds) {
-                $stocks = Stock::whereIn('stock_id', $stockIds)->get();
+                $stocks = $this->stockRepository->findByIds($stockIds);
                 $deletedCount = 0;
 
+                /** @var \Modules\Banks\Models\Stock $stock */
                 foreach ($stocks as $stock) {
                     $this->delete($stock);
                     $deletedCount++;
@@ -146,14 +148,40 @@ class StockService
     }
 
     /**
+     * Find a stock by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $stockId): Stock
+    {
+        $stock = $this->stockRepository->findById($stockId);
+
+        if (! $stock) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Stock not found');
+        }
+
+        return $stock;
+    }
+
+    /**
+     * Get query builder for stocks
+     */
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Modules\Banks\Models\Stock>
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->stockRepository->getQuery();
+    }
+
+    /**
      * Bulk update stock status
      */
     public function bulkUpdateStatus(array $stockIds, string $status): int
     {
         try {
             return DB::transaction(function () use ($stockIds, $status) {
-                $updated = Stock::whereIn('stock_id', $stockIds)
-                    ->update(['last_status' => $status]);
+                $updated = $this->stockRepository->bulkUpdateStatus($stockIds, $status);
 
                 LogHelper::info('Hisse senetleri toplu durum güncellendi', [
                     'count' => $updated,
@@ -173,4 +201,3 @@ class StockService
         }
     }
 }
-

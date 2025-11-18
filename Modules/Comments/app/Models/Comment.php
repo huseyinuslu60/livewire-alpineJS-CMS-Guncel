@@ -22,6 +22,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \Modules\Posts\Models\Post $post
  * @property-read \Modules\Comments\Models\Comment|null $parent
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Modules\Comments\Models\Comment> $replies
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment approved()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment pending()
+ * @method static \Illuminate\Database\Eloquent\Builder|Comment rejected()
  */
 class Comment extends Model
 {

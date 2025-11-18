@@ -2,12 +2,11 @@
 
 namespace Modules\Articles\Livewire;
 
-use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
-use Modules\Articles\Models\Article;
 use Modules\Articles\Services\ArticleService;
+use Modules\User\Services\UserService;
 
 class ArticleEdit extends Component
 {
@@ -37,9 +36,12 @@ class ArticleEdit extends Component
 
     protected ArticleService $articleService;
 
+    protected UserService $userService;
+
     public function boot()
     {
         $this->articleService = app(ArticleService::class);
+        $this->userService = app(UserService::class);
     }
 
     protected $rules = [
@@ -65,7 +67,7 @@ class ArticleEdit extends Component
 
         // Eğer $article string ise (ID), model'i bul
         if (is_string($article) || is_numeric($article)) {
-            $this->article = Article::findOrFail($article);
+            $this->article = $this->articleService->findById((int) $article);
         } else {
             $this->article = $article;
         }
@@ -118,7 +120,8 @@ class ArticleEdit extends Component
     public function render()
     {
         // Yazar ve editör rolündeki kullanıcıları getir
-        $authors = User::select('id', 'name')
+        $authors = $this->userService->getQuery()
+            ->select('id', 'name')
             ->whereHas('roles', function ($query) {
                 $query->whereIn('name', ['yazar', 'editor']);
             })

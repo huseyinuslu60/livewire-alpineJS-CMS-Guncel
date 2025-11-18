@@ -2,14 +2,12 @@
 
 namespace Modules\User\Livewire;
 
-use App\Models\User;
 use App\Traits\ValidationMessages;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
+use Modules\Roles\Services\RoleService;
 use Modules\User\Services\UserService;
-use Spatie\Permission\Models\Role;
 
 class UserCreate extends Component
 {
@@ -32,9 +30,12 @@ class UserCreate extends Component
 
     protected UserService $userService;
 
+    protected RoleService $roleService;
+
     public function boot()
     {
         $this->userService = app(UserService::class);
+        $this->roleService = app(RoleService::class);
     }
 
     protected $rules = [
@@ -65,7 +66,7 @@ class UserCreate extends Component
 
             // Güvenlik: Super admin değilse, super_admin rolünü atayamaz
             $currentUser = Auth::user();
-            $superAdminRole = Role::where('name', 'super_admin')->first();
+            $superAdminRole = $this->roleService->findByName('super_admin');
 
             if (! $currentUser->hasRole('super_admin')) {
                 // Super admin rolünü role_ids'den çıkar
@@ -90,6 +91,9 @@ class UserCreate extends Component
             session()->flash('success', $this->createContextualSuccessMessage('created', 'name', 'user'));
 
             return redirect()->route('user.index');
+        } catch (\InvalidArgumentException $e) {
+            $this->isLoading = false;
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->isLoading = false;
             session()->flash('error', 'Kullanıcı oluşturulurken hata oluştu: '.$e->getMessage());
@@ -102,9 +106,11 @@ class UserCreate extends Component
 
         // Super admin değilse, super_admin rolünü listeden çıkar
         if (! $currentUser->hasRole('super_admin')) {
-            $roles = Role::where('name', '!=', 'super_admin')->get();
+            $roles = $this->roleService->getQuery()
+                ->where('name', '!=', 'super_admin')
+                ->get();
         } else {
-            $roles = Role::all();
+            $roles = $this->roleService->getAll();
         }
 
         /** @var view-string $view */

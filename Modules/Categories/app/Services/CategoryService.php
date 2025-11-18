@@ -7,20 +7,19 @@ use App\Services\SlugGenerator;
 use App\Services\ValueObjects\Slug;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
 use Modules\Categories\Domain\Events\CategoryCreated;
 use Modules\Categories\Domain\Events\CategoryDeleted;
 use Modules\Categories\Domain\Events\CategoryUpdated;
 use Modules\Categories\Domain\Repositories\CategoryRepositoryInterface;
 use Modules\Categories\Domain\Services\CategoryValidator;
-use Modules\Categories\Domain\ValueObjects\CategoryStatus;
-use Modules\Categories\Domain\ValueObjects\CategoryType;
 use Modules\Categories\Models\Category;
 
 class CategoryService
 {
     protected SlugGenerator $slugGenerator;
+
     protected CategoryValidator $categoryValidator;
+
     protected CategoryRepositoryInterface $categoryRepository;
 
     public function __construct(
@@ -109,6 +108,22 @@ class CategoryService
     }
 
     /**
+     * Find a category by ID
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public function findById(int $categoryId): Category
+    {
+        $category = $this->categoryRepository->findById($categoryId);
+
+        if (! $category) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Category not found');
+        }
+
+        return $category;
+    }
+
+    /**
      * Delete a category
      */
     public function delete(Category $category): void
@@ -139,5 +154,11 @@ class CategoryService
         }
     }
 
+    /**
+     * Get query builder for categories
+     */
+    public function getQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return $this->categoryRepository->getQuery();
+    }
 }
-

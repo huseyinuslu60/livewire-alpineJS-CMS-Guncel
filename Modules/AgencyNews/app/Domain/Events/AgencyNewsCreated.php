@@ -13,4 +13,3 @@ class AgencyNewsCreated
         $this->agencyNews = $agencyNews;
     }
 }
-

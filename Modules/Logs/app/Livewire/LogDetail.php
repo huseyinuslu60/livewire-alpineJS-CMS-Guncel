@@ -4,7 +4,6 @@ namespace Modules\Logs\Livewire;
 
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
-use Modules\Logs\Models\UserLog;
 use Modules\Logs\Services\LogService;
 
 class LogDetail extends Component
@@ -24,7 +23,8 @@ class LogDetail extends Component
             abort(403, 'Bu işlem için yetkiniz bulunmuyor.');
         }
 
-        $this->log = UserLog::with('user')->findOrFail($id);
+        $this->log = $this->logService->findById($id);
+        $this->log->load('user');
     }
 
     public function deleteLog()
@@ -38,6 +38,8 @@ class LogDetail extends Component
             session()->flash('success', 'Log kaydı başarıyla silindi.');
 
             return redirect()->route('logs.index');
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Log kaydı silinirken bir hata oluştu: '.$e->getMessage());
         }

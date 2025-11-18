@@ -8,17 +8,35 @@ use App\Services\ValueObjects\Slug;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
+use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
+/**
+ * @property CategoryService $categoryService
+ * @property PostsService $postsService
+ * @property SlugGenerator $slugGenerator
+ */
 class PostCreateVideo extends Component
 {
     use ValidationMessages, WithFileUploads;
+
+    protected CategoryService $categoryService;
+
+    protected PostsService $postsService;
+
+    protected SlugGenerator $slugGenerator;
+
+    public function boot()
+    {
+        $this->categoryService = app(CategoryService::class);
+        $this->postsService = app(PostsService::class);
+        $this->slugGenerator = app(SlugGenerator::class);
+    }
 
     public string $title = '';
 
@@ -75,16 +93,6 @@ class PostCreateVideo extends Component
      */
     protected bool $imageEditorUsed = false;
 
-    protected PostsService $postsService;
-
-    protected SlugGenerator $slugGenerator;
-
-    public function boot()
-    {
-        $this->postsService = app(PostsService::class);
-        $this->slugGenerator = app(SlugGenerator::class);
-    }
-
     protected $listeners = ['contentUpdated'];
 
     protected function messages()
@@ -105,7 +113,7 @@ class PostCreateVideo extends Component
             'slug' => 'nullable|string|max:255',
             'summary' => 'required|string',
             'content' => 'required|string',
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
+            'post_position' => 'required|in:'.implode(',', PostPosition::all()),
             'status' => 'required|in:'.implode(',', PostStatus::all()),
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
@@ -130,7 +138,7 @@ class PostCreateVideo extends Component
     public function updatedTagsInput($value)
     {
         // Ensure tagsInput is always a string to prevent Livewire serialization issues
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
         } else {
             // Clean up the string: remove extra spaces, ensure proper comma separation
@@ -224,8 +232,8 @@ class PostCreateVideo extends Component
 
                         // Create temporary file in Livewire's temp directory
                         $tempDir = sys_get_temp_dir();
-                        $tempFileName = 'livewire-' . uniqid() . '-' . $this->files[$index]->getClientOriginalName();
-                        $tempFilePath = $tempDir . '/' . $tempFileName;
+                        $tempFileName = 'livewire-'.uniqid().'-'.$this->files[$index]->getClientOriginalName();
+                        $tempFilePath = $tempDir.'/'.$tempFileName;
                         file_put_contents($tempFilePath, $imageContent);
 
                         // Get original file info
@@ -305,7 +313,7 @@ class PostCreateVideo extends Component
             } else {
                 // Slug varsa ama unique değilse, unique yap
                 $slug = Slug::fromString($this->slug);
-                if (!$this->slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
+                if (! $this->slugGenerator->isUnique($slug, Post::class, 'slug', 'post_id')) {
                     $slug = $this->slugGenerator->generate($this->title, Post::class, 'slug', 'post_id');
                     $this->slug = $slug->toString();
                 }
@@ -318,18 +326,21 @@ class PostCreateVideo extends Component
             if (strlen($this->title) > 255) {
                 $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
                 $this->isSaving = false;
+
                 return;
             }
 
             if (strlen($this->summary) > 5000) {
                 $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
                 $this->isSaving = false;
+
                 return;
             }
 
             if (strlen($this->content) > 100000) {
                 $this->addError('content', 'İçerik çok uzun (maksimum 100.000 karakter).');
                 $this->isSaving = false;
+
                 return;
             }
 
@@ -367,9 +378,9 @@ class PostCreateVideo extends Component
             $spotData = [];
 
             // Add image data if we have image files AND image editor was used
-            if ($this->imageEditorUsed && !empty($this->files) && $post->primaryFile) {
+            if ($this->imageEditorUsed && ! empty($this->files) && $post->primaryFile) {
                 // Get image dimensions and hash
-                $imagePath = public_path('storage/' . $post->primaryFile->file_path);
+                $imagePath = public_path('storage/'.$post->primaryFile->file_path);
                 $width = null;
                 $height = null;
                 $hash = null;
@@ -438,16 +449,7 @@ class PostCreateVideo extends Component
                     }
                 }
 
-                // Ensure arrays are properly formatted
-                $desktopCrop = is_array($desktopCrop) ? $desktopCrop : [];
-                $mobileCrop = is_array($mobileCrop) ? $mobileCrop : [];
-                $imageEffects = is_array($imageEffects) ? $imageEffects : [];
-                $imageMeta = is_array($imageMeta) ? $imageMeta : [
-                    'alt' => $post->primaryFile->alt_text ?? null,
-                    'credit' => null,
-                    'source' => null,
-                ];
-                $textObjects = is_array($textObjects) ? $textObjects : [];
+                // Arrays are already initialized above, no need to check again
 
                 $spotData['image'] = [
                     'original' => [
@@ -484,6 +486,10 @@ class PostCreateVideo extends Component
             session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));
 
             return redirect()->route('posts.index');
+        } catch (\InvalidArgumentException $e) {
+            // Validation hataları - direkt mesaj göster
+            $this->isSaving = false;
+            $this->addError('general', $e->getMessage());
         } catch (\Exception $e) {
             // Hata durumunda flag'i temizle
             $this->isSaving = false;
@@ -496,12 +502,13 @@ class PostCreateVideo extends Component
     public function render()
     {
         // Sadece video kategorilerini getir
-        $categories = Category::where('status', 'active')
+        $categories = $this->categoryService->getQuery()
+            ->where('status', 'active')
             ->where('type', 'video')
             ->orderBy('name')
             ->get();
 
-        $postPositions = Post::POSITIONS;
+        $postPositions = PostPosition::all();
         $postStatuses = PostStatus::all();
 
         /** @var view-string $view */

@@ -29,6 +29,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $last_status
  * @property string|null $created_at
  * @property string|null $updated_at
+ * @property-read string|null $formatted_kurulus_tarihi
+ * @property-read string|null $formatted_ilk_islem_tarihi
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder|Stock ofStatus($status)
+ * @method static \Illuminate\Database\Eloquent\Builder|Stock sortedLatest($column = 'created_at')
+ * @method static \Illuminate\Database\Eloquent\Builder|Stock search(?string $term)
+ * @method static \Illuminate\Database\Eloquent\Builder|Stock active()
+ * @method static \Illuminate\Database\Eloquent\Builder|Stock inactive()
  */
 class Stock extends Model
 {

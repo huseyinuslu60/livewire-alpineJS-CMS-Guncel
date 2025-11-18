@@ -13,4 +13,3 @@ class NewsletterDeleted
         $this->newsletter = $newsletter;
     }
 }
-

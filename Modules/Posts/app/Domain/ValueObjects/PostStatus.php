@@ -13,7 +13,9 @@ use InvalidArgumentException;
 final class PostStatus
 {
     public const DRAFT = 'draft';
+
     public const PUBLISHED = 'published';
+
     public const SCHEDULED = 'scheduled';
 
     private const VALID_STATUSES = [
@@ -149,15 +151,22 @@ final class PostStatus
     }
 
     /**
+     * Geçerli tüm durumları label'larıyla döndür (alias)
+     */
+    public static function labels(): array
+    {
+        return self::STATUS_LABELS;
+    }
+
+    /**
      * PostStatus validation
      */
     private function validate(string $value): void
     {
-        if (!in_array($value, self::VALID_STATUSES, true)) {
+        if (! in_array($value, self::VALID_STATUSES, true)) {
             throw new InvalidArgumentException(
                 sprintf('Geçersiz post durumu: %s. Geçerli durumlar: %s', $value, implode(', ', self::VALID_STATUSES))
             );
         }
     }
 }
-

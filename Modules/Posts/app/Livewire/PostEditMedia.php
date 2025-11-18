@@ -6,15 +6,23 @@ use App\Helpers\LogHelper;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Modules\Posts\Domain\Repositories\PostFileRepositoryInterface;
 use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
+/**
+ * @property PostsService $postsService
+ * @property PostFileRepositoryInterface $postFileRepository
+ * @property Post $post
+ */
 class PostEditMedia extends Component
 {
     use WithFileUploads;
 
     protected PostsService $postsService;
+
+    protected PostFileRepositoryInterface $postFileRepository;
 
     public Post $post;
 
@@ -29,6 +37,7 @@ class PostEditMedia extends Component
     public function boot()
     {
         $this->postsService = app(PostsService::class);
+        $this->postFileRepository = app(PostFileRepositoryInterface::class);
     }
 
     public function mount($postId)
@@ -54,7 +63,7 @@ class PostEditMedia extends Component
             $galleryData = json_decode($content, true) ?: [];
 
             // Eğer decode başarısız olursa veya content boşsa, post model'inden tekrar al
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($galleryData) || empty($content)) {
+            if (json_last_error() !== JSON_ERROR_NONE || ! is_array($galleryData) || empty($content)) {
                 $this->post->refresh();
                 $content = $this->post->content;
                 $galleryData = json_decode($content, true) ?: [];
@@ -64,18 +73,20 @@ class PostEditMedia extends Component
                 // Order'a göre sırala
                 $sortedGalleryData = collect($galleryData)->sortBy('order')->values()->toArray();
 
-                $this->existingFiles = collect($sortedGalleryData)->map(function ($fileData, $index) {
+                $this->existingFiles = collect($sortedGalleryData)->map(function (array $fileData, int $index) {
                     // file_id'yi koru - eğer yoksa file_path'den hash oluştur (kalıcı olması için)
                     $fileId = $fileData['file_id'] ?? null;
                     $filePath = $fileData['file_path'] ?? '';
 
                     // Eğer file_id yoksa veya string ise, file_path ile files tablosundan gerçek numeric file_id'yi bul
                     $realNumericFileId = null;
-                    if (!empty($filePath)) {
-                        $fileModel = File::where('post_id', $this->post->post_id)
+                    if (! empty($filePath)) {
+                        $fileModel = $this->postFileRepository->getQuery()
+                            ->where('post_id', $this->post->post_id)
                             ->where('file_path', $filePath)
                             ->first();
                         if ($fileModel) {
+                            /** @var \Modules\Posts\Models\File $fileModel */
                             $realNumericFileId = $fileModel->file_id;
                         }
                     }
@@ -96,7 +107,7 @@ class PostEditMedia extends Component
                     $description = $fileData['description'] ?? '';
 
                     // HTML entity'leri decode et (çift encode edilmiş olabilir)
-                    if (!empty($description)) {
+                    if (! empty($description)) {
                         // Önce html_entity_decode ile decode et
                         $description = html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                         // Eğer hala entity'ler varsa tekrar decode et
@@ -104,7 +115,6 @@ class PostEditMedia extends Component
                             $description = html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                         }
                     }
-
 
                     return [
                         'file_id' => (string) $fileId,
@@ -139,7 +149,7 @@ class PostEditMedia extends Component
                 'primary' => true,
                 'type' => $primaryFile->mime_type ?? 'image/jpeg',
                 'order' => 0,
-                'uploaded_at' => $primaryFile->created_at ? $primaryFile->created_at->toISOString() : now()->toISOString(),
+                'uploaded_at' => $primaryFile->created_at ? (is_object($primaryFile->created_at) ? $primaryFile->created_at->toISOString() : (string) $primaryFile->created_at) : now()->toISOString(),
             ];
             $this->primaryFileId = (string) $primaryFile->file_id;
         }
@@ -168,6 +178,7 @@ class PostEditMedia extends Component
                     'fileId' => $fileId,
                     'field' => $field,
                 ]);
+
                 return;
             }
 
@@ -179,14 +190,14 @@ class PostEditMedia extends Component
             // Value validation ve normalize: null/undefined ise boş string yap
             if ($value === null || $value === '') {
                 $value = '';
-            } elseif (!is_string($value)) {
+            } elseif (! is_string($value)) {
                 // String'e çevir (güvenlik için)
                 $value = (string) $value;
             }
 
             // ÖNEMLİ: Trumbowyg'den gelen HTML zaten decode edilmiş olmalı
             // Ama eğer çift encode edilmişse, decode et
-            if (!empty($value) && (strpos($value, '&lt;') !== false || strpos($value, '&amp;') !== false)) {
+            if (! empty($value) && (strpos($value, '&lt;') !== false || strpos($value, '&amp;') !== false)) {
                 // HTML entity'leri decode et (çift encode edilmiş olabilir)
                 $decodedValue = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 // Eğer decode sonrası farklıysa, decode edilmiş versiyonu kullan
@@ -198,7 +209,6 @@ class PostEditMedia extends Component
                     }
                 }
             }
-
 
             // Max length validation
             $maxLengths = [
@@ -214,15 +224,16 @@ class PostEditMedia extends Component
             ];
 
             // strlen kontrolü - $value artık her zaman string
-            if (isset($maxLengths[$field]) && strlen($value) > $maxLengths[$field]) {
+            $maxLength = $maxLengths[$field] ?? PHP_INT_MAX;
+            if (strlen($value) > $maxLength) {
                 $fieldName = $fieldNames[$field] ?? $field;
-                throw new \InvalidArgumentException("{$fieldName} en fazla {$maxLengths[$field]} karakter olabilir");
+                throw new \InvalidArgumentException("{$fieldName} en fazla {$maxLength} karakter olabilir");
             }
 
             // dbFieldMap zaten yukarıda tanımlandı
             $dbField = $dbFieldMap[$field] ?? null;
 
-            if (!$dbField) {
+            if (! $dbField) {
                 LogHelper::error('PostEditMedia updateFileById: Invalid dbField mapping', [
                     'field' => $field,
                     'dbFieldMap' => $dbFieldMap,
@@ -248,23 +259,27 @@ class PostEditMedia extends Component
                     $realNumericFileId = $file['real_file_id'] ?? null;
 
                     // Önce file_path ile arama yap
-                    if (empty($realNumericFileId) && !empty($file['path'])) {
-                        $fileModel = File::where('post_id', $this->post->post_id)
+                    if (empty($realNumericFileId) && ! empty($file['path'])) {
+                        $fileModel = $this->postFileRepository->getQuery()
+                            ->where('post_id', $this->post->post_id)
                             ->where('file_path', $file['path'])
                             ->first();
                         if ($fileModel) {
+                            /** @var \Modules\Posts\Models\File $fileModel */
                             $realNumericFileId = $fileModel->file_id;
                             $this->existingFiles[$index]['real_file_id'] = $realNumericFileId;
                         }
                     }
 
                     // Ek güvenilirlik: file_path bulunamazsa, orijinal dosya adına göre arama yap
-                    if (empty($realNumericFileId) && !empty($file['original_name'])) {
-                        $fileModelByName = File::where('post_id', $this->post->post_id)
+                    if (empty($realNumericFileId) && ! empty($file['original_name'])) {
+                        $fileModelByName = $this->postFileRepository->getQuery()
+                            ->where('post_id', $this->post->post_id)
                             ->where('title', $file['original_name'])
                             ->orderBy('created_at', 'desc')
                             ->first();
                         if ($fileModelByName) {
+                            /** @var \Modules\Posts\Models\File $fileModelByName */
                             $realNumericFileId = $fileModelByName->file_id;
                             $this->existingFiles[$index]['real_file_id'] = $realNumericFileId;
                         }
@@ -272,24 +287,30 @@ class PostEditMedia extends Component
 
                     // Son fallback: order alanı ile eşleştir (eski kayıtlar için)
                     if (empty($realNumericFileId) && isset($file['order'])) {
-                        $fileModelByOrder = File::where('post_id', $this->post->post_id)
+                        $fileModelByOrder = $this->postFileRepository->getQuery()
+                            ->where('post_id', $this->post->post_id)
                             ->where('order', (int) $file['order'])
                             ->first();
                         if ($fileModelByOrder) {
+                            /** @var \Modules\Posts\Models\File $fileModelByOrder */
                             $realNumericFileId = $fileModelByOrder->file_id;
                             $this->existingFiles[$index]['real_file_id'] = $realNumericFileId;
                         }
                     }
 
                     // If fileId is numeric OR real_file_id exists (existing file in database), update database
-                    if (is_numeric($fileId) || !empty($realNumericFileId)) {
+                    if (is_numeric($fileId) || ! empty($realNumericFileId)) {
                         $targetFileId = is_numeric($fileId) ? (int) $fileId : (int) $realNumericFileId;
 
+                        /** @var \Modules\Posts\Models\File|null $fileModel */
                         $fileModel = $this->post->files->firstWhere('file_id', $targetFileId);
                         if ($fileModel) {
-                            $fileModel->update([$dbField => $value]);
+                            $this->postFileRepository->update($fileModel, [$dbField => $value]);
                         } else {
-                            File::where('file_id', $targetFileId)->update([$dbField => $value]);
+                            $fileModel = $this->postFileRepository->findById($targetFileId);
+                            if ($fileModel) {
+                                $this->postFileRepository->update($fileModel, [$dbField => $value]);
+                            }
                         }
                     }
 
@@ -298,6 +319,14 @@ class PostEditMedia extends Component
                     if ($this->post->post_type === 'gallery' && $field === 'description') {
                         try {
                             $this->updateGalleryContent();
+                        } catch (\InvalidArgumentException $e) {
+                            LogHelper::warning('updateGalleryContent validation failed in updateFileById', [
+                                'fileId' => $fileId,
+                                'field' => $field,
+                                'post_id' => $this->post->post_id ?? null,
+                                'error' => $e->getMessage(),
+                            ]);
+                            // Hata olsa bile existingFiles array'i güncellendi, bu yüzden devam et
                         } catch (\Exception $e) {
                             LogHelper::error('updateGalleryContent failed in updateFileById', [
                                 'fileId' => $fileId,
@@ -314,12 +343,20 @@ class PostEditMedia extends Component
             }
 
             // Eğer dosya bulunamadıysa log'a yaz
-            if (!$updated) {
+            if (! $updated) {
                 LogHelper::warning('updateFileById: File not found in existingFiles', [
                     'fileId' => $fileId,
                     'field' => $field,
                 ]);
             }
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('PostEditMedia updateFileById validation failed', [
+                'fileId' => $fileId,
+                'field' => $field,
+                'post_id' => $this->post->post_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('PostEditMedia updateFileById failed', [
                 'fileId' => $fileId,
@@ -339,7 +376,7 @@ class PostEditMedia extends Component
     {
         try {
             // Debug: existingFiles'dan açıklamaları kontrol et
-            $descriptionsBefore = array_map(function ($file) {
+            $descriptionsBefore = array_map(function (array $file) {
                 return [
                     'file_id' => $file['file_id'] ?? null,
                     'description' => $file['description'] ?? '',
@@ -428,6 +465,13 @@ class PostEditMedia extends Component
             }
 
             return false;
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('Galeri içeriği güncellenirken validation hatası', [
+                'post_id' => $this->post->post_id,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
+            throw $e;
         } catch (\Exception $e) {
             LogHelper::error('Galeri içeriği güncellenirken hata oluştu', [
                 'post_id' => $this->post->post_id,
@@ -490,6 +534,17 @@ class PostEditMedia extends Component
 
             // Başarı mesajı - Sessizce çalış, alert gösterme
             $this->dispatch('order-updated');
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('Galeri sıralaması güncellenirken validation hatası', [
+                'post_id' => $this->post->post_id,
+                'order' => $order,
+                'error' => $e->getMessage(),
+            ]);
+            $this->dispatch('order-update-failed', [
+                'message' => $e->getMessage(),
+            ]);
+            // Hata durumunda orijinal sıralamayı koru
+            $this->loadExistingFiles();
         } catch (\Exception $e) {
             LogHelper::error('Galeri sıralaması güncellenirken hata oluştu', [
                 'post_id' => $this->post->post_id,
@@ -515,4 +570,3 @@ class PostEditMedia extends Component
         return view($view);
     }
 }
-

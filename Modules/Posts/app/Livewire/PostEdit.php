@@ -1889,7 +1889,7 @@ class PostEdit extends Component
             // Validation hataları - direkt mesaj göster
             LogHelper::warning('updatePost validation failed', [
                 'post_id' => $this->post->post_id ?? null,
-                'post_type' => $this->post_type ?? null,
+                'post_type' => $this->post_type,
                 'error' => $e->getMessage(),
             ]);
             session()->flash('error', $e->getMessage());

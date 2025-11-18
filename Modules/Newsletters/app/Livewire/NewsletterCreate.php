@@ -153,7 +153,7 @@ class NewsletterCreate extends Component
         $template = null;
         try {
             $template = $this->templateService->findById($templateId);
-        } catch (\InvalidArgumentException $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             // Template bulunamazsa, ilk aktif template'i al
             $template = $this->templateService->getQuery()
                 ->where('is_active', true)

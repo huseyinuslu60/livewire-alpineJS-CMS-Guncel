@@ -51,8 +51,8 @@ class TemplateIndex extends Component
     {
         try {
             $template = $this->templateService->findById($templateId);
-        } catch (\InvalidArgumentException $e) {
-            session()->flash('error', $e->getMessage());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            session()->flash('error', 'Template bulunamadı.');
 
             return;
         } catch (\Exception $e) {
@@ -70,8 +70,8 @@ class TemplateIndex extends Component
     {
         try {
             $template = $this->templateService->findById($templateId);
-        } catch (\InvalidArgumentException $e) {
-            session()->flash('error', $e->getMessage());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            session()->flash('error', 'Template bulunamadı.');
 
             return;
         } catch (\Exception $e) {

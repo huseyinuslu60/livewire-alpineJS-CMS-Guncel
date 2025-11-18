@@ -159,12 +159,6 @@ class NewsletterCreate extends Component
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->first();
-        } catch (\Exception $e) {
-            // Template bulunamazsa, ilk aktif template'i al
-            $template = $this->templateService->getQuery()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->first();
         }
 
         // Eğer hala template yoksa, varsayılan template oluştur

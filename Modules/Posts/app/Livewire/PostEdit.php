@@ -11,14 +11,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use Modules\Categories\Models\Category;
+use Modules\Categories\Services\CategoryService;
 use Modules\Headline\Services\FeaturedService;
-use Modules\Posts\Models\File;
+use Modules\Posts\Domain\Repositories\PostFileRepositoryInterface;
+use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Domain\ValueObjects\PostType;
+use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -27,6 +28,10 @@ class PostEdit extends Component
     use SecureFileUpload, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
+
+    protected CategoryService $categoryService;
+
+    protected PostFileRepositoryInterface $postFileRepository;
 
     protected SlugGenerator $slugGenerator;
 
@@ -81,26 +86,46 @@ class PostEdit extends Component
 
     // Spot data properties for image editing
     public ?string $originalImagePath = null;
+
     public ?int $originalImageWidth = null;
+
     public ?int $originalImageHeight = null;
+
     public ?string $originalImageHash = null;
+
     /** @var array<string, mixed> */
     public array $desktopCrop = [];
+
     /** @var array<string, mixed> */
     public array $mobileCrop = [];
+
     public string $desktopFocus = 'center';
+
     public string $mobileFocus = 'center';
+
     /** @var array<string, mixed> */
     public array $imageEffects = [];
+
     /** @var array<string, mixed> */
     public array $imageMeta = [];
+
     /** @var array<int, array<string, mixed>> */
     public array $imageTextObjects = [];
 
+    /** @var array<string, int> */
+    public array $canvasDimensions = ['width' => 0, 'height' => 0];
+
     /**
      * Flag to track if image editor was used (to avoid saving empty spot_data)
+     * Must be public for Livewire serialization
      */
-    protected bool $imageEditorUsed = false;
+    public bool $imageEditorUsed = false;
+
+    /**
+     * Primary image spot_data JSON string
+     * Used to sync image editor data with Livewire and save to post_data['image']
+     */
+    public ?string $primary_image_spot_data = null;
 
     // Diğer
     /** @var array<int> */
@@ -120,6 +145,8 @@ class PostEdit extends Component
     public function boot()
     {
         $this->postsService = app(PostsService::class);
+        $this->categoryService = app(CategoryService::class);
+        $this->postFileRepository = app(PostFileRepositoryInterface::class);
         $this->slugGenerator = app(SlugGenerator::class);
     }
 
@@ -138,7 +165,6 @@ class PostEdit extends Component
         $this->post = Post::with(['files', 'categories', 'tags', 'primaryFile', 'author', 'creator', 'updater'])
             ->findOrFail($postId);
         $this->postType = $this->post->post_type;
-
 
         $this->title = $this->post->title;
         $this->slug = $this->post->slug;
@@ -197,15 +223,40 @@ class PostEdit extends Component
         $this->uploadedFiles = [];
 
         // Initialize spot_data properties to avoid Livewire serialization issues
+        $this->resetImageEditorProperties();
+
+        // Load spot_data if exists, otherwise migrate from legacy data
+        $this->loadSpotData();
+
+        // Load primary image spot_data from spot_data['image'] if exists
+        $spotData = $this->post->spot_data ?? [];
+        if (isset($spotData['image']) && is_array($spotData['image'])) {
+            // Convert image data to JSON string for Livewire property
+            $this->primary_image_spot_data = json_encode($spotData['image']);
+        } else {
+            $this->primary_image_spot_data = null;
+        }
+    }
+
+    /**
+     * Reset all image editor properties to default values
+     * Used when new image is uploaded or primary file is removed
+     */
+    protected function resetImageEditorProperties(): void
+    {
         $this->desktopCrop = [];
         $this->mobileCrop = [];
         $this->desktopFocus = 'center';
         $this->mobileFocus = 'center';
         $this->imageEffects = [];
+        $this->imageTextObjects = [];
         $this->imageMeta = [];
-
-        // Load spot_data if exists, otherwise migrate from legacy data
-        $this->loadSpotData();
+        $this->canvasDimensions = [];
+        $this->imageEditorUsed = false;
+        $this->originalImagePath = null;
+        $this->originalImageWidth = null;
+        $this->originalImageHeight = null;
+        $this->originalImageHash = null;
     }
 
     /**
@@ -222,13 +273,12 @@ class PostEdit extends Component
             $galleryData = json_decode($content, true) ?: [];
 
             // Eğer decode başarısız olursa veya content boşsa, post model'inden tekrar al (DB query gereksiz - eager loaded)
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($galleryData) || empty($content)) {
+            if (json_last_error() !== JSON_ERROR_NONE || ! is_array($galleryData) || empty($content)) {
                 // Post model zaten eager loaded, tekrar query gereksiz
                 $this->post->refresh(); // Sadece content attribute'unu güncellemek için
                 $content = $this->post->content;
                 $galleryData = json_decode($content, true) ?: [];
             }
-
 
             if (is_array($galleryData) && ! empty($galleryData)) {
                 // Order'a göre sırala
@@ -254,7 +304,6 @@ class PostEdit extends Component
 
                     $description = $fileData['description'] ?? '';
 
-
                     return [
                         'file_id' => (string) $fileId, // Kalıcı file_id kullan (string olarak tutuluyor)
                         'path' => $fileData['file_path'] ?? '',
@@ -266,7 +315,6 @@ class PostEdit extends Component
                         'uploaded_at' => $fileData['uploaded_at'] ?? now()->toISOString(), // uploaded_at ekle
                     ];
                 })->toArray();
-
 
                 // Ana dosyayı bul - gallery_data'dan direkt index bul
                 $this->primaryFileId = null; // Default
@@ -303,12 +351,12 @@ class PostEdit extends Component
     {
         // Get spot_data - ensure it's an array
         $spotData = $this->post->spot_data;
-        if (!is_array($spotData)) {
+        if (! is_array($spotData)) {
             $spotData = [];
         }
 
         // Load spot_data to properties if exists
-        if (!empty($spotData) && isset($spotData['image']) && is_array($spotData['image'])) {
+        if (! empty($spotData) && isset($spotData['image']) && is_array($spotData['image'])) {
             $image = $spotData['image'];
 
             // Original image data
@@ -343,6 +391,14 @@ class PostEdit extends Component
                 $this->imageTextObjects = $image['textObjects'];
             }
 
+            // Canvas dimensions for scaling textObjects
+            if (isset($image['canvas']) && is_array($image['canvas'])) {
+                $this->canvasDimensions = [
+                    'width' => isset($image['canvas']['width']) ? (int) $image['canvas']['width'] : 0,
+                    'height' => isset($image['canvas']['height']) ? (int) $image['canvas']['height'] : 0,
+                ];
+            }
+
             // If spot_data exists, mark that image editor was used (to preserve existing data)
             $this->imageEditorUsed = true;
         } else {
@@ -367,7 +423,7 @@ class PostEdit extends Component
     {
         // Migrate legacy data if spot_data is empty (lazy migration on save)
         $spotData = $this->post->spot_data;
-        if (!is_array($spotData) || empty($spotData) || !isset($spotData['image'])) {
+        if (! is_array($spotData) || empty($spotData) || ! isset($spotData['image'])) {
             $this->post->migrateLegacyImageDataToSpotData();
             $this->post->refresh();
             // Reload spot_data after migration
@@ -398,15 +454,72 @@ class PostEdit extends Component
         // Start with empty array - only store image data, not post information
         $spotData = [];
 
+        // Ensure originalImagePath is set - use primaryFile if not set
+        if (empty($this->originalImagePath)) {
+            $primaryFile = $this->post->primaryFile;
+            if ($primaryFile) {
+                $this->originalImagePath = $primaryFile->file_path;
+            }
+        }
+
         // Only update if we have image data
-        if (!empty($this->originalImagePath)) {
+        if (! empty($this->originalImagePath)) {
+            // Get image dimensions and hash if not already set
+            if ($this->originalImageWidth === null || $this->originalImageHeight === null || $this->originalImageHash === null) {
+                $imagePath = public_path('storage/'.$this->originalImagePath);
+                if (file_exists($imagePath)) {
+                    // Get image dimensions
+                    $imageInfo = @getimagesize($imagePath);
+                    if ($imageInfo !== false) {
+                        if ($this->originalImageWidth === null) {
+                            $this->originalImageWidth = $imageInfo[0];
+                        }
+                        if ($this->originalImageHeight === null) {
+                            $this->originalImageHeight = $imageInfo[1];
+                        }
+                    }
+
+                    // Calculate file hash if not set
+                    if ($this->originalImageHash === null) {
+                        $this->originalImageHash = md5_file($imagePath);
+                    }
+                }
+            }
+
             // Ensure all arrays are properly formatted
             $desktopCrop = is_array($this->desktopCrop) ? $this->desktopCrop : [];
             $mobileCrop = is_array($this->mobileCrop) ? $this->mobileCrop : [];
-            $imageEffects = is_array($this->imageEffects) ? $this->imageEffects : [];
+
+            // Effects - use existing or defaults (never empty array)
+            $imageEffects = is_array($this->imageEffects) && !empty($this->imageEffects)
+                ? $this->imageEffects
+                : [
+                    'brightness' => 100,
+                    'contrast' => 100,
+                    'saturation' => 100,
+                    'hue' => 0,
+                    'exposure' => 0,
+                    'blur' => 0,
+                ];
+
             $imageMeta = is_array($this->imageMeta) ? $this->imageMeta : [];
             $textObjects = is_array($this->imageTextObjects) ? $this->imageTextObjects : [];
+            $canvasDimensions = is_array($this->canvasDimensions) ? $this->canvasDimensions : ['width' => 0, 'height' => 0];
 
+            LogHelper::info('PostEdit buildSpotDataArray - Building spot_data', [
+                'textObjects_count' => count($textObjects),
+                'textObjects' => $textObjects,
+                'imageTextObjects_property' => $this->imageTextObjects,
+                'imageTextObjects_count' => count($this->imageTextObjects),
+                'effects_count' => count($imageEffects),
+                'effects' => $imageEffects,
+                'canvas' => $canvasDimensions,
+                'has_desktopCrop' => ! empty($desktopCrop),
+                'has_mobileCrop' => ! empty($mobileCrop),
+                'originalImageWidth' => $this->originalImageWidth,
+                'originalImageHeight' => $this->originalImageHeight,
+                'has_hash' => ! empty($this->originalImageHash),
+            ]);
 
             $spotData['image'] = [
                 'original' => [
@@ -427,8 +540,16 @@ class PostEdit extends Component
                 ],
                 'effects' => $imageEffects,
                 'meta' => $imageMeta,
-                'textObjects' => $textObjects,
+                'textObjects' => $textObjects, // Always include, even if empty
+                'canvas' => [
+                    'width' => $canvasDimensions['width'] ?? 0,
+                    'height' => $canvasDimensions['height'] ?? 0,
+                ],
             ];
+        } else {
+            LogHelper::warning('PostEdit buildSpotDataArray - originalImagePath is empty', [
+                'has_primaryFile' => $this->post->primaryFile !== null,
+            ]);
         }
 
         return $spotData;
@@ -442,7 +563,7 @@ class PostEdit extends Component
             'summary' => 'required|string',
             'content' => 'nullable|string',
             'post_type' => 'required|in:'.implode(',', PostType::all()),
-            'post_position' => 'required|in:'.implode(',', Post::POSITIONS),
+            'post_position' => 'required|in:'.implode(',', PostPosition::all()),
             'status' => 'nullable|in:'.implode(',', PostStatus::all()),
             'published_date' => 'nullable|date',
             'is_comment' => 'boolean',
@@ -548,14 +669,13 @@ class PostEdit extends Component
     public function updatedTagsInput($value)
     {
         // Ensure tagsInput is always a string to prevent Livewire serialization issues
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
         } else {
             // Clean up the string: remove extra spaces, ensure proper comma separation
             $this->tagsInput = trim($value);
         }
     }
-
 
     public function updatedIsMainpage($value)
     {
@@ -564,6 +684,8 @@ class PostEdit extends Component
 
             $visibility = $value ? 'gösterilecek' : 'gizlenecek';
             session()->flash('success', "Yazı ana sayfada {$visibility}.");
+        } catch (\InvalidArgumentException $e) {
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             session()->flash('error', 'Ana sayfa durumu güncellenirken bir hata oluştu: '.$e->getMessage());
         }
@@ -604,6 +726,13 @@ class PostEdit extends Component
 
             // Kullanıcıya bilgi ver
             session()->flash('success', 'Sıralama güncellendi ve açıklamalar korundu.');
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('reorderExistingFiles validation failed', [
+                'post_id' => $this->post->post_id ?? null,
+                'newOrder' => $newOrder,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('reorderExistingFiles failed', [
                 'post_id' => $this->post->post_id ?? null,
@@ -711,7 +840,6 @@ class PostEdit extends Component
         // Sıralama bilgisini veritabanına kaydet
         $this->saveFileOrderToDatabase();
 
-
         // Sıralama sonrası veritabanını güncelle
         $this->updateGalleryContent();
 
@@ -771,6 +899,15 @@ class PostEdit extends Component
         // Yeni dosyalar yüklendiğinde işle
         if (! empty($this->newFiles)) {
 
+            // IMPORTANT: For news/video types, clear image editor properties when new image is uploaded
+            // This ensures that old spot_data edits don't apply to the new image
+            if (in_array($this->post->post_type, ['news', 'video'])) {
+                $this->resetImageEditorProperties();
+                LogHelper::info('PostEdit updatedNewFiles - Cleared image editor properties for new image', [
+                    'post_type' => $this->post->post_type,
+                ]);
+            }
+
             // Secure file processing
             $result = $this->processSecureUploads($this->newFiles);
 
@@ -823,11 +960,22 @@ class PostEdit extends Component
             if (isset($this->uploadedFiles[$fileId])) {
                 unset($this->uploadedFiles[$fileId]);
 
-                // Eğer silinen dosya ana görsel ise, ana görsel seçimini sıfırla
+                // Eğer silinen dosya ana görsel ise, ana görsel seçimini sıfırla ve spot_data'yı temizle
                 if ((string) $this->primaryFileId === (string) $fileId) {
                     $this->primaryFileId = null;
+                    // Primary file kaldırıldığında spot_data'yı sıfırla
+                    $this->post->spot_data = null;
+                    $this->post->save();
+                    $this->post->refresh();
                 }
             }
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('removeFile validation failed', [
+                'fileId' => $fileId,
+                'post_id' => $this->post->post_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('removeFile failed', [
                 'fileId' => $fileId,
@@ -869,7 +1017,7 @@ class PostEdit extends Component
     {
         try {
             // Value validation
-            if (!is_string($description) && !is_null($description)) {
+            if (! is_string($description) && ! is_null($description)) {
                 throw new \InvalidArgumentException('Açıklama string veya null olmalıdır');
             }
 
@@ -883,6 +1031,12 @@ class PostEdit extends Component
             } else {
                 LogHelper::warning('File not found in uploadedFiles', ['fileId' => $fileId, 'availableFiles' => array_keys($this->uploadedFiles)]);
             }
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('updateFileDescription validation failed', [
+                'fileId' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('updateFileDescription failed', [
                 'fileId' => $fileId,
@@ -896,15 +1050,25 @@ class PostEdit extends Component
     /**
      * Update file preview after image editing
      *
-     * @param string|int $identifier File index or file_id
-     * @param string $imageUrl Edited image URL
-     * @param string|null $tempPath Temporary file path
-     * @param array|string|null $editorData Image editor data (crop, effects, meta) - can be array or JSON string
+     * @param  string|int  $identifier  File index or file_id
+     * @param  string  $imageUrl  Edited image URL
+     * @param  string|null  $tempPath  Temporary file path
+     * @param  array|string|null  $editorData  Image editor data (crop, effects, meta) - can be array or JSON string
      */
     public function updateFilePreview($identifier, $imageUrl, $tempPath = null, $editorData = null)
     {
+        LogHelper::info('PostEdit updateFilePreview - Called', [
+            'identifier' => $identifier,
+            'identifier_type' => gettype($identifier),
+            'has_editorData' => $editorData !== null,
+            'editorData_type' => $editorData !== null ? gettype($editorData) : 'null',
+            'editorData_is_string' => is_string($editorData),
+            'editorData_length' => is_string($editorData) ? strlen($editorData) : 0,
+        ]);
 
-        // Extract path from URL
+        // IMPORTANT: We do NOT update the file_path anymore
+        // The original image file is preserved, only spot_data is updated
+        // Extract path from URL only for reference (to set originalImagePath if needed)
         $path = str_replace(asset('storage/'), '', $imageUrl);
         $path = str_replace(asset(''), '', $path);
         if (strpos($path, 'storage/') === 0) {
@@ -919,9 +1083,11 @@ class PostEdit extends Component
             // file_id ile güncelle
             foreach ($this->existingFiles as $index => $file) {
                 if (isset($file['file_id']) && (string) $file['file_id'] === (string) $identifier) {
-                    // Path'i güncelle (storage/ ile başlayan path)
-                    $this->existingFiles[$index]['path'] = $path;
-                    $this->existingFiles[$index]['is_new'] = false;
+                    // IMPORTANT: Do NOT update path - original file is preserved
+                    // Only mark as not new if it was new
+                    if (isset($this->existingFiles[$index]['is_new']) && $this->existingFiles[$index]['is_new']) {
+                        $this->existingFiles[$index]['is_new'] = false;
+                    }
 
                     // Update spot_data if this is primary file
                     if ($this->primaryFileId === (string) $identifier) {
@@ -951,6 +1117,10 @@ class PostEdit extends Component
                         }
 
                         if ($editorData !== null && is_array($editorData)) {
+                            // Ensure originalImagePath is set before updating editor data
+                            if (empty($this->originalImagePath)) {
+                                $this->originalImagePath = $path;
+                            }
                             $this->updateImageEditorData($editorData);
                         }
                     }
@@ -959,11 +1129,13 @@ class PostEdit extends Component
                 }
             }
 
-            // Eğer Posts modülündeki File model'inde varsa güncelle
-            // Eager loaded files collection'ından bul (N+1 query önleme)
+            // Eğer Posts modülündeki File model'inde varsa
+            // IMPORTANT: Do NOT update file_path - original file is preserved
+            // Only spot_data will be updated via updateImageEditorData
             $file = $this->post->files->firstWhere('file_id', $identifier);
             if ($file) {
-                $file->update(['file_path' => $path]);
+                // Do NOT update file_path - original file is preserved
+                // $file->update(['file_path' => $path]); // REMOVED
 
                 // Update spot_data if this is primary file
                 if ($this->post->primaryFile && $this->post->primaryFile->file_id == $identifier) {
@@ -993,6 +1165,10 @@ class PostEdit extends Component
                     }
 
                     if ($editorData !== null && is_array($editorData)) {
+                        // Ensure originalImagePath is set before updating editor data
+                        if (empty($this->originalImagePath)) {
+                            $this->originalImagePath = $path;
+                        }
                         $this->updateImageEditorData($editorData);
                     }
                 }
@@ -1017,8 +1193,11 @@ class PostEdit extends Component
             }
 
             if ($fileFound && isset($this->existingFiles[$index])) {
-                $this->existingFiles[$index]['path'] = $path;
-                $this->existingFiles[$index]['is_new'] = false;
+                // IMPORTANT: Do NOT update path - original file is preserved
+                // Only mark as not new if it was new
+                if (isset($this->existingFiles[$index]['is_new']) && $this->existingFiles[$index]['is_new']) {
+                    $this->existingFiles[$index]['is_new'] = false;
+                }
 
                 // Update spot_data if this is primary file
                 if ($this->primaryFileId === (string) $this->existingFiles[$index]['file_id']) {
@@ -1049,6 +1228,10 @@ class PostEdit extends Component
                     }
 
                     if ($editorData !== null && is_array($editorData)) {
+                        // Ensure originalImagePath is set before updating editor data
+                        if (empty($this->originalImagePath)) {
+                            $this->originalImagePath = $path;
+                        }
                         // Always update image editor data (will be saved to spot_data if primary file)
                         $this->updateImageEditorData($editorData);
                     }
@@ -1084,9 +1267,38 @@ class PostEdit extends Component
             $this->mobileFocus = $editorData['mobileFocus'] ?? 'center';
         }
 
-        // Extract effects
+        // Extract effects - always extract, even if default values
         if (isset($editorData['effects']) && is_array($editorData['effects'])) {
-            $this->imageEffects = $editorData['effects'];
+            // Convert string values to integers/floats for effects
+            $this->imageEffects = [
+                'brightness' => isset($editorData['effects']['brightness']) ? (int) $editorData['effects']['brightness'] : 100,
+                'contrast' => isset($editorData['effects']['contrast']) ? (int) $editorData['effects']['contrast'] : 100,
+                'saturation' => isset($editorData['effects']['saturation']) ? (int) $editorData['effects']['saturation'] : 100,
+                'hue' => isset($editorData['effects']['hue']) ? (int) $editorData['effects']['hue'] : 0,
+                'exposure' => isset($editorData['effects']['exposure']) ? (int) $editorData['effects']['exposure'] : 0,
+                'blur' => isset($editorData['effects']['blur']) ? (int) $editorData['effects']['blur'] : 0,
+            ];
+            LogHelper::info('PostEdit updateImageEditorData - Extracted effects', [
+                'effects' => $this->imageEffects,
+                'editorData_effects' => $editorData['effects'],
+            ]);
+        } else {
+            // If effects not provided, keep existing effects or use defaults
+            if (empty($this->imageEffects)) {
+                $this->imageEffects = [
+                    'brightness' => 100,
+                    'contrast' => 100,
+                    'saturation' => 100,
+                    'hue' => 0,
+                    'exposure' => 0,
+                    'blur' => 0,
+                ];
+            }
+            LogHelper::warning('PostEdit updateImageEditorData - effects not found or not array', [
+                'has_effects' => isset($editorData['effects']),
+                'effects_type' => isset($editorData['effects']) ? gettype($editorData['effects']) : 'not set',
+                'editorData_keys' => array_keys($editorData),
+            ]);
         }
 
         // Extract meta
@@ -1097,12 +1309,53 @@ class PostEdit extends Component
         // Extract text objects (store in a property for later use in buildSpotDataArray)
         if (isset($editorData['textObjects']) && is_array($editorData['textObjects'])) {
             $this->imageTextObjects = $editorData['textObjects'];
+            LogHelper::info('PostEdit updateImageEditorData - Extracted textObjects', [
+                'textObjects_count' => count($this->imageTextObjects),
+                'textObjects' => $this->imageTextObjects,
+            ]);
         } else {
-            LogHelper::warning('PostEdit updateImageEditorData - textObjects not found');
+            // If textObjects not provided, keep existing textObjects (don't reset to empty)
+            // Only reset if explicitly provided as empty array
+            if (isset($editorData['textObjects']) && is_array($editorData['textObjects']) && empty($editorData['textObjects'])) {
+                $this->imageTextObjects = [];
+            }
+            // Otherwise, keep existing textObjects
+
+            LogHelper::warning('PostEdit updateImageEditorData - textObjects not found or not array', [
+                'has_textObjects' => isset($editorData['textObjects']),
+                'textObjects_type' => isset($editorData['textObjects']) ? gettype($editorData['textObjects']) : 'not set',
+                'editorData_keys' => array_keys($editorData),
+                'current_textObjects_count' => count($this->imageTextObjects),
+            ]);
+        }
+
+        // Extract canvas dimensions for scaling textObjects on reload
+        if (isset($editorData['canvas']) && is_array($editorData['canvas'])) {
+            $this->canvasDimensions = [
+                'width' => isset($editorData['canvas']['width']) ? (int) $editorData['canvas']['width'] : 0,
+                'height' => isset($editorData['canvas']['height']) ? (int) $editorData['canvas']['height'] : 0,
+            ];
+            LogHelper::info('PostEdit updateImageEditorData - Extracted canvas dimensions', [
+                'canvas' => $this->canvasDimensions,
+            ]);
+        } else {
+            LogHelper::warning('PostEdit updateImageEditorData - canvas not found or not array', [
+                'has_canvas' => isset($editorData['canvas']),
+                'canvas_type' => isset($editorData['canvas']) ? gettype($editorData['canvas']) : 'not set',
+            ]);
         }
 
         // Mark that image editor was used
         $this->imageEditorUsed = true;
+
+        LogHelper::info('PostEdit updateImageEditorData - Summary', [
+            'has_effects' => ! empty($this->imageEffects),
+            'effects_count' => count($this->imageEffects),
+            'has_textObjects' => ! empty($this->imageTextObjects),
+            'textObjects_count' => count($this->imageTextObjects),
+            'has_canvas' => ! empty($this->canvasDimensions['width']) || ! empty($this->canvasDimensions['height']),
+            'canvas' => $this->canvasDimensions,
+        ]);
     }
 
     public function updatePost()
@@ -1117,11 +1370,13 @@ class PostEdit extends Component
             // Additional value validation
             if (strlen($this->title) > 255) {
                 $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
+
                 return;
             }
 
             if (strlen($this->summary) > 5000) {
                 $this->addError('summary', 'Özet en fazla 5000 karakter olabilir.');
+
                 return;
             }
 
@@ -1134,6 +1389,7 @@ class PostEdit extends Component
                 // HTML content için max length kontrolü
                 if (strlen($this->content) > 100000) {
                     $this->addError('content', 'İçerik çok uzun (maksimum 100.000 karakter).');
+
                     return;
                 }
             }
@@ -1141,311 +1397,483 @@ class PostEdit extends Component
             // Gallery için dosya kontrolü
             if ($this->post_type === 'gallery' && empty($this->uploadedFiles) && empty($this->existingFiles)) {
                 $this->addError('uploadedFiles', 'Galeri yazıları için en az bir görsel yüklenmelidir.');
+
                 return;
             }
 
-        $tagIds = array_filter(array_map('trim', explode(',', $this->tagsInput)));
+            $tagIds = array_filter(array_map('trim', explode(',', $this->tagsInput)));
 
-        // Gallery için content'i güncelle (PostsService->update() sonrası updateGalleryContent() ile yapılacak)
-        // Bu yüzden burada sadece mevcut content'i koruyoruz
-        if ($this->post_type === 'gallery') {
-            // Mevcut content'i koru (PostsService->update() sonrası updateGalleryContent() ile güncellenecek)
-            // Bu şekilde yeni dosyalar için açıklamalar korunacak
-            $this->content = $this->post->content ?? '';
-        }
-
-        $formData = [
-            'title' => $this->title,
-            'slug' => $this->slug,
-            'summary' => $this->summary,
-            'content' => $this->content, // Galeri için güncellenmiş JSON, haber için HTML
-            'post_type' => $this->post_type,
-            'post_position' => $this->post_position,
-            'status' => $this->status ?: 'draft',
-            'published_date' => $this->published_date,
-            'is_comment' => $this->is_comment,
-            'is_mainpage' => $this->is_mainpage,
-            'redirect_url' => $this->redirect_url,
-            'is_photo' => $this->is_photo,
-            'agency_name' => $this->agency_name,
-            'agency_id' => $this->agency_id,
-            'embed_code' => $this->embed_code,
-            'in_newsletter' => $this->in_newsletter,
-            'no_ads' => $this->no_ads,
-        ];
-
-        // Yeni dosyalar için description ve alt_text bilgilerini hazırla
-        $fileDescriptions = [];
-        if (! empty($this->uploadedFiles)) {
-            foreach ($this->uploadedFiles as $fileId => $data) {
-                $file = $data['file'] ?? null;
-                if ($file) {
-                    $fileDescriptions[$file->getClientOriginalName()] = [
-                        'description' => $data['description'],
-                        'alt_text' => $data['alt_text'] ?? '',
-                    ];
-                }
-            }
-        }
-
-        // Galeri için yeni dosyalar için açıklamaları existingFiles'dan al
-        if ($this->post_type === 'gallery' && ! empty($this->newFiles)) {
-            foreach ($this->newFiles as $newFile) {
-                $originalName = $newFile->getClientOriginalName();
-
-                // existingFiles'da bu dosya için açıklama var mı kontrol et
-                foreach ($this->existingFiles as $file) {
-                    if (($file['is_new'] ?? false) || (isset($file['file_id']) && strpos($file['file_id'], 'new_') === 0)) {
-                        if ($file['original_name'] === $originalName) {
-                            // Açıklamayı fileDescriptions'a ekle
-                            if (! isset($fileDescriptions[$originalName])) {
-                                $fileDescriptions[$originalName] = [];
-                            }
-                            $fileDescriptions[$originalName]['description'] = $file['description'] ?? '';
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Yeni dosyaları hazırla
-        $newFiles = [];
-        if (! empty($this->uploadedFiles)) {
-            foreach ($this->uploadedFiles as $data) {
-                $newFiles[] = $data['file'];
-            }
-        }
-
-        // News/Video için resim güncelleme
-        if (in_array($this->post_type, ['news', 'video']) && ! empty($this->uploadedFiles)) {
-            // Mevcut primary file'ı bul ve güncelle
-            $existingPrimaryFile = $this->post->primaryFile;
-
-            if ($existingPrimaryFile) {
-                // Mevcut resmi güncelle
-                $newFile = collect($this->uploadedFiles)->first()['file'];
-                $existingPrimaryFile->update([
-                    'file_path' => $newFile->store('posts/'.date('Y/m'), 'public'),
-                    'title' => $newFile->getClientOriginalName(),
-                    'file_size' => $newFile->getSize(),
-                    'mime_type' => $newFile->getMimeType(),
-                ]);
-            } else {
-                // Yeni resim ekle
-                $newFile = collect($this->uploadedFiles)->first()['file'];
-                $this->post->files()->create([
-                    'file_path' => $newFile->store('posts/'.date('Y/m'), 'public'),
-                    'title' => $newFile->getClientOriginalName(),
-                    'file_size' => $newFile->getSize(),
-                    'mime_type' => $newFile->getMimeType(),
-                ]);
-            }
-        }
-
-        // Build spot_data from properties before saving
-        $this->buildSpotData();
-
-        $postsService = new PostsService;
-        $postsService->update(
-            $this->post,
-            $formData,
-            $newFiles,
-            $this->categoryIds,
-            $tagIds,
-            $fileDescriptions
-        );
-
-        // Save spot_data after post update only if image editor was used
-        if ($this->imageEditorUsed) {
-            $this->post->spot_data = $this->buildSpotDataArray();
-            $this->post->save();
-        }
-
-        // Galeri için content'i güncelle (açıklamalar dahil)
-        if ($this->post_type === 'gallery') {
-            // Yeni dosyalar için file_path'leri eager loading ile al (refresh() gereksiz)
-            $this->post->load('files');
-
-            // ÖNEMLİ: existingFiles array'i updateFileById ile güncellenmiş olmalı
-            // Veritabanından yükleme yapmıyoruz çünkü bu güncel description'ları ezer
-
-
-            // Yeni dosyalar için file_path'leri güncelle ve açıklamaları koru
-            if (! empty($newFiles)) {
-                // Eager loaded files collection'ından yeni dosyaları al (N+1 query önleme)
-                /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Posts\Models\File> $postFiles */
-                $postFiles = $this->post->files
-                    ->sortByDesc('created_at')
-                    ->take(count($newFiles))
-                    ->values();
-
-                foreach ($this->existingFiles as $index => &$file) {
-                    // Yeni dosya mı kontrol et
-                    if (($file['is_new'] ?? false) || (isset($file['file_id']) && strpos($file['file_id'], 'new_') === 0)) {
-                        $originalName = $file['original_name'];
-                        $description = $file['description'] ?? ''; // Açıklamayı sakla
-
-                        // Veritabanından file_path'i bul
-                        foreach ($postFiles as $postFile) {
-                            /** @var \Modules\Posts\Models\File $postFile */
-                            if ($postFile->title === $originalName) {
-                                // file_path'i güncelle ama açıklamayı koru
-                                $file['path'] = $postFile->file_path;
-                                $file['file_path'] = $postFile->file_path;
-                                $file['description'] = $description; // Açıklamayı koru
-                                unset($file['is_new']);
-                                break; // Bu break yanlış yerde, foreach'ten çıkıyor
-                            }
-                        }
-                    }
-                }
-                unset($file);
-            }
-
-            // existingFiles'dan açıklamaları al ve updateGalleryContent() ile kaydet
-            // ÖNEMLİ: existingFiles array'i güncel olmalı (updateFileById ile güncellenmiş olmalı)
-            // updateFileById zaten existingFiles array'ini güncelliyor, bu yüzden veritabanından yüklemeye gerek yok
-
-
-            $this->updateGalleryContent();
-        }
-
-        // Otomatik vitrin ekleme (sadece pozisyon bazlı)
-        $shouldAddToFeatured = false;
-        $zone = null;
-
-        // Sadece pozisyon bazlı vitrin ekleme
-        if (in_array($this->post_position, ['manşet', 'sürmanşet', 'öne çıkanlar'])) {
-            $shouldAddToFeatured = true;
-            $zoneMapping = [
-                'manşet' => 'manset',
-                'sürmanşet' => 'surmanset',
-                'öne çıkanlar' => 'one_cikanlar',
-            ];
-            $zone = $zoneMapping[$this->post_position];
-        }
-
-        if ($shouldAddToFeatured) {
-            $featuredService = app(FeaturedService::class);
-
-            // Zamanlama tarihleri
-            $startsAt = null;
-            $endsAt = null;
-
-            // Zamanlanmış durum için published_date'den başlangıç tarihi al
-            if ($this->status === 'scheduled' && $this->published_date) {
-                $startsAt = new \DateTime($this->published_date);
-                // Bitiş tarihi sınırsız (null)
-                $endsAt = null;
-            } else {
-                // Manuel zamanlama (vitrin zamanlama bölümünden)
-                $startsAt = $this->featuredStartsAt ? new \DateTime($this->featuredStartsAt) : null;
-                $endsAt = $this->featuredEndsAt ? new \DateTime($this->featuredEndsAt) : null;
-            }
-
-            // Zamanlama varsa pinScheduled kullan, yoksa normal pin kullan
-            if ($startsAt || $endsAt) {
-                $featuredService->pinScheduled(
-                    $zone,
-                    'post',
-                    $this->post->post_id,
-                    $startsAt,
-                    $endsAt,
-                    0 // priority
-                );
-            } else {
-                $featuredService->pin(
-                    $zone,
-                    'post',
-                    $this->post->post_id,
-                    null // slot - otomatik slot atanacak
-                );
-            }
-        }
-
-        // Yeni resim eklenmişse existingFiles'ı yenile
-        // Not: refreshExistingFiles() çağrılmadan önce updateGalleryContent() çağrılmalı
-        // Çünkü yeni dosyalar için açıklamalar existingFiles'da tutuluyor
-        if (! empty($this->uploadedFiles)) {
-            // Yeni dosyalar için file_path'leri eager loading ile al (refresh() gereksiz)
-            $this->post->load('files');
-
-            // existingFiles'ı yenile (yeni dosyalar için açıklamalar korunmalı)
-            // refreshExistingFiles() yeni dosyalar için açıklamaları kaybedebilir
-            // Bu yüzden sadece galeri için content'ten yükle
+            // Gallery için content'i güncelle (PostsService->update() sonrası updateGalleryContent() ile yapılacak)
+            // Bu yüzden burada sadece mevcut content'i koruyoruz
             if ($this->post_type === 'gallery') {
-                // Mevcut existingFiles'ı koru (yeni dosyalar için açıklamalar dahil)
-                // Sadece veritabanından yeni dosyaları ekle
-                $galleryData = $this->post->gallery_data;
+                // Mevcut content'i koru (PostsService->update() sonrası updateGalleryContent() ile güncellenecek)
+                // Bu şekilde yeni dosyalar için açıklamalar korunacak
+                $this->content = $this->post->content ?? '';
+            }
 
-                if (is_array($galleryData) && ! empty($galleryData)) {
-                    // Mevcut existingFiles'ı file_path ile eşleştir
-                    $existingFilesByPath = [];
+            $formData = [
+                'title' => $this->title,
+                'slug' => $this->slug,
+                'summary' => $this->summary,
+                'content' => $this->content, // Galeri için güncellenmiş JSON, haber için HTML
+                'post_type' => $this->post_type,
+                'post_position' => $this->post_position,
+                'status' => $this->status ?: 'draft',
+                'published_date' => $this->published_date,
+                'is_comment' => $this->is_comment,
+                'is_mainpage' => $this->is_mainpage,
+                'redirect_url' => $this->redirect_url,
+                'is_photo' => $this->is_photo,
+                'agency_name' => $this->agency_name,
+                'agency_id' => $this->agency_id,
+                'embed_code' => $this->embed_code,
+                'in_newsletter' => $this->in_newsletter,
+                'no_ads' => $this->no_ads,
+            ];
+
+            // Yeni dosyalar için description ve alt_text bilgilerini hazırla
+            $fileDescriptions = [];
+            if (! empty($this->uploadedFiles)) {
+                foreach ($this->uploadedFiles as $fileId => $data) {
+                    $file = $data['file'] ?? null;
+                    if ($file) {
+                        $fileDescriptions[$file->getClientOriginalName()] = [
+                            'description' => $data['description'],
+                            'alt_text' => $data['alt_text'] ?? '',
+                        ];
+                    }
+                }
+            }
+
+            // Galeri için yeni dosyalar için açıklamaları existingFiles'dan al
+            if ($this->post_type === 'gallery' && ! empty($this->newFiles)) {
+                foreach ($this->newFiles as $newFile) {
+                    $originalName = $newFile->getClientOriginalName();
+
+                    // existingFiles'da bu dosya için açıklama var mı kontrol et
                     foreach ($this->existingFiles as $file) {
-                        $path = $file['path'];
-                        if (! empty($path)) {
-                            $existingFilesByPath[$path] = $file;
+                        if (($file['is_new'] ?? false) || (isset($file['file_id']) && strpos($file['file_id'], 'new_') === 0)) {
+                            if ($file['original_name'] === $originalName) {
+                                // Açıklamayı fileDescriptions'a ekle
+                                if (! isset($fileDescriptions[$originalName])) {
+                                    $fileDescriptions[$originalName] = [];
+                                }
+                                $fileDescriptions[$originalName]['description'] = $file['description'] ?? '';
+                                break;
+                            }
                         }
                     }
+                }
+            }
 
-                    // Veritabanından yeni dosyaları ekle
-                    $this->existingFiles = collect($galleryData)->map(function ($fileData, $index) use ($existingFilesByPath) {
-                        $filePath = $fileData['file_path'] ?? '';
+            // Yeni dosyaları hazırla
+            $newFiles = [];
+            if (! empty($this->uploadedFiles)) {
+                foreach ($this->uploadedFiles as $data) {
+                    $newFiles[] = $data['file'];
+                }
+            }
 
-                        // Mevcut existingFiles'da varsa açıklamaları koru
-                        if (isset($existingFilesByPath[$filePath])) {
-                            $existingFile = $existingFilesByPath[$filePath];
+            // News/Video için resim güncelleme
+            if (in_array($this->post_type, ['news', 'video']) && ! empty($this->uploadedFiles)) {
+                // Mevcut primary file'ı bul ve güncelle
+                $existingPrimaryFile = $this->post->primaryFile;
+
+                if ($existingPrimaryFile) {
+                    // Mevcut resmi güncelle (sadece bir dosya kullan, çift yükleme önle)
+                    $newFile = collect($this->uploadedFiles)->first()['file'];
+                    $existingPrimaryFile->update([
+                        'file_path' => $newFile->store('posts/'.date('Y/m'), 'public'),
+                        'title' => $newFile->getClientOriginalName(),
+                        'file_size' => $newFile->getSize(),
+                        'mime_type' => $newFile->getMimeType(),
+                    ]);
+
+                    // uploadedFiles array'ini temizle (çift yükleme önle)
+                    $this->uploadedFiles = [];
+                } else {
+                    // Yeni resim ekle (sadece bir dosya kullan)
+                    $newFile = collect($this->uploadedFiles)->first()['file'];
+                    $this->post->files()->create([
+                        'file_path' => $newFile->store('posts/'.date('Y/m'), 'public'),
+                        'title' => $newFile->getClientOriginalName(),
+                        'file_size' => $newFile->getSize(),
+                        'mime_type' => $newFile->getMimeType(),
+                    ]);
+
+                    // uploadedFiles array'ini temizle (çift yükleme önle)
+                    $this->uploadedFiles = [];
+                }
+            }
+
+            // Build spot_data from properties before saving
+            $this->buildSpotData();
+
+            // IMPORTANT: If primary file was removed, clear spot_data
+            // Check if primary file exists (refresh to get latest state)
+            $this->post->refresh();
+            $hasPrimaryFile = $this->post->primaryFile !== null;
+
+            // Build spot_data array BEFORE PostsService->update() to preserve it
+            // Check if we have image editor data (even if imageEditorUsed flag is not set)
+            // This handles cases where updateFilePreview was called but flag wasn't set
+            $hasImageEditorData = $this->imageEditorUsed
+                || !empty($this->imageEffects)
+                || !empty($this->imageTextObjects)
+                || !empty($this->desktopCrop)
+                || !empty($this->mobileCrop)
+                || (!empty($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0));
+
+            $spotDataArray = null;
+            if ($hasImageEditorData && $hasPrimaryFile) {
+                // If imageEditorUsed is false but we have data, set it to true
+                if (!$this->imageEditorUsed) {
+                    $this->imageEditorUsed = true;
+                    LogHelper::info('PostEdit updatePost - imageEditorUsed was false but image editor data exists, setting to true');
+                }
+
+                $spotDataArray = $this->buildSpotDataArray();
+                LogHelper::info('PostEdit updatePost - Built spot_data before PostsService->update()', [
+                    'has_spot_data' => ! empty($spotDataArray),
+                    'has_image' => isset($spotDataArray['image']),
+                    'originalImagePath' => $this->originalImagePath,
+                    'has_primary_file' => $hasPrimaryFile,
+                    'imageEditorUsed' => $this->imageEditorUsed,
+                    'hasImageEditorData' => $hasImageEditorData,
+                ]);
+            } elseif (!$hasPrimaryFile) {
+                // Primary file was removed, clear spot_data
+                LogHelper::info('PostEdit updatePost - Primary file removed, clearing spot_data', [
+                    'has_primary_file' => $hasPrimaryFile,
+                    'imageEditorUsed' => $this->imageEditorUsed,
+                ]);
+                $spotDataArray = null;
+            } else {
+                LogHelper::warning('PostEdit updatePost - No image editor data to save', [
+                    'imageEditorUsed' => $this->imageEditorUsed,
+                    'has_effects' => !empty($this->imageEffects),
+                    'has_textObjects' => !empty($this->imageTextObjects),
+                    'has_crop' => !empty($this->desktopCrop) || !empty($this->mobileCrop),
+                    'has_canvas' => !empty($this->canvasDimensions),
+                ]);
+            }
+
+            $postsService = new PostsService;
+            $updatedPost = $postsService->update(
+                $this->post,
+                $formData,
+                $newFiles,
+                $this->categoryIds,
+                $tagIds,
+                $fileDescriptions
+            );
+
+            // Refresh post model after service update (service returns fresh model)
+            $this->post = $updatedPost;
+
+            // Check again if primary file exists after update
+            $this->post->refresh();
+            $hasPrimaryFileAfterUpdate = $this->post->primaryFile !== null;
+
+            // Save spot_data after post update only if:
+            // 1. We have image editor data (imageEditorUsed flag OR actual data) AND
+            // 2. We have actual spot_data array AND
+            // 3. Primary file still exists
+            // Check again if we have image editor data (in case it was set during update)
+            $hasImageEditorDataAfterUpdate = $this->imageEditorUsed
+                || !empty($this->imageEffects)
+                || !empty($this->imageTextObjects)
+                || !empty($this->desktopCrop)
+                || !empty($this->mobileCrop)
+                || (!empty($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0));
+
+            // NEW: Update spot_data['image'] from primary_image_spot_data if provided
+            // This allows JS editor to directly update spot_data via Livewire property
+            $currentSpotData = $this->post->spot_data ?? [];
+            if ($this->primary_image_spot_data) {
+                $decodedImageData = json_decode($this->primary_image_spot_data, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decodedImageData)) {
+                    // Handle nested structure: if decodedImageData has 'image' key, unwrap it
+                    // This prevents double nesting: spot_data['image']['image']
+                    if (isset($decodedImageData['image']) && is_array($decodedImageData['image'])) {
+                        // Unwrap: use decodedImageData['image'] instead
+                        $decodedImageData = $decodedImageData['image'];
+                        LogHelper::info('PostEdit updatePost - Unwrapped nested image structure');
+                    }
+
+                    // Update only the 'image' key in spot_data, preserve other keys
+                    $currentSpotData['image'] = $decodedImageData;
+                    LogHelper::info('PostEdit updatePost - Updated spot_data[image] from primary_image_spot_data', [
+                        'has_image' => isset($currentSpotData['image']),
+                        'image_keys' => array_keys($decodedImageData),
+                    ]);
+                }
+            }
+
+            if ($hasImageEditorDataAfterUpdate && ! empty($spotDataArray) && isset($spotDataArray['image']) && $hasPrimaryFileAfterUpdate) {
+                LogHelper::info('PostEdit updatePost - Saving spot_data after PostsService->update()', [
+                    'has_spot_data' => ! empty($spotDataArray),
+                    'has_image' => isset($spotDataArray['image']),
+                    'has_textObjects' => isset($spotDataArray['image']['textObjects']) && ! empty($spotDataArray['image']['textObjects']),
+                    'textObjects_count' => isset($spotDataArray['image']['textObjects']) ? count($spotDataArray['image']['textObjects']) : 0,
+                    'has_effects' => isset($spotDataArray['image']['effects']) && ! empty($spotDataArray['image']['effects']),
+                    'effects' => $spotDataArray['image']['effects'] ?? [],
+                    'has_canvas' => isset($spotDataArray['image']['canvas']),
+                    'canvas' => $spotDataArray['image']['canvas'] ?? [],
+                    'originalImagePath' => $this->originalImagePath,
+                    'spot_data_json' => json_encode($spotDataArray),
+                ]);
+
+                // Merge primary_image_spot_data with spotDataArray if both exist
+                // primary_image_spot_data takes priority (from JS editor)
+                if ($this->primary_image_spot_data) {
+                    $decodedImageData = json_decode($this->primary_image_spot_data, true);
+                    if (json_last_error() === JSON_ERROR_NONE && is_array($decodedImageData)) {
+                        // Handle nested structure: if decodedImageData has 'image' key, unwrap it
+                        if (isset($decodedImageData['image']) && is_array($decodedImageData['image'])) {
+                            $decodedImageData = $decodedImageData['image'];
+                        }
+                        $spotDataArray['image'] = $decodedImageData;
+                        LogHelper::info('PostEdit updatePost - Merged primary_image_spot_data into spotDataArray');
+                    }
+                }
+
+                // Update spot_data and save
+                $this->post->spot_data = $spotDataArray;
+                $this->post->save();
+            } elseif ($this->primary_image_spot_data && $hasPrimaryFileAfterUpdate) {
+                // If primary_image_spot_data exists but no spotDataArray, update spot_data['image'] only
+                $decodedImageData = json_decode($this->primary_image_spot_data, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decodedImageData)) {
+                    // Handle nested structure: if decodedImageData has 'image' key, unwrap it
+                    if (isset($decodedImageData['image']) && is_array($decodedImageData['image'])) {
+                        $decodedImageData = $decodedImageData['image'];
+                    }
+
+                    // Preserve existing spot_data structure, only update 'image' key
+                    $this->post->spot_data = $currentSpotData;
+                    $this->post->save();
+                    LogHelper::info('PostEdit updatePost - Updated spot_data[image] from primary_image_spot_data only', [
+                        'post_id' => $this->post->post_id,
+                        'has_image' => isset($this->post->spot_data['image']),
+                    ]);
+                }
+
+                LogHelper::info('PostEdit updatePost - spot_data saved successfully', [
+                    'post_id' => $this->post->post_id,
+                    'spot_data_saved' => ! empty($this->post->spot_data),
+                ]);
+            } elseif (!$hasPrimaryFileAfterUpdate) {
+                // Primary file was removed, clear spot_data
+                $this->post->spot_data = null;
+                $this->post->save();
+                LogHelper::info('PostEdit updatePost - Primary file removed, spot_data cleared', [
+                    'post_id' => $this->post->post_id,
+                    'has_primary_file' => $hasPrimaryFileAfterUpdate,
+                ]);
+            } elseif ($hasImageEditorDataAfterUpdate) {
+                LogHelper::warning('PostEdit updatePost - imageEditorData exists but spot_data is empty', [
+                    'has_spot_data' => ! empty($spotDataArray),
+                    'has_image' => isset($spotDataArray['image']),
+                    'originalImagePath' => $this->originalImagePath,
+                    'has_textObjects' => ! empty($this->imageTextObjects),
+                    'textObjects_count' => count($this->imageTextObjects),
+                    'has_primary_file' => $hasPrimaryFileAfterUpdate,
+                    'imageEditorUsed' => $this->imageEditorUsed,
+                    'hasImageEditorDataAfterUpdate' => $hasImageEditorDataAfterUpdate,
+                ]);
+            } else {
+                LogHelper::info('PostEdit updatePost - No image editor data, not saving spot_data', [
+                    'imageEditorUsed' => $this->imageEditorUsed,
+                    'has_effects' => !empty($this->imageEffects),
+                    'has_textObjects' => !empty($this->imageTextObjects),
+                    'has_crop' => !empty($this->desktopCrop) || !empty($this->mobileCrop),
+                    'has_canvas' => !empty($this->canvasDimensions),
+                ]);
+            }
+
+            // Galeri için content'i güncelle (açıklamalar dahil)
+            if ($this->post_type === 'gallery') {
+                // Yeni dosyalar için file_path'leri eager loading ile al (refresh() gereksiz)
+                $this->post->load('files');
+
+                // ÖNEMLİ: existingFiles array'i updateFileById ile güncellenmiş olmalı
+                // Veritabanından yükleme yapmıyoruz çünkü bu güncel description'ları ezer
+
+                // Yeni dosyalar için file_path'leri güncelle ve açıklamaları koru
+                if (! empty($newFiles)) {
+                    // Eager loaded files collection'ından yeni dosyaları al (N+1 query önleme)
+                    /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Posts\Models\File> $postFiles */
+                    $postFiles = $this->post->files
+                        ->sortByDesc('created_at')
+                        ->take(count($newFiles))
+                        ->values();
+
+                    foreach ($this->existingFiles as $index => &$file) {
+                        // Yeni dosya mı kontrol et
+                        if (($file['is_new'] ?? false) || (isset($file['file_id']) && strpos($file['file_id'], 'new_') === 0)) {
+                            $originalName = $file['original_name'];
+                            $description = $file['description'] ?? ''; // Açıklamayı sakla
+
+                            // Veritabanından file_path'i bul
+                            foreach ($postFiles as $postFile) {
+                                /** @var \Modules\Posts\Models\File $postFile */
+                                if ($postFile->title === $originalName) {
+                                    // file_path'i güncelle ama açıklamayı koru
+                                    $file['path'] = $postFile->file_path;
+                                    $file['file_path'] = $postFile->file_path;
+                                    $file['description'] = $description; // Açıklamayı koru
+                                    unset($file['is_new']);
+                                    break; // Bu break yanlış yerde, foreach'ten çıkıyor
+                                }
+                            }
+                        }
+                    }
+                    unset($file);
+                }
+
+                // existingFiles'dan açıklamaları al ve updateGalleryContent() ile kaydet
+                // ÖNEMLİ: existingFiles array'i güncel olmalı (updateFileById ile güncellenmiş olmalı)
+                // updateFileById zaten existingFiles array'ini güncelliyor, bu yüzden veritabanından yüklemeye gerek yok
+
+                $this->updateGalleryContent();
+            }
+
+            // Otomatik vitrin ekleme (sadece pozisyon bazlı)
+            $shouldAddToFeatured = false;
+            $zone = null;
+
+            // Sadece pozisyon bazlı vitrin ekleme
+            if (in_array($this->post_position, ['manşet', 'sürmanşet', 'öne çıkanlar'])) {
+                $shouldAddToFeatured = true;
+                $zoneMapping = [
+                    'manşet' => 'manset',
+                    'sürmanşet' => 'surmanset',
+                    'öne çıkanlar' => 'one_cikanlar',
+                ];
+                $zone = $zoneMapping[$this->post_position];
+            }
+
+            if ($shouldAddToFeatured) {
+                $featuredService = app(FeaturedService::class);
+
+                // Zamanlama tarihleri
+                $startsAt = null;
+                $endsAt = null;
+
+                // Zamanlanmış durum için published_date'den başlangıç tarihi al
+                if ($this->status === 'scheduled' && $this->published_date) {
+                    $startsAt = new \DateTime($this->published_date);
+                    // Bitiş tarihi sınırsız (null)
+                    $endsAt = null;
+                } else {
+                    // Manuel zamanlama (vitrin zamanlama bölümünden)
+                    $startsAt = $this->featuredStartsAt ? new \DateTime($this->featuredStartsAt) : null;
+                    $endsAt = $this->featuredEndsAt ? new \DateTime($this->featuredEndsAt) : null;
+                }
+
+                // Zamanlama varsa pinScheduled kullan, yoksa normal pin kullan
+                if ($startsAt || $endsAt) {
+                    $featuredService->pinScheduled(
+                        $zone,
+                        'post',
+                        $this->post->post_id,
+                        $startsAt,
+                        $endsAt,
+                        0 // priority
+                    );
+                } else {
+                    $featuredService->pin(
+                        $zone,
+                        'post',
+                        $this->post->post_id,
+                        null // slot - otomatik slot atanacak
+                    );
+                }
+            }
+
+            // Yeni resim eklenmişse existingFiles'ı yenile
+            // Not: refreshExistingFiles() çağrılmadan önce updateGalleryContent() çağrılmalı
+            // Çünkü yeni dosyalar için açıklamalar existingFiles'da tutuluyor
+            if (! empty($this->uploadedFiles)) {
+                // Yeni dosyalar için file_path'leri eager loading ile al (refresh() gereksiz)
+                $this->post->load('files');
+
+                // existingFiles'ı yenile (yeni dosyalar için açıklamalar korunmalı)
+                // refreshExistingFiles() yeni dosyalar için açıklamaları kaybedebilir
+                // Bu yüzden sadece galeri için content'ten yükle
+                if ($this->post_type === 'gallery') {
+                    // Mevcut existingFiles'ı koru (yeni dosyalar için açıklamalar dahil)
+                    // Sadece veritabanından yeni dosyaları ekle
+                    $galleryData = $this->post->gallery_data;
+
+                    if (is_array($galleryData) && ! empty($galleryData)) {
+                        // Mevcut existingFiles'ı file_path ile eşleştir
+                        $existingFilesByPath = [];
+                        foreach ($this->existingFiles as $file) {
+                            $path = $file['path'];
+                            if (! empty($path)) {
+                                $existingFilesByPath[$path] = $file;
+                            }
+                        }
+
+                        // Veritabanından yeni dosyaları ekle
+                        $this->existingFiles = collect($galleryData)->map(function ($fileData, $index) use ($existingFilesByPath) {
+                            $filePath = $fileData['file_path'] ?? '';
+
+                            // Mevcut existingFiles'da varsa açıklamaları koru
+                            if (isset($existingFilesByPath[$filePath])) {
+                                $existingFile = $existingFilesByPath[$filePath];
+
+                                return [
+                                    'file_id' => $existingFile['file_id'], // Mevcut file_id'yi koru
+                                    'path' => $filePath,
+                                    'original_name' => $fileData['filename'],
+                                    'description' => $existingFile['description'] ?? $fileData['description'] ?? '', // Açıklamayı koru
+                                    'primary' => (bool) $fileData['is_primary'],
+                                    'type' => $fileData['type'] ?? 'image/jpeg',
+                                    'order' => (int) $fileData['order'],
+                                    'uploaded_at' => $fileData['uploaded_at'] ?? now()->toISOString(),
+                                ];
+                            }
+
+                            // Yeni dosya için file_id oluştur
+                            $fileId = $fileData['file_id'] ?? null;
+                            if (empty($fileId)) {
+                                $fileId = 'existing_'.md5($filePath);
+                            }
 
                             return [
-                                'file_id' => $existingFile['file_id'], // Mevcut file_id'yi koru
+                                'file_id' => (string) $fileId, // String olarak tutuluyor
                                 'path' => $filePath,
                                 'original_name' => $fileData['filename'],
-                                'description' => $existingFile['description'] ?? $fileData['description'] ?? '', // Açıklamayı koru
+                                'description' => $fileData['description'] ?? '', // Veritabanından açıklama
                                 'primary' => (bool) $fileData['is_primary'],
                                 'type' => $fileData['type'] ?? 'image/jpeg',
                                 'order' => (int) $fileData['order'],
                                 'uploaded_at' => $fileData['uploaded_at'] ?? now()->toISOString(),
                             ];
-                        }
+                        })->toArray();
 
-                        // Yeni dosya için file_id oluştur
-                        $fileId = $fileData['file_id'] ?? null;
-                        if (empty($fileId)) {
-                            $fileId = 'existing_'.md5($filePath);
-                        }
-
-                        return [
-                            'file_id' => (string) $fileId, // String olarak tutuluyor
-                            'path' => $filePath,
-                            'original_name' => $fileData['filename'],
-                            'description' => $fileData['description'] ?? '', // Veritabanından açıklama
-                            'primary' => (bool) $fileData['is_primary'],
-                            'type' => $fileData['type'] ?? 'image/jpeg',
-                            'order' => (int) $fileData['order'],
-                            'uploaded_at' => $fileData['uploaded_at'] ?? now()->toISOString(),
-                        ];
-                    })->toArray();
-
-                    // Primary file ID'yi güncelle
-                    $this->primaryFileId = null;
-                    foreach ($this->existingFiles as $file) {
-                        if ($file['primary'] === true) {
-                            $this->primaryFileId = (string) $file['file_id'];
-                            break;
+                        // Primary file ID'yi güncelle
+                        $this->primaryFileId = null;
+                        foreach ($this->existingFiles as $file) {
+                            if ($file['primary'] === true) {
+                                $this->primaryFileId = (string) $file['file_id'];
+                                break;
+                            }
                         }
                     }
+                } else {
+                    // Galeri dışı için normal refresh
+                    $this->refreshExistingFiles();
                 }
-            } else {
-                // Galeri dışı için normal refresh
-                $this->refreshExistingFiles();
-            }
 
-            // Yeni dosya seçimlerini sıfırla
-            $this->uploadedFiles = [];
-            $this->newFiles = []; // newFiles'ı da temizle
-            // primaryFileId'yi koru - yukarıda zaten güncellendi
-        }
+                // Yeni dosya seçimlerini sıfırla
+                $this->uploadedFiles = [];
+                $this->newFiles = []; // newFiles'ı da temizle
+                // primaryFileId'yi koru - yukarıda zaten güncellendi
+            }
 
             $this->dispatch('post-updated');
 
@@ -1457,6 +1885,16 @@ class PostEdit extends Component
             session()->flash('success', $successMessage);
 
             return redirect()->route('posts.index');
+        } catch (\InvalidArgumentException $e) {
+            // Validation hataları - direkt mesaj göster
+            LogHelper::warning('updatePost validation failed', [
+                'post_id' => $this->post->post_id ?? null,
+                'post_type' => $this->post_type ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
+
+            return;
         } catch (\Exception $e) {
             LogHelper::error('updatePost failed', [
                 'post_id' => $this->post->post_id ?? null,
@@ -1477,15 +1915,25 @@ class PostEdit extends Component
         if (isset($this->existingFiles[$index])) {
             $file = $this->existingFiles[$index];
 
-            // Sadece gerçek file_id'leri (integer) database'den sil
-            // Eager loaded files collection'ından bul (N+1 query önleme)
+            // Dosyayı silmek yerine, sadece post ilişkisini kaldır (arşivde kalsın)
+            // Böylece ileride "arşivden seç" özelliği ile tekrar kullanılabilir
             if (isset($file['file_id']) && is_numeric($file['file_id'])) {
                 $fileModel = $this->post->files->firstWhere('file_id', (int) $file['file_id']);
                 if ($fileModel) {
-                    $fileModel->delete();
+                    // Dosyayı silmek yerine, sadece post ilişkisini kaldır
+                    $fileModel->post_id = null;
+                    $fileModel->primary = false; // Primary flag'ini de kaldır
+                    $fileModel->save();
                 } else {
                     // Eğer eager loaded collection'da yoksa, direkt query yap
-                    File::where('file_id', $file['file_id'])->delete();
+                    $fileModel = $this->postFileRepository->findById((int) $file['file_id']);
+                    if ($fileModel) {
+                        // Dosyayı silmek yerine, sadece post ilişkisini kaldır
+                        $this->postFileRepository->update($fileModel, [
+                            'post_id' => null,
+                            'primary' => false,
+                        ]);
+                    }
                 }
             }
 
@@ -1493,9 +1941,13 @@ class PostEdit extends Component
             unset($this->existingFiles[$index]);
             $this->existingFiles = array_values($this->existingFiles); // Re-index array
 
-            // Eğer silinen dosya ana dosyaysa, ana dosya seçimini sıfırla
+            // Eğer silinen dosya ana dosyaysa, ana dosya seçimini sıfırla ve spot_data'yı temizle
             if (isset($file['file_id']) && $this->primaryFileId === (string) $file['file_id']) {
                 $this->primaryFileId = null;
+                // Primary file kaldırıldığında spot_data'yı sıfırla
+                $this->post->spot_data = null;
+                $this->post->save();
+                $this->post->refresh();
             }
 
             // Galeri türü için content'i güncelle
@@ -1510,7 +1962,6 @@ class PostEdit extends Component
     {
         if (isset($this->existingFiles[$index])) {
             $this->existingFiles[$index][$field] = $value;
-
 
             // Otomatik kaydetme kaldırıldı - sadece güncelle butonunda kaydedilecek
         }
@@ -1559,7 +2010,7 @@ class PostEdit extends Component
             }
 
             // Value validation
-            if (!is_string($value) && !is_null($value)) {
+            if (! is_string($value) && ! is_null($value)) {
                 throw new \InvalidArgumentException('Değer string veya null olmalıdır');
             }
 
@@ -1613,34 +2064,49 @@ class PostEdit extends Component
                     if (is_numeric($fileId)) {
                         $fileModel = $this->post->files->firstWhere('file_id', (int) $fileId);
                         if ($fileModel) {
-                            $fileModel->update([$dbField => $value]);
+                            $this->postFileRepository->update($fileModel, [$dbField => $value]);
                         } else {
-                            File::where('file_id', (int) $fileId)->update([$dbField => $value]);
+                            $fileModel = $this->postFileRepository->findById((int) $fileId);
+                            if ($fileModel) {
+                                $this->postFileRepository->update($fileModel, [$dbField => $value]);
+                            }
                         }
                     } else {
                         // String ID ise ve DB güncellemesi yapılamadıysa, file_path veya orijinal adıyla eşleştir
                         $realId = null;
-                        if (!empty($file['path'])) {
-                            $fm = File::where('post_id', $this->post->post_id)
+                        if (! empty($file['path'])) {
+                            $fm = $this->postFileRepository->getQuery()
+                                ->where('post_id', $this->post->post_id)
                                 ->where('file_path', $file['path'])
                                 ->first();
-                            if ($fm) { $realId = $fm->file_id; }
+                            if ($fm) {
+                                $realId = $fm->file_id;
+                            }
                         }
-                        if (!$realId && !empty($file['original_name'])) {
-                            $fmName = File::where('post_id', $this->post->post_id)
+                        if (! $realId && ! empty($file['original_name'])) {
+                            $fmName = $this->postFileRepository->getQuery()
+                                ->where('post_id', $this->post->post_id)
                                 ->where('title', $file['original_name'])
                                 ->orderBy('created_at', 'desc')
                                 ->first();
-                            if ($fmName) { $realId = $fmName->file_id; }
+                            if ($fmName) {
+                                $realId = $fmName->file_id;
+                            }
                         }
-                        if (!$realId && isset($file['order'])) {
-                            $fmOrder = File::where('post_id', $this->post->post_id)
+                        if (! $realId && isset($file['order'])) {
+                            $fmOrder = $this->postFileRepository->getQuery()
+                                ->where('post_id', $this->post->post_id)
                                 ->where('order', (int) $file['order'])
                                 ->first();
-                            if ($fmOrder) { $realId = $fmOrder->file_id; }
+                            if ($fmOrder) {
+                                $realId = $fmOrder->file_id;
+                            }
                         }
                         if ($realId) {
-                            File::where('file_id', (int) $realId)->update([$dbField => $value]);
+                            $fileModel = $this->postFileRepository->findById($realId);
+                            if ($fileModel) {
+                                $this->postFileRepository->update($fileModel, [$dbField => $value]);
+                            }
                         }
                     }
 
@@ -1660,6 +2126,14 @@ class PostEdit extends Component
                 $this->uploadedFiles[$fileIdStr][$field] = $value;
                 $updated = true;
             }
+        } catch (\InvalidArgumentException $e) {
+            LogHelper::warning('updateFileById validation failed', [
+                'fileId' => $fileId,
+                'field' => $field,
+                'post_id' => $this->post->post_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('updateFileById failed', [
                 'fileId' => $fileId,
@@ -1682,7 +2156,7 @@ class PostEdit extends Component
                     'file_id' => $file['file_id'],
                     'description' => $file['description'] ?? '',
                     'description_length' => strlen($file['description'] ?? ''),
-                    'has_description' => !empty($file['description']),
+                    'has_description' => ! empty($file['description']),
                     'original_name' => $file['original_name'],
                 ];
             }, $this->existingFiles);
@@ -1738,13 +2212,44 @@ class PostEdit extends Component
         }
     }
 
-    // Ana resmi kaldır
+    // Ana resmi kaldır (dosyayı silme, sadece ilişkiyi kaldır - arşivden seç özelliği için)
     public function removePrimaryFile()
     {
         try {
             if ($this->post->primaryFile) {
-                $this->post->primaryFile->delete();
+                $primaryFile = $this->post->primaryFile;
+
+                // Dosyayı silmek yerine, sadece post ilişkisini kaldır (arşivde kalsın)
+                // Böylece ileride "arşivden seç" özelliği ile tekrar kullanılabilir
+                $primaryFile->post_id = null;
+                $primaryFile->primary = false; // Primary flag'ini de kaldır
+                $primaryFile->save();
+
+                // Primary file ID'yi sıfırla
+                $this->primaryFileId = null;
+
+                // Reset image editor properties
+                $this->resetImageEditorProperties();
+
+                // Primary file kaldırıldığında spot_data'yı sıfırla
+                $this->post->spot_data = null;
+                $this->post->save();
+
+                // Refresh post to ensure primaryFile relationship is updated
                 $this->post->refresh();
+
+                // Double-check: if primaryFile is still set after refresh, clear spot_data again
+                if ($this->post->primaryFile === null && $this->post->spot_data !== null) {
+                    $this->post->spot_data = null;
+                    $this->post->save();
+                    $this->post->refresh();
+                }
+
+                LogHelper::info('PostEdit removePrimaryFile - Primary file relationship removed (file archived, not deleted)', [
+                    'post_id' => $this->post->post_id ?? null,
+                    'file_id' => $primaryFile->file_id ?? null,
+                    'spot_data_after' => $this->post->spot_data,
+                ]);
             }
         } catch (\Exception $e) {
             LogHelper::error('removePrimaryFile failed', [
@@ -1848,16 +2353,17 @@ class PostEdit extends Component
     public function render()
     {
         // Kategori türüne göre filtreleme - cache ile optimize et
-        $cacheKey = 'posts:categories:' . $this->post_type;
+        $cacheKey = 'posts:categories:'.$this->post_type;
         $categories = Cache::remember($cacheKey, 300, function () {
-            return Category::where('status', 'active')
+            return $this->categoryService->getQuery()
+                ->where('status', 'active')
                 ->where('type', $this->post_type)
                 ->orderBy('name')
                 ->get();
         });
 
         $postTypes = PostType::all();
-        $postPositions = Post::POSITIONS;
+        $postPositions = PostPosition::all();
         $postStatuses = PostStatus::all();
 
         /** @var view-string $view */

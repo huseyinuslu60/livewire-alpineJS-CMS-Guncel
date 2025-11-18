@@ -51,7 +51,21 @@
             </div>
             <div class="space-y-4" id="gallery-sortable" x-data="gallerySortable()">
                 @foreach($existingFiles as $index => $file)
-                    <div class="gallery-item bg-gray-50 rounded-xl p-4 border border-gray-200 relative" data-index="{{ $index }}" data-file-id="{{ $file['file_id'] }}" id="gallery-item-{{ $file['file_id'] }}" wire:key="gallery-item-{{ $file['file_id'] }}">
+                    @php
+                        $imageKey = 'existing:' . $file['file_id'];
+                        // Get spot_data from file if available
+                        $spotData = $file['spot_data'] ?? null;
+                        if (is_string($spotData)) {
+                            $decoded = json_decode($spotData, true);
+                            $spotData = is_array($decoded) ? $decoded : null;
+                        }
+                    @endphp
+                    <div class="gallery-item bg-gray-50 rounded-xl p-4 border border-gray-200 relative image-preview-card" 
+                         data-index="{{ $index }}" 
+                         data-file-id="{{ $file['file_id'] }}" 
+                         data-image-key="{{ $imageKey }}"
+                         id="gallery-item-{{ $file['file_id'] }}" 
+                         wire:key="gallery-item-{{ $file['file_id'] }}">
                         <!-- Sortable Handle -->
                         <div class="sortable-handle absolute top-2 left-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10 cursor-grab hover:bg-orange-600 transition-colors">
                             <i class="fas fa-grip-vertical mr-1"></i>
@@ -64,15 +78,81 @@
                                 <div class="relative">
                                     <div class="relative group">
                                         <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                                            <canvas id="preview-canvas-{{ $file['file_id'] }}"
+                                                    class="image-preview-canvas w-full h-full object-cover"
+                                                    data-image-key="{{ $imageKey }}"
+                                                    style="display: none;"></canvas>
                                             <img src="{{ asset('storage/' . $file['path']) }}"
-                                                 class="w-full h-full object-cover"
-                                                 alt="{{ $file['alt_text'] ?? 'Gallery Image' }}">
+                                                 id="preview-img-{{ $file['file_id'] }}"
+                                                 class="image-preview-img w-full h-full object-cover"
+                                                 alt="{{ $file['alt_text'] ?? 'Gallery Image' }}"
+                                                 data-image-key="{{ $imageKey }}"
+                                                 data-file-id="{{ $file['file_id'] }}"
+                                                 data-spot-data="{{ json_encode($spotData) }}"
+                                                 data-image-url="{{ asset('storage/' . $file['path']) }}"
+                                                 data-has-spot-data="{{ $spotData ? 'true' : 'false' }}"
+                                                 onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }">
                                         </div>
                                         {{-- Top right corner buttons --}}
                                         <div class="absolute top-2 right-2 flex gap-2">
                                             <button type="button"
-                                                    class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                                                    onclick="if (window.openImageEditor) { window.openImageEditor('{{ $file['file_id'] }}', '{{ asset('storage/' . $file['path']) }}'); }"
+                                                    class="image-edit-button bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                                                    data-image-key="{{ $imageKey }}"
+                                                    data-image-url="{{ asset('storage/' . $file['path']) }}"
+                                                    onclick="(function () {
+                                                        const btn = this;
+                                                        const imageKey = btn.getAttribute('data-image-key');
+                                                        const imageUrl = btn.getAttribute('data-image-url');
+                                                        
+                                                        console.log('Image Edit Button Clicked (Gallery):', { imageKey, imageUrl, hasOpenImageEditor: typeof window.openImageEditor !== 'undefined' });
+                                                        
+                                                        if (!imageKey || !imageUrl) {
+                                                            console.error('Image Edit Button - Missing imageKey or imageUrl');
+                                                            return;
+                                                        }
+                                                        
+                                                        // Find img element by imageKey
+                                                        const img = document.querySelector('img[data-image-key=' + JSON.stringify(imageKey) + ']');
+                                                        let initialSpotData = null;
+
+                                                        if (img) {
+                                                            const spotJson = img.getAttribute('data-spot-data');
+                                                            if (spotJson) {
+                                                                try { 
+                                                                    initialSpotData = JSON.parse(spotJson); 
+                                                                } catch(e) { 
+                                                                    console.error('Preview Renderer - Failed to parse spot_data from img:', e);
+                                                                    initialSpotData = null; 
+                                                                }
+                                                            }
+                                                        }
+
+                                                        if (typeof window.openImageEditor === 'function') {
+                                                            try {
+                                                                window.openImageEditor(imageKey, {
+                                                                    url: imageUrl,
+                                                                    initialSpotData: initialSpotData,
+                                                                });
+                                                            } catch(e) {
+                                                                console.error('Image Edit Button - Error calling openImageEditor:', e);
+                                                            }
+                                                        } else {
+                                                            console.error('Image Edit Button - window.openImageEditor is not defined');
+                                                            let attempts = 0;
+                                                            const checkInterval = setInterval(() => {
+                                                                attempts++;
+                                                                if (typeof window.openImageEditor === 'function') {
+                                                                    clearInterval(checkInterval);
+                                                                    window.openImageEditor(imageKey, {
+                                                                        url: imageUrl,
+                                                                        initialSpotData: initialSpotData,
+                                                                    });
+                                                                } else if (attempts >= 10) {
+                                                                    clearInterval(checkInterval);
+                                                                }
+                                                            }, 100);
+                                                        }
+                                                    }).call(this);"
                                                     title="Düzenle">
                                                 <i class="fas fa-edit"></i>
                                             </button>

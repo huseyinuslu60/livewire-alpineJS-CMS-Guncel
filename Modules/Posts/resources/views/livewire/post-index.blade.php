@@ -488,13 +488,46 @@
                                     } else {
                                         $primaryFile = $post->primaryFile;
                                     }
+                                    
+                                    // Get spot_data for preview rendering
+                                    $spotData = $post->spot_data ?? null;
+                                    $spotDataJson = null;
+                                    if ($spotData && isset($spotData['image'])) {
+                                        $imageData = $spotData['image'];
+                                        // Handle nested structure: if image has 'image' key, unwrap it
+                                        if (isset($imageData['image']) && is_array($imageData['image'])) {
+                                            $imageData = $imageData['image'];
+                                        }
+                                        $spotDataJson = json_encode(['image' => $imageData]);
+                                    }
+                                    
+                                    // Generate imageKey for existing primary file
+                                    $imageKey = $primaryFile ? 'existing:' . $primaryFile->file_id : null;
+                                    $imageUrl = $primaryFile ? asset('storage/' . $primaryFile->file_path) : null;
                                 @endphp
                                 
                                 @if($primaryFile && $primaryFile->is_image)
-                                    <div class="flex justify-center">
-                                        <img class="h-16 w-16 rounded-lg object-cover shadow-sm" 
-                                             src="{{ asset('storage/' . $primaryFile->file_path) }}" 
-                                             alt="{{ $primaryFile->alt_text ?? $post->title }}">
+                                    <div class="flex justify-center image-preview-card"
+                                         data-image-key="{{ $imageKey }}">
+                                        {{-- Preview canvas for spot_data rendering --}}
+                                        <canvas class="image-preview-canvas h-16 w-16 rounded-lg object-cover shadow-sm"
+                                                data-image-key="{{ $imageKey }}"
+                                                style="display: none;"></canvas>
+                                        {{-- Fallback image --}}
+                                        <img class="image-preview-img h-16 w-16 rounded-lg object-cover shadow-sm" 
+                                             src="{{ $imageUrl }}" 
+                                             alt="{{ $primaryFile->alt_text ?? $post->title }}"
+                                             data-image-key="{{ $imageKey }}"
+                                             data-image-url="{{ $imageUrl }}"
+                                             @if($spotDataJson)
+                                                 data-spot-data="{{ htmlspecialchars($spotDataJson, ENT_QUOTES, 'UTF-8', false) }}"
+                                                 data-has-spot-data="true"
+                                             @else
+                                                 data-spot-data=""
+                                                 data-has-spot-data="false"
+                                             @endif
+                                             data-file-id="{{ $primaryFile->file_id }}"
+                                             onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }">
                                     </div>
                                 @else
                                     <div class="flex justify-center">
@@ -711,5 +744,5 @@
     </div>
 
     {{-- Posts modülü asset dosyalarını dahil et --}}
-    @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js'])
+    @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js', 'resources/js/image-preview-renderer/index.js'])
 </div>

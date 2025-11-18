@@ -199,31 +199,318 @@
                                             @if(!empty($newFiles))
                                                 @php
                                                     $latestFile = collect($newFiles)->last();
+                                                    $newFileIndex = collect($newFiles)->keys()->last();
+                                                    $imageKey = 'temp:' . $newFileIndex;
                                                 @endphp
                                                 @if($latestFile)
-                                                    <img src="{{ $latestFile->temporaryUrl() }}"
-                                                         class="w-full h-full object-cover"
-                                                         alt="Yeni seçilen resim">
+                                                    <div class="relative w-full h-full group image-preview-card"
+                                                         data-image-key="{{ $imageKey }}">
+                                                        <canvas class="image-preview-canvas w-full h-full object-cover"
+                                                                data-image-key="{{ $imageKey }}"
+                                                                style="display: none;"></canvas>
+                                                        <img src="{{ $latestFile->temporaryUrl() }}"
+                                                             class="image-preview-img w-full h-full object-cover"
+                                                             alt="Yeni seçilen resim"
+                                                             data-image-key="{{ $imageKey }}"
+                                                             data-image-url="{{ $latestFile->temporaryUrl() }}"
+                                                             data-has-spot-data="false">
+
+                                                        {{-- Top right corner button --}}
+                                                        <div class="absolute top-2 right-2">
+                                                            <button type="button"
+                                                                    class="image-edit-button bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                                                                    data-image-key="{{ $imageKey }}"
+                                                                    data-image-url="{{ $latestFile->temporaryUrl() }}"
+                                                                    onclick="(function () {
+                                                                        const btn = this;
+                                                                        const imageKey = btn.getAttribute('data-image-key');
+                                                                        const imageUrl = btn.getAttribute('data-image-url');
+
+                                                                        console.log('Image Edit Button Clicked (New Upload):', { imageKey, imageUrl, hasOpenImageEditor: typeof window.openImageEditor !== 'undefined' });
+
+                                                                        if (!imageKey || !imageUrl) {
+                                                                            console.error('Image Edit Button - Missing imageKey or imageUrl');
+                                                                            return;
+                                                                        }
+
+                                                                        if (typeof window.openImageEditor === 'function') {
+                                                                            try {
+                                                                                window.openImageEditor(imageKey, {
+                                                                                    url: imageUrl,
+                                                                                    initialSpotData: null,
+                                                                                });
+                                                                            } catch(e) {
+                                                                                console.error('Image Edit Button - Error calling openImageEditor:', e);
+                                                                            }
+                                                                        } else {
+                                                                            console.error('Image Edit Button - window.openImageEditor is not defined');
+                                                                            let attempts = 0;
+                                                                            const checkInterval = setInterval(() => {
+                                                                                attempts++;
+                                                                                if (typeof window.openImageEditor === 'function') {
+                                                                                    clearInterval(checkInterval);
+                                                                                    window.openImageEditor(imageKey, {
+                                                                                        url: imageUrl,
+                                                                                        initialSpotData: null,
+                                                                                    });
+                                                                                } else if (attempts >= 10) {
+                                                                                    clearInterval(checkInterval);
+                                                                                }
+                                                                            }, 100);
+                                                                        }
+                                                                    }).call(this);"
+                                                                    title="Düzenle">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 @endif
-                                            @elseif($this->post->primaryFile)
-                                                <div class="relative w-full h-full group">
-                                                    <img src="{{ asset('storage/' . $this->post->primaryFile->file_path) }}"
-                                                         class="w-full h-full object-cover"
-                                                         alt="{{ $this->post->primaryFile->alt_text ?? 'Current Image' }}">
+                                            @elseif($this->post->primaryFile && $this->primaryFileId !== null && $this->primaryFileId !== '' && !empty($this->post->primaryFile->file_path))
+                                                @php
+                                                    // Generate imageKey for existing primary file
+                                                    $imageKey = 'existing:' . $this->post->primaryFile->file_id;
+
+                                                    // NEW: Use primary_image_spot_data from Livewire property (synced with hidden input)
+                                                    // This ensures JS editor updates are reflected in Livewire
+                                                    $primaryImageSpotDataJson = $primary_image_spot_data ?? null;
+
+                                                    // Fallback: If Livewire property is empty, use post->spot_data['image']
+                                                    if (!$primaryImageSpotDataJson) {
+                                                        $spotData = $this->post->spot_data ?? null;
+                                                        if ($spotData && isset($spotData['image'])) {
+                                                            // Wrap in { image: {...} } format for preview renderer
+                                                            $imageData = $spotData['image'];
+                                                            // Handle nested structure: if image has 'image' key, unwrap it
+                                                            if (isset($imageData['image']) && is_array($imageData['image'])) {
+                                                                $imageData = $imageData['image'];
+                                                            }
+                                                            $primaryImageSpotDataJson = json_encode(['image' => $imageData]);
+                                                        }
+                                                    } else {
+                                                        // primary_image_spot_data is the image object (from hidden input)
+                                                        // Wrap it in { image: {...} } format for preview renderer
+                                                        $decoded = json_decode($primaryImageSpotDataJson, true);
+                                                        if ($decoded) {
+                                                            // Handle nested structure: if decoded has 'image' key, unwrap it
+                                                            if (isset($decoded['image']) && is_array($decoded['image'])) {
+                                                                $decoded = $decoded['image'];
+                                                            }
+                                                            // Wrap in { image: {...} } format for preview renderer
+                                                            $primaryImageSpotDataJson = json_encode(['image' => $decoded]);
+                                                        }
+                                                    }
+
+                                                    // Parse for preview rendering (legacy support)
+                                                    $spotData = $this->post->spot_data ?? null;
+
+                                                    // Ensure spot_data is an array (might be JSON string or already decoded)
+                                                    if (is_string($spotData)) {
+                                                        $decoded = json_decode($spotData, true);
+                                                        $spotData = is_array($decoded) ? $decoded : null;
+                                                    }
+
+                                                    // If no saved spot_data exists, check if we have live editor data in component properties
+                                                    // This is for cases where user is editing but hasn't saved yet
+                                                    if (!$spotData || !isset($spotData['image'])) {
+                                                        // Check if we have editor data in component properties
+                                                        $hasEditorData = false;
+
+                                                        // Check if any editor property is set
+                                                        if (!empty($this->originalImagePath)) {
+                                                            $hasEditorData = true;
+                                                        } elseif (!empty($this->imageTextObjects) && is_array($this->imageTextObjects) && count($this->imageTextObjects) > 0) {
+                                                            $hasEditorData = true;
+                                                        } elseif (!empty($this->imageEffects) && is_array($this->imageEffects)) {
+                                                            $hasEditorData = true;
+                                                        } elseif (!empty($this->desktopCrop) && is_array($this->desktopCrop) && count($this->desktopCrop) > 0) {
+                                                            $hasEditorData = true;
+                                                        } elseif (!empty($this->canvasDimensions) && is_array($this->canvasDimensions) && (($this->canvasDimensions['width'] ?? 0) > 0 || ($this->canvasDimensions['height'] ?? 0) > 0)) {
+                                                            $hasEditorData = true;
+                                                        } elseif ($this->imageEditorUsed === true) {
+                                                            $hasEditorData = true;
+                                                        }
+
+                                                        if ($hasEditorData) {
+                                                            // Build spot_data from component properties (for unsaved edits)
+                                                            $spotData = [
+                                                                'image' => [
+                                                                    'original' => [
+                                                                        'path' => $this->originalImagePath ?? ($this->post->primaryFile->file_path ?? ''),
+                                                                        'width' => $this->originalImageWidth ?? 0,
+                                                                        'height' => $this->originalImageHeight ?? 0,
+                                                                        'hash' => $this->originalImageHash ?? null,
+                                                                    ],
+                                                                    'variants' => [
+                                                                        'desktop' => [
+                                                                            'crop' => is_array($this->desktopCrop) && !empty($this->desktopCrop) ? $this->desktopCrop : [],
+                                                                            'focus' => $this->desktopFocus ?? 'center',
+                                                                        ],
+                                                                        'mobile' => [
+                                                                            'crop' => is_array($this->mobileCrop) && !empty($this->mobileCrop) ? $this->mobileCrop : [],
+                                                                            'focus' => $this->mobileFocus ?? 'center',
+                                                                        ],
+                                                                    ],
+                                                                    'effects' => is_array($this->imageEffects) ? $this->imageEffects : [],
+                                                                    'meta' => is_array($this->imageMeta) ? $this->imageMeta : [],
+                                                                    'textObjects' => is_array($this->imageTextObjects) ? $this->imageTextObjects : [],
+                                                                    'canvas' => [
+                                                                        'width' => $this->canvasDimensions['width'] ?? 0,
+                                                                        'height' => $this->canvasDimensions['height'] ?? 0,
+                                                                    ],
+                                                                ],
+                                                            ];
+                                                        }
+                                                    }
+
+                                                    $imageUrl = asset('storage/' . $this->post->primaryFile->file_path);
+                                                    if ($spotData && isset($spotData['image']['original']['path'])) {
+                                                        $originalPath = $spotData['image']['original']['path'];
+                                                        // If path is relative (doesn't start with http), prepend storage
+                                                        if (strpos($originalPath, 'http') !== 0) {
+                                                            $imageUrl = asset('storage/' . $originalPath);
+                                                        } else {
+                                                            $imageUrl = $originalPath;
+                                                        }
+                                                    }
+
+                                                    $cropData = null;
+                                                    $effects = null;
+                                                    $textObjects = null;
+                                                    $originalSize = null;
+
+                                                    if ($spotData && isset($spotData['image'])) {
+                                                        $imageData = $spotData['image'];
+                                                        // Get desktop crop (or mobile if desktop not available)
+                                                        $cropData = $imageData['variants']['desktop']['crop'] ?? $imageData['variants']['mobile']['crop'] ?? null;
+                                                        $effects = $imageData['effects'] ?? null;
+                                                        $textObjects = $imageData['textObjects'] ?? null;
+                                                        $originalSize = $imageData['original'] ?? null;
+                                                    }
+                                                @endphp
+                                                {{-- Hidden input for Livewire sync --}}
+                                                <input type="hidden"
+                                                       id="primary_image_spot_data"
+                                                       wire:model.lazy="primary_image_spot_data">
+
+                                                <div class="relative w-full h-full group image-preview-card"
+                                                     data-image-key="{{ $imageKey }}">
+                                                    {{-- Preview canvas for spot_data rendering --}}
+                                                    <canvas id="preview-canvas-{{ $this->post->primaryFile->file_id }}"
+                                                            class="image-preview-canvas w-full h-full object-cover"
+                                                            data-image-key="{{ $imageKey }}"
+                                                            style="display: none;"></canvas>
+                                                    {{-- Fallback image --}}
+                                                    <img id="preview-img-{{ $this->post->primaryFile->file_id }}"
+                                                         class="image-preview-img w-full h-full object-cover"
+                                                         src="{{ $imageUrl }}"
+                                                         alt="{{ $this->post->primaryFile->alt_text ?? 'Current Image' }}"
+                                                         data-image-key="{{ $imageKey }}"
+                                                         @if($primaryImageSpotDataJson)
+                                                             data-spot-data="{{ htmlspecialchars($primaryImageSpotDataJson, ENT_QUOTES, 'UTF-8', false) }}"
+                                                             data-has-spot-data="true"
+                                                         @else
+                                                             data-spot-data=""
+                                                             data-has-spot-data="false"
+                                                         @endif
+                                                         data-image-url="{{ $imageUrl }}"
+                                                         data-file-id="{{ $this->post->primaryFile->file_id }}"
+                                                         onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }"
+                                                         onerror="this.style.display='none'; this.nextElementSibling && (this.nextElementSibling.style.display='flex');">
 
                                                     {{-- Top right corner button --}}
                                                     <div class="absolute top-2 right-2">
                                                         <button type="button"
-                                                                class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                                                                onclick="if (window.openImageEditor) { window.openImageEditor('{{ $this->post->primaryFile->file_id }}', '{{ asset('storage/' . $this->post->primaryFile->file_path) }}'); }"
+                                                                class="image-edit-button bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
+                                                                data-image-key="{{ $imageKey }}"
+                                                                data-image-url="{{ $imageUrl }}"
+                                                                    onclick="(function () {
+                                                                        const btn = this;
+                                                                        const imageKey = btn.getAttribute('data-image-key');
+                                                                        const imageUrl = btn.getAttribute('data-image-url');
+
+                                                                        // Image edit button clicked
+
+                                                                        if (!imageKey) {
+                                                                            console.error('Image Edit Button - imageKey is missing');
+                                                                            alert('Resim anahtarı bulunamadı. Lütfen sayfayı yenileyin.');
+                                                                            return;
+                                                                        }
+
+                                                                        if (!imageUrl) {
+                                                                            console.error('Image Edit Button - imageUrl is missing');
+                                                                            alert('Resim URL\'si bulunamadı. Lütfen sayfayı yenileyin.');
+                                                                            return;
+                                                                        }
+
+                                                                        // Find img element by imageKey
+                                                                        const img = document.querySelector('img[data-image-key=' + JSON.stringify(imageKey) + ']');
+                                                                        let initialSpotData = null;
+
+                                                                        if (img) {
+                                                                            const spotJson = img.getAttribute('data-spot-data');
+                                                                            if (spotJson && spotJson.length > 20) {
+                                                                                try {
+                                                                                    // Handle HTML-escaped JSON (common in Blade templates)
+                                                                                    let parsedJson = spotJson;
+                                                                                    
+                                                                                    // If the JSON appears to be HTML-escaped, try to unescape
+                                                                                    if (spotJson.includes('&quot;') || spotJson.includes('&amp;') || spotJson.includes('&lt;') || spotJson.includes('&gt;')) {
+                                                                                        // Create a temporary DOM element to unescape HTML entities
+                                                                                        const tempDiv = document.createElement('div');
+                                                                                        tempDiv.innerHTML = spotJson;
+                                                                                        parsedJson = tempDiv.textContent || tempDiv.innerText || spotJson;
+                                                                                    }
+                                                                                    
+                                                                                    initialSpotData = JSON.parse(parsedJson);
+                                                                                } catch(e) {
+                                                                                    console.error('Image Edit Button - Failed to parse spot_data from img:', e, {
+                                                                                        spotJsonLength: spotJson?.length,
+                                                                                        spotJsonPreview: spotJson?.substring(0, 100),
+                                                                                    });
+                                                                                    initialSpotData = null;
+                                                                                }
+                                                                            }
+                                                                        }
+
+                                                                        if (typeof window.openImageEditor === 'function') {
+                                                                            try {
+                                                                                window.openImageEditor(imageKey, {
+                                                                                    url: imageUrl,
+                                                                                    initialSpotData: initialSpotData,
+                                                                                });
+                                                                            } catch(e) {
+                                                                                console.error('Image Edit Button - Error calling openImageEditor:', e);
+                                                                                alert('Resim düzenleyici açılırken bir hata oluştu. Lütfen sayfayı yenileyin.');
+                                                                            }
+                                                                        } else {
+                                                                            console.error('Image Edit Button - window.openImageEditor is not defined');
+                                                                            // Try to wait for it to be available
+                                                                            let attempts = 0;
+                                                                            const checkInterval = setInterval(() => {
+                                                                                attempts++;
+                                                                                if (typeof window.openImageEditor === 'function') {
+                                                                                    clearInterval(checkInterval);
+                                                                                    window.openImageEditor(imageKey, {
+                                                                                        url: imageUrl,
+                                                                                        initialSpotData: initialSpotData,
+                                                                                    });
+                                                                                } else if (attempts >= 10) {
+                                                                                    clearInterval(checkInterval);
+                                                                                    alert('Resim düzenleyici yüklenemedi. Lütfen sayfayı yenileyin.');
+                                                                                }
+                                                                            }, 100);
+                                                                        }
+                                                                    }).call(this);"
                                                                 title="Düzenle">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
                                                     </div>
                                                 </div>
                                             @else
-                                                <div class="w-full h-full flex items-center justify-center text-gray-400">
-                                                    <i class="fas fa-image text-2xl"></i>
+                                                {{-- Placeholder when no image --}}
+                                                <div class="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+                                                    <i class="fas fa-image text-4xl mb-2"></i>
+                                                    <p class="text-sm">Resim yükleyin</p>
                                                 </div>
                                             @endif
                                         </div>
@@ -366,7 +653,7 @@
                                     id="post_position"
                                     required>
                                 @foreach($postPositions as $position)
-                                    <option value="{{ $position }}">{{ \Modules\Posts\Models\Post::POSITION_LABELS[$position] ?? ucfirst($position) }}</option>
+                                    <option value="{{ $position }}">{{ \Modules\Posts\Domain\ValueObjects\PostPosition::labels()[$position] ?? ucfirst($position) }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -604,7 +891,7 @@
 
 
     {{-- Posts modülü asset dosyalarını dahil et --}}
-    @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js'])
+    @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js', 'resources/js/image-preview-renderer/index.js'])
 
     {{-- Image Editor Modal --}}
     <div x-data="imageEditor()">

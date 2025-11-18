@@ -219,48 +219,125 @@
                                                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                                         <!-- Sol taraf: Resim -->
                                                         <div class="lg:col-span-1">
-                                                            <div class="relative group">
-                                                                <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
-                                                                    @php
-                                                                        $previewUrl = null;
-                                                                        try {
-                                                                            $previewUrl = $file->temporaryUrl();
-                                                                            if (empty($previewUrl) || !filter_var($previewUrl, FILTER_VALIDATE_URL)) {
-                                                                                throw new \Exception('Invalid URL');
+                                                            @php
+                                                                // Generate imageKey for new upload (temp image)
+                                                                // fileId is a string key for uploadedFiles array
+                                                                $imageKey = 'temp:' . $fileId;
+                                                                
+                                                                $previewUrl = null;
+                                                                try {
+                                                                    $previewUrl = $file->temporaryUrl();
+                                                                    if (empty($previewUrl) || !filter_var($previewUrl, FILTER_VALIDATE_URL)) {
+                                                                        throw new \Exception('Invalid URL');
+                                                                    }
+                                                                } catch (\Exception $e) {
+                                                                    try {
+                                                                        $realPath = $file->getRealPath();
+                                                                        if ($realPath && file_exists($realPath)) {
+                                                                            $fileSize = filesize($realPath);
+                                                                            if ($fileSize < 2 * 1024 * 1024) {
+                                                                                $imageContent = file_get_contents($realPath);
+                                                                                $base64 = base64_encode($imageContent);
+                                                                                $mimeType = $file->getMimeType() ?: 'image/jpeg';
+                                                                                $previewUrl = 'data:' . $mimeType . ';base64,' . $base64;
+                                                                            } else {
+                                                                                throw new \Exception('File too large');
                                                                             }
-                                                                        } catch (\Exception $e) {
-                                                                            try {
-                                                                                $realPath = $file->getRealPath();
-                                                                                if ($realPath && file_exists($realPath)) {
-                                                                                    $fileSize = filesize($realPath);
-                                                                                    if ($fileSize < 2 * 1024 * 1024) {
-                                                                                        $imageContent = file_get_contents($realPath);
-                                                                                        $base64 = base64_encode($imageContent);
-                                                                                        $mimeType = $file->getMimeType() ?: 'image/jpeg';
-                                                                                        $previewUrl = 'data:' . $mimeType . ';base64,' . $base64;
-                                                                                    } else {
-                                                                                        throw new \Exception('File too large');
-                                                                                    }
-                                                                                } else {
-                                                                                    throw new \Exception('File path not found');
-                                                                                }
-                                                                            } catch (\Exception $e2) {
-                                                                                $previewUrl = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-size="12">Resim yüklenemedi</text></svg>');
-                                                                            }
+                                                                        } else {
+                                                                            throw new \Exception('File path not found');
                                                                         }
-                                                                    @endphp
-                                                                    <img src="{{ $previewUrl }}"
-                                                                         class="w-full h-full object-cover"
+                                                                    } catch (\Exception $e2) {
+                                                                        $previewUrl = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-size="12">Resim yüklenemedi</text></svg>');
+                                                                    }
+                                                                }
+                                                                
+                                                                $imageUrl = $previewUrl;
+                                                            @endphp
+                                                            <div class="relative group image-preview-card"
+                                                                 data-image-key="{{ $imageKey }}">
+                                                                <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                                                                    {{-- Preview canvas for spot_data rendering --}}
+                                                                    <canvas class="image-preview-canvas w-full h-full object-cover"
+                                                                            data-image-key="{{ $imageKey }}"
+                                                                            style="display: none;"></canvas>
+                                                                    {{-- Fallback image --}}
+                                                                    <img src="{{ $imageUrl }}"
+                                                                         class="image-preview-img w-full h-full object-cover"
                                                                          alt="Preview"
+                                                                         data-image-key="{{ $imageKey }}"
+                                                                         data-image-url="{{ $imageUrl }}"
+                                                                         data-spot-data=""
+                                                                         data-has-spot-data="false"
+                                                                         data-file-id="{{ $fileId }}"
+                                                                         onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }"
                                                                          onerror="console.error('Image preview error:', this.src); this.style.backgroundColor='#f3f4f6';"
-                                                                         onload="this.style.backgroundColor='transparent';"
                                                                          loading="lazy">
                                                                 </div>
                                                                 {{-- Top right corner buttons --}}
                                                                 <div class="absolute top-2 right-2 flex gap-2">
                                                                     <button type="button"
-                                                                            class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md"
-                                                                            onclick="if (window.openImageEditor) { window.openImageEditor('{{ $fileId }}', '{{ $file->temporaryUrl() }}'); }"
+                                                                            class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md image-edit-button"
+                                                                            data-image-key="{{ $imageKey }}"
+                                                                            data-image-url="{{ $imageUrl }}"
+                                                                            onclick="(function () {
+                                                                                const btn = this;
+                                                                                const imageKey = btn.getAttribute('data-image-key');
+                                                                                const imageUrl = btn.getAttribute('data-image-url');
+                                                                                
+                                                                                if (!imageKey || !imageUrl) {
+                                                                                    console.error('Image Edit Button - Missing imageKey or imageUrl');
+                                                                                    return;
+                                                                                }
+                                                                                
+                                                                                // Find img element by imageKey
+                                                                                const img = document.querySelector('img[data-image-key=' + JSON.stringify(imageKey) + ']');
+                                                                                let initialSpotData = null;
+                                                                                
+                                                                                if (img) {
+                                                                                    const spotJson = img.getAttribute('data-spot-data');
+                                                                                    if (spotJson && spotJson.length > 20) {
+                                                                                        try {
+                                                                                            // Handle HTML-escaped JSON
+                                                                                            let parsedJson = spotJson;
+                                                                                            if (spotJson.includes('&quot;') || spotJson.includes('&amp;') || spotJson.includes('&lt;') || spotJson.includes('&gt;')) {
+                                                                                                const tempDiv = document.createElement('div');
+                                                                                                tempDiv.innerHTML = spotJson;
+                                                                                                parsedJson = tempDiv.textContent || tempDiv.innerText || spotJson;
+                                                                                            }
+                                                                                            initialSpotData = JSON.parse(parsedJson);
+                                                                                        } catch(e) {
+                                                                                            console.error('Image Edit Button - Failed to parse spot_data from img:', e);
+                                                                                            initialSpotData = null;
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                                
+                                                                                if (typeof window.openImageEditor === 'function') {
+                                                                                    try {
+                                                                                        window.openImageEditor(imageKey, {
+                                                                                            url: imageUrl,
+                                                                                            initialSpotData: initialSpotData,
+                                                                                        });
+                                                                                    } catch(e) {
+                                                                                        console.error('Image Edit Button - Error calling openImageEditor:', e);
+                                                                                    }
+                                                                                } else {
+                                                                                    console.error('Image Edit Button - window.openImageEditor is not defined');
+                                                                                    let attempts = 0;
+                                                                                    const checkInterval = setInterval(() => {
+                                                                                        attempts++;
+                                                                                        if (typeof window.openImageEditor === 'function') {
+                                                                                            clearInterval(checkInterval);
+                                                                                            window.openImageEditor(imageKey, {
+                                                                                                url: imageUrl,
+                                                                                                initialSpotData: initialSpotData,
+                                                                                            });
+                                                                                        } else if (attempts >= 10) {
+                                                                                            clearInterval(checkInterval);
+                                                                                        }
+                                                                                    }, 100);
+                                                                                }
+                                                                            }).call(this);"
                                                                             title="Düzenle">
                                                                         <i class="fas fa-edit"></i>
                                                                     </button>
@@ -405,7 +482,7 @@
                                     id="post_position"
                                     required>
                                 @foreach($postPositions as $position)
-                                    <option value="{{ $position }}">{{ \Modules\Posts\Models\Post::POSITION_LABELS[$position] ?? ucfirst($position) }}</option>
+                                    <option value="{{ $position }}">{{ \Modules\Posts\Domain\ValueObjects\PostPosition::labels()[$position] ?? ucfirst($position) }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -605,7 +682,7 @@
     </div>
 
     {{-- Posts modülü asset dosyalarını dahil et --}}
-    @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js'])
+    @vite(['Modules/Posts/resources/assets/sass/app.scss', 'Modules/Posts/resources/assets/js/app.js', 'resources/js/image-preview-renderer/index.js'])
 
     {{-- Image Editor Modal --}}
     <div x-data="imageEditor()">

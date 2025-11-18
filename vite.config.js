@@ -39,6 +39,7 @@ export default defineConfig({
                 // Posts Module
                 'Modules/Posts/resources/assets/sass/app.scss',
                 'Modules/Posts/resources/assets/js/app.js',
+                'resources/js/image-preview-renderer/index.js',
                 // Articles Module
                 'Modules/Articles/resources/assets/sass/app.scss',
                 'Modules/Articles/resources/assets/js/app.js',

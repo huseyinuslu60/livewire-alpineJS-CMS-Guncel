@@ -54,13 +54,6 @@
                     <i class="fas fa-crop"></i>
                 </button>
 
-                <button @click="setTool('brush')"
-                        :class="activeTool === 'brush' ? 'bg-blue-600' : 'hover:bg-gray-700'"
-                        class="w-12 h-12 rounded flex items-center justify-center"
-                        title="Fırça (B)">
-                    <i class="fas fa-paint-brush"></i>
-                </button>
-
                 <button @click="setTool('eraser')"
                         :class="activeTool === 'eraser' ? 'bg-blue-600' : 'hover:bg-gray-700'"
                         class="w-12 h-12 rounded flex items-center justify-center"
@@ -73,41 +66,6 @@
                         class="w-12 h-12 rounded flex items-center justify-center"
                         title="Metin (T)">
                     <i class="fas fa-font"></i>
-                </button>
-
-                <button @click="setTool('rectangle')"
-                        :class="activeTool === 'rectangle' ? 'bg-blue-600' : 'hover:bg-gray-700'"
-                        class="w-12 h-12 rounded flex items-center justify-center"
-                        title="Dikdörtgen (R)">
-                    <i class="fas fa-square"></i>
-                </button>
-
-                <button @click="setTool('circle')"
-                        :class="activeTool === 'circle' ? 'bg-blue-600' : 'hover:bg-gray-700'"
-                        class="w-12 h-12 rounded flex items-center justify-center"
-                        title="Daire (O)">
-                    <i class="fas fa-circle"></i>
-                </button>
-
-                <button @click="setTool('line')"
-                        :class="activeTool === 'line' ? 'bg-blue-600' : 'hover:bg-gray-700'"
-                        class="w-12 h-12 rounded flex items-center justify-center"
-                        title="Çizgi (L)">
-                    <i class="fas fa-minus"></i>
-                </button>
-
-                <button @click="setTool('clone')"
-                        :class="activeTool === 'clone' ? 'bg-blue-600' : 'hover:bg-gray-700'"
-                        class="w-12 h-12 rounded flex items-center justify-center"
-                        title="Klon (S)">
-                    <i class="fas fa-stamp"></i>
-                </button>
-
-                <button @click="setTool('blur')"
-                        :class="activeTool === 'blur' ? 'bg-blue-600' : 'hover:bg-gray-700'"
-                        class="w-12 h-12 rounded flex items-center justify-center"
-                        title="Bulanıklaştır">
-                    <i class="fas fa-tint"></i>
                 </button>
 
                 <button @click="setTool('pan')"
@@ -134,9 +92,9 @@
                 {{-- Tool Properties --}}
                 <div class="p-4 space-y-4">
 
-                    {{-- Brush Properties --}}
-                    <div x-show="activeTool === 'brush' || activeTool === 'eraser'" class="space-y-3">
-                        <h4 class="font-semibold text-sm uppercase text-gray-400">Fırça Ayarları</h4>
+                    {{-- Eraser Properties --}}
+                    <div x-show="activeTool === 'eraser'" class="space-y-3">
+                        <h4 class="font-semibold text-sm uppercase text-gray-400">Silgi Ayarları</h4>
 
                         <div>
                             <label class="block text-sm mb-1">Boyut</label>
@@ -146,13 +104,6 @@
                                    max="100"
                                    class="w-full">
                             <div class="text-xs text-gray-400 text-right" x-text="brushSize + 'px'"></div>
-                        </div>
-
-                        <div x-show="activeTool === 'brush'">
-                            <label class="block text-sm mb-1">Renk</label>
-                            <input type="color"
-                                   x-model="brushColor"
-                                   class="w-full h-10 rounded">
                         </div>
 
                         <div>
@@ -199,13 +150,13 @@
 
                         {{-- Basic Text Properties --}}
                         <div class="space-y-3 border-b border-gray-700 pb-3">
-                            <div x-show="activeTextIndex !== null">
+                            <div x-show="activeTextIndex !== null && textObjects[activeTextIndex]">
                                 <label class="block text-sm mb-1">Metin</label>
                                 <input type="text"
-                                       :value="activeTextIndex !== null ? textObjects[activeTextIndex].text : ''"
-                                       @input="if (activeTextIndex !== null) { textObjects[activeTextIndex].text = $event.target.value; draw(); saveState(); }"
-                                       @focus="if (activeTextIndex !== null) editingText = true;"
-                                       @blur="if (activeTextIndex !== null) editingText = false;"
+                                       :value="activeTextIndex !== null && textObjects[activeTextIndex] ? textObjects[activeTextIndex].text : ''"
+                                       @input="if (activeTextIndex !== null && textObjects[activeTextIndex]) { textObjects[activeTextIndex].text = $event.target.value; draw(); saveState(); }"
+                                       @focus="if (activeTextIndex !== null && textObjects[activeTextIndex]) editingText = true;"
+                                       @blur="if (activeTextIndex !== null && textObjects[activeTextIndex]) editingText = false;"
                                        placeholder="Metin girin..."
                                        class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm">
                                 <p class="text-xs text-gray-400 mt-1">Yazıyı düzenlemek için input'a tıklayın veya canvas'ta yazıya çift tıklayın</p>
@@ -214,7 +165,7 @@
                             <div>
                                 <label class="block text-sm mb-1">Yazı Rengi</label>
                                 <input type="color"
-                                       :value="activeTextIndex !== null ? (textObjects[activeTextIndex].color || textColor) : textColor"
+                                       :value="activeTextIndex !== null && textObjects[activeTextIndex] ? (textObjects[activeTextIndex].color || textColor) : textColor"
                                        @change="changeTextColor($event.target.value)"
                                        class="w-full h-10 rounded">
                             </div>
@@ -223,7 +174,7 @@
                                 <label class="block text-sm mb-1">Arka Plan Rengi</label>
                                 <div class="flex gap-2">
                                     <input type="color"
-                                           :value="activeTextIndex !== null ? (textObjects[activeTextIndex].backgroundColor && textObjects[activeTextIndex].backgroundColor !== 'transparent' ? textObjects[activeTextIndex].backgroundColor : '#000000') : (textBackgroundColor !== 'transparent' ? textBackgroundColor : '#000000')"
+                                           :value="activeTextIndex !== null && textObjects[activeTextIndex] ? (textObjects[activeTextIndex].backgroundColor && textObjects[activeTextIndex].backgroundColor !== 'transparent' ? textObjects[activeTextIndex].backgroundColor : '#000000') : (textBackgroundColor !== 'transparent' ? textBackgroundColor : '#000000')"
                                            @change="changeTextBackgroundColor($event.target.value)"
                                            class="flex-1 h-10 rounded">
                                     <button @click="changeTextBackgroundColor('transparent')"
@@ -485,43 +436,6 @@
                         </div>
                     </div>
 
-                    {{-- Shape Properties --}}
-                    <div x-show="activeTool === 'rectangle' || activeTool === 'circle' || activeTool === 'line'" class="space-y-3">
-                        <h4 class="font-semibold text-sm uppercase text-gray-400">Şekil Ayarları</h4>
-
-                        <div>
-                            <label class="block text-sm mb-1">Çizgi Rengi</label>
-                            <input type="color"
-                                   x-model="shapeColor"
-                                   class="w-full h-10 rounded">
-                        </div>
-
-                        <div x-show="activeTool === 'rectangle' || activeTool === 'circle'">
-                            <label class="block text-sm mb-1">Dolgu Rengi</label>
-                            <input type="color"
-                                   x-model="shapeFillColor"
-                                   class="w-full h-10 rounded">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm mb-1">Çizgi Kalınlığı</label>
-                            <input type="range"
-                                   x-model="shapeStrokeWidth"
-                                   min="1"
-                                   max="20"
-                                   class="w-full">
-                            <div class="text-xs text-gray-400 text-right" x-text="shapeStrokeWidth + 'px'"></div>
-                        </div>
-
-                        <div x-show="activeTool === 'rectangle' || activeTool === 'circle'">
-                            <label class="flex items-center space-x-2">
-                                <input type="checkbox"
-                                       x-model="shapeFilled"
-                                       class="rounded">
-                                <span class="text-sm">Dolu</span>
-                            </label>
-                        </div>
-                    </div>
 
                     {{-- Zoom Control --}}
                     <div class="space-y-3 border-t border-gray-700 pt-4">
@@ -645,7 +559,7 @@
                     </div>
 
                     {{-- Delete Selected --}}
-                    <div x-show="activeTextIndex !== null || activeShapeIndex !== null"
+                    <div x-show="activeTextIndex !== null"
                          class="border-t border-gray-700 pt-4">
                         <button @click="deleteSelected()"
                                 class="w-full px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm"

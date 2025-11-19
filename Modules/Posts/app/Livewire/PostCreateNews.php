@@ -229,8 +229,8 @@ class PostCreateNews extends Component
 
         // Eğer agency parametresi varsa, ajans haberinden verileri yükle
         if ($agency) {
-            $agencyNews = $this->agencyNewsService->findById($agency);
-            if ($agencyNews !== null) {
+            try {
+                $agencyNews = $this->agencyNewsService->findById($agency);
                 $this->title = $agencyNews->title ?? '';
                 $this->summary = $agencyNews->summary ?? '';
                 $this->content = $agencyNews->content ?? '';
@@ -247,6 +247,8 @@ class PostCreateNews extends Component
                 if ($agencyNews->tags) {
                     $this->tagsInput = $agencyNews->tags;
                 }
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                // Agency news bulunamadı, devam et
             }
         }
     }
@@ -690,13 +692,14 @@ class PostCreateNews extends Component
             }
 
             // Only save spot_data if image editor was used AND we have actual data
-            if ($this->imageEditorUsed && isset($spotData['image'])) {
+            if ($this->imageEditorUsed && array_key_exists('image', $spotData)) {
+                $imageData = $spotData['image'];
                 LogHelper::info('PostCreateNews savePost - Saving spot_data', [
-                    'has_spot_data' => isset($spotData['image']),
+                    'has_spot_data' => true,
                     'has_image' => true,
-                    'has_textObjects' => ! empty(($spotData['image']['textObjects'] ?? [])),
-                    'textObjects_count' => count(($spotData['image']['textObjects'] ?? [])),
-                    'has_effects' => ! empty(($spotData['image']['effects'] ?? [])),
+                    'has_textObjects' => ! empty($imageData['textObjects']),
+                    'textObjects_count' => count($imageData['textObjects']),
+                    'has_effects' => ! empty($imageData['effects']),
                     'primaryFileIndex' => $this->primaryFileIndex,
                     'imageEditorData_keys' => array_keys($this->imageEditorData),
                 ]);

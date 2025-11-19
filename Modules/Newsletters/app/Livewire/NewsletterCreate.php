@@ -102,7 +102,7 @@ class NewsletterCreate extends Component
     {
         try {
             $post = $this->postsService->findById($postId);
-            if ($post !== null && ! in_array($postId, $this->selectedPosts)) {
+            if (! in_array($postId, $this->selectedPosts)) {
                 $this->selectedPosts[] = $postId;
                 $this->updateNewsletterBody();
                 session()->flash('success', 'Haber bültene eklendi!');

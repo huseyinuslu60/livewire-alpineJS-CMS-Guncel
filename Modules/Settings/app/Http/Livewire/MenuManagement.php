@@ -343,9 +343,9 @@ class MenuManagement extends Component
 
                 $updateData = ['sort_order' => $item['sort_order']];
 
-                // parent_id varsa güncelle (null veya 0 ise null yap)
+                // parent_id varsa güncelle (0 ise null yap)
                 if (isset($item['parent_id'])) {
-                    $updateData['parent_id'] = ($item['parent_id'] === 0 || $item['parent_id'] === null) ? null : (int) $item['parent_id'];
+                    $updateData['parent_id'] = ($item['parent_id'] === 0) ? null : (int) $item['parent_id'];
                 }
 
                 $menuItem = $this->menuItemService->findById($item['id']);

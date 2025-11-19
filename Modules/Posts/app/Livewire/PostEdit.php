@@ -2098,9 +2098,15 @@ class PostEdit extends Component
                 'alt' => 'Alt metin',
             ];
 
-            $maxLength = $maxLengths[$field] ?? PHP_INT_MAX;
+            if (! array_key_exists($field, $maxLengths)) {
+                throw new \InvalidArgumentException("Geçersiz alan: {$field}");
+            }
+            $maxLength = $maxLengths[$field];
             if (strlen($value) > $maxLength) {
-                $fieldName = $fieldNames[$field] ?? $field;
+                if (! array_key_exists($field, $fieldNames)) {
+                    throw new \InvalidArgumentException("Geçersiz alan adı: {$field}");
+                }
+                $fieldName = $fieldNames[$field];
                 throw new \InvalidArgumentException("{$fieldName} en fazla {$maxLength} karakter olabilir");
             }
 

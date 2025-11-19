@@ -56,10 +56,8 @@ class TemplateIndex extends Component
 
             return;
         }
-        if ($template !== null) {
-            $this->templateService->toggleActive($template);
-            session()->flash('success', 'Template durumu güncellendi!');
-        }
+        $this->templateService->toggleActive($template);
+        session()->flash('success', 'Template durumu güncellendi!');
     }
 
     public function deleteTemplate($templateId)
@@ -71,10 +69,8 @@ class TemplateIndex extends Component
 
             return;
         }
-        if ($template !== null) {
-            $this->templateService->delete($template);
-            session()->flash('success', 'Template başarıyla silindi!');
-        }
+        $this->templateService->delete($template);
+        session()->flash('success', 'Template başarıyla silindi!');
     }
 
     public function render()

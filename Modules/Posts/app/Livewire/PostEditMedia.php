@@ -224,22 +224,23 @@ class PostEditMedia extends Component
             ];
 
             // strlen kontrolü - $value artık her zaman string
-            $maxLength = $maxLengths[$field] ?? PHP_INT_MAX;
+            if (! array_key_exists($field, $maxLengths)) {
+                throw new \InvalidArgumentException("Geçersiz alan: {$field}");
+            }
+            $maxLength = $maxLengths[$field];
             if (strlen($value) > $maxLength) {
-                $fieldName = $fieldNames[$field] ?? $field;
+                if (! array_key_exists($field, $fieldNames)) {
+                    throw new \InvalidArgumentException("Geçersiz alan adı: {$field}");
+                }
+                $fieldName = $fieldNames[$field];
                 throw new \InvalidArgumentException("{$fieldName} en fazla {$maxLength} karakter olabilir");
             }
 
             // dbFieldMap zaten yukarıda tanımlandı
-            $dbField = $dbFieldMap[$field] ?? null;
-
-            if (! $dbField) {
-                LogHelper::error('PostEditMedia updateFileById: Invalid dbField mapping', [
-                    'field' => $field,
-                    'dbFieldMap' => $dbFieldMap,
-                ]);
-                abort(403, 'Geçersiz alan mapping');
+            if (! array_key_exists($field, $dbFieldMap)) {
+                throw new \InvalidArgumentException("Geçersiz alan mapping: {$field}");
             }
+            $dbField = $dbFieldMap[$field];
 
             // Convert fileId to string for comparison
             $fileIdStr = (string) $fileId;
@@ -378,7 +379,7 @@ class PostEditMedia extends Component
             // Debug: existingFiles'dan açıklamaları kontrol et
             $descriptionsBefore = array_map(function (array $file) {
                 return [
-                    'file_id' => $file['file_id'] ?? null,
+                    'file_id' => $file['file_id'],
                     'description' => $file['description'] ?? '',
                     'description_length' => strlen($file['description'] ?? ''),
                 ];
@@ -461,7 +462,7 @@ class PostEditMedia extends Component
                     }
                 }
 
-                return $result && $result2;
+                return $result2;
             }
 
             return false;

@@ -161,7 +161,7 @@ const initTrumbowyg = () => {
       ['strong', 'em', 'del'],
       ['superscript', 'subscript'],
       ['link'],
-      ['insertImage'],
+      ['insertImage', 'archive'],
       ['justifyLeft', 'justifyCenter', 'justifyRight'],
       ['unorderedList', 'orderedList'],
       ['horizontalRule'],
@@ -185,6 +185,9 @@ const initTrumbowyg = () => {
     const config = window.__TRUMBOWYG_CONFIG || {
       lang: 'tr',
       btns: isGalleryDescription ? minimalButtons : defaultButtons,
+      plugins: {
+        archive: {} // Archive plugin'ini aktif et
+      },
       autogrow: isGalleryDescription ? true : false,
       fixedHeight: isGalleryDescription ? 180 : 400,
       fullscreen: !isGalleryDescription,

@@ -190,11 +190,18 @@
                                 Thumbnail (Opsiyonel)
                             </label>
                             <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors duration-200 relative">
-                                <input type="file" 
-                                       wire:model.live="files" 
+                                <!-- Arşivden Seç Butonu - Dropzone'un sol köşesinde -->
+                                <button type="button" 
+                                        onclick="document.dispatchEvent(new CustomEvent('openFilesModal', { detail: { mode: 'select', multiple: false, type: 'image' } }))"
+                                        class="absolute top-3 left-3 inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors duration-150 shadow-md z-10">
+                                    <i class="fas fa-archive mr-1"></i>
+                                    Arşivden Seç
+                                </button>
+                                <input type="file"
+                                       wire:model.live="files"
                                        multiple
-                                       class="hidden" 
-                                       id="files" 
+                                       class="hidden"
+                                       id="files"
                                        accept="image/*">
                                 <label for="files" class="cursor-pointer">
                                     <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>

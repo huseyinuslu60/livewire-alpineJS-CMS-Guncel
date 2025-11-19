@@ -18,6 +18,8 @@ import 'trumbowyg';
 import 'trumbowyg/dist/langs/tr.min.js';
 // Trumbowyg CSS
 import 'trumbowyg/dist/ui/trumbowyg.css';
+// Trumbowyg Archive Plugin
+import './trumbowyg-archive-plugin';
 // Trumbowyg SVG ikonları - URL olarak import et ve path'i ayarla
 // Vite SVG'yi bundle edip public URL'ini döndürecek
 import svgPath from 'trumbowyg/dist/ui/icons.svg?url';
@@ -288,3 +290,7 @@ mountEditorsLifecycle();
 
 // Livewire + Alpine Lifecycle Manager - Merkezi orkestratör
 mountLivewireAlpineLifecycle();
+
+// Files Modal Handler
+import { initFilesModalHandler } from './files-modal-handler';
+initFilesModalHandler();

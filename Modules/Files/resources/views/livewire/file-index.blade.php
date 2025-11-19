@@ -52,6 +52,7 @@
     @endif
 
     <!-- Header -->
+    @if(!$isModal)
     <div class="bg-[var(--surface)] rounded-xl shadow-sm border border-[var(--border-subtle)] mb-6">
         <div class="px-6 py-4">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -81,6 +82,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Filters -->
     <div class="bg-[var(--surface)] rounded-xl shadow-sm border border-[var(--border-subtle)] mb-6">
@@ -155,10 +157,18 @@
                         class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm">
                     Seçimi Temizle
                 </button>
+                @if(!$isModal)
                 <button wire:click="toggleSelectionMode"
                         class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm">
                     Çık
                 </button>
+                @else
+                <button wire:click="confirmSelection"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium">
+                    <i class="fas fa-check mr-1"></i>
+                    Seç
+                </button>
+                @endif
             </div>
         </div>
     </div>

@@ -181,7 +181,7 @@ class PostCreateNews extends Component
         return $processedFiles;
     }
 
-    protected $listeners = ['contentUpdated'];
+    protected $listeners = ['contentUpdated', 'filesSelectedForPost'];
 
     /**
      * Hydrate component - called when component is loaded
@@ -316,6 +316,76 @@ class PostCreateNews extends Component
         $this->skipRender();
         // Ensure content is always a string
         $this->content = (string) ($content ?? '');
+    }
+
+    public function filesSelectedForPost($data)
+    {
+        $this->skipRender();
+
+        if (! isset($data['files']) || ! is_array($data['files']) || empty($data['files'])) {
+            return;
+        }
+
+        // İlk dosyayı al (multiple: false olduğu için)
+        $selectedFile = $data['files'][0];
+
+        if (! isset($selectedFile['url'])) {
+            return;
+        }
+
+        try {
+            // Dosyayı URL'den indir
+            $imageUrl = $selectedFile['url'];
+
+            // Asset URL'ini path'e çevir
+            $filePath = null;
+            if (str_starts_with($imageUrl, asset(''))) {
+                $relativePath = str_replace(asset(''), '', $imageUrl);
+                $filePath = public_path($relativePath);
+            } elseif (str_starts_with($imageUrl, 'http')) {
+                // Full URL ise indir
+                $imageContent = @file_get_contents($imageUrl);
+                if ($imageContent === false) {
+                    throw new \Exception('Dosya indirilemedi');
+                }
+
+                $tempDir = sys_get_temp_dir();
+                $fileName = $selectedFile['title'] ?? 'archive-'.uniqid().'.jpg';
+                $tempFilePath = $tempDir.'/'.'livewire-archive-'.uniqid().'-'.$fileName;
+                file_put_contents($tempFilePath, $imageContent);
+                $filePath = $tempFilePath;
+            } else {
+                $filePath = public_path('storage/'.$imageUrl);
+            }
+
+            if (! file_exists($filePath)) {
+                throw new \Exception('Dosya bulunamadı');
+            }
+
+            // MIME type'ı belirle
+            $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
+            $originalName = $selectedFile['title'] ?? basename($filePath);
+
+            // UploadedFile oluştur
+            $uploadedFile = new \Illuminate\Http\UploadedFile(
+                $filePath,
+                $originalName,
+                $mimeType,
+                null,
+                true // test mode
+            );
+
+            // Files array'ine ekle (mevcut dosyaları temizle)
+            $this->files = [$uploadedFile];
+
+            session()->flash('success', 'Dosya arşivden seçildi!');
+        } catch (\Exception $e) {
+            \App\Helpers\LogHelper::error('Arşivden dosya seçilirken hata', [
+                'error' => $e->getMessage(),
+                'file' => $selectedFile,
+            ]);
+            session()->flash('error', 'Dosya seçilirken bir hata oluştu: '.$e->getMessage());
+        }
     }
 
     public function removeFile($index)

@@ -518,6 +518,13 @@
 
                                     <!-- Yeni Resim Yükleme -->
                                     <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 transition-colors duration-200 relative">
+                                        <!-- Arşivden Seç Butonu - Dropzone'un sol köşesinde -->
+                                        <button type="button" 
+                                                onclick="document.dispatchEvent(new CustomEvent('openFilesModal', { detail: { mode: 'select', multiple: false, type: 'image' } }))"
+                                                class="absolute top-3 left-3 inline-flex items-center px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors duration-150 shadow-md z-10">
+                                            <i class="fas fa-archive mr-1"></i>
+                                            Arşivden Seç
+                                        </button>
                                         <input type="file"
                                                wire:model.live="newFiles"
                                                class="hidden"

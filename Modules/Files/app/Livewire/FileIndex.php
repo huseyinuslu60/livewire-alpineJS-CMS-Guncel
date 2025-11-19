@@ -46,6 +46,8 @@ class FileIndex extends Component
 
     public bool $showUploadModal = false; // Upload modal kontrolü
 
+    public bool $isModal = false; // Modal modunda mı?
+
     // Edit file properties
     public ?\Modules\Files\Models\File $editingFile = null;
 
@@ -75,9 +77,20 @@ class FileIndex extends Component
         'closeUploadModal' => 'closeUploadModal',
     ];
 
-    public function mount()
+    public function mount($modal = false)
     {
         Gate::authorize('view files');
+
+        // Modal parametresini al (Livewire'dan veya query'den)
+        if ($modal === false) {
+            $modal = request()->query('modal', false);
+        }
+        $this->isModal = (bool) $modal;
+
+        // Modal modunda otomatik olarak seçim modunu aktif et
+        if ($this->isModal) {
+            $this->selectionMode = true;
+        }
     }
 
     public function updatedSearch()
@@ -367,7 +380,7 @@ class FileIndex extends Component
         /** @var view-string $view */
         $view = 'files::livewire.file-index';
 
-        return view($view, [
+        $viewData = [
             'files' => $this->getFiles()->paginate(Pagination::clamp($this->perPage)),
             'mimeTypes' => [
                 'image' => 'Resimler',
@@ -376,6 +389,13 @@ class FileIndex extends Component
                 'application/pdf' => 'PDF Dosyaları',
                 'text' => 'Metin Dosyaları',
             ],
-        ])->extends('layouts.admin')->section('content');
+        ];
+
+        // Modal modunda layout kullanma
+        if ($this->isModal) {
+            return view($view, $viewData);
+        }
+
+        return view($view, $viewData)->extends('layouts.admin')->section('content');
     }
 }

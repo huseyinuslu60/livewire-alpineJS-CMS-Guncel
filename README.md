@@ -1,6 +1,19 @@
-# 📰 Livewire-AlpineJS CMS Güncel
+# bg-laravel Admin Platform
 
 [![CI](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/actions/workflows/ci.yml/badge.svg)](https://github.com/huseyinuslu60/livewire-alpineJS-CMS-Guncel/actions/workflows/ci.yml)
+
+Modern, modüler ve güvenli bir içerik yönetimi platformu. Laravel 12 (PHP 8.2), Livewire 3, Tailwind v4, Vite 7 ve Alpine.js 3 üzerine kurulu; editor lazy-load, güvenli dosya yükleme, `spot_data` tabanlı görsel düzenleme ve performans odaklı mimari içerir.
+
+Hızlı bağlantılar:
+- Geliştirici Rehberi: `docs/development-guide.md`
+- Kurulum Kısayol: `composer install` → `npm install` → `.env` → `php artisan key:generate` → `php artisan migrate:fresh --seed` → `npm run dev`
+- Önemli ENV: `FILES_MAX_SIZE_KB`, `IMAGE_DOWNLOAD_ALLOWED_HOSTS`, `LOG_VERBOSE`
+
+Öne çıkanlar:
+- Editor Lazy-Load (jQuery + Trumbowyg ayrı chunk, yalnızca `[data-editor]` olan sayfalarda yüklenir)
+- Güvenlik: XSS Sanitizer, SSRF same-origin guard + whitelist, SecureFileUpload (MIME/extension/finfo/evil-content)
+- Performans: Composite indexler, batch gallery update (N+1 yok), Vite manualChunks
+- Mimari: Nwidart Modules, Service katmanı, Livewire + Alpine lifecycle yönetimi
 
 Modern Laravel 12 tabanlı, tam modüler haber ve içerik yönetim sistemi. Livewire 3 ve Alpine.js ile geliştirilmiş, kullanıcı dostu admin paneli ve güçlü özellikler sunar.
 

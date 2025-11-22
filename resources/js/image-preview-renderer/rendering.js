@@ -64,6 +64,75 @@ export function calculateCropRectangles(crop, originalWidth, originalHeight, img
 }
 
 /**
+ * Compute auto crop when explicit crop is not provided.
+ * Crops image to match canvas aspect ratio using focus hint.
+ * @param {number} imgWidth - Loaded image width
+ * @param {number} imgHeight - Loaded image height
+ * @param {number} canvasWidth - Canvas width
+ * @param {number} canvasHeight - Canvas height
+ * @param {string} focus - Focus hint: 'center' | 'top' | 'bottom' | 'left' | 'right'
+ * @returns {{sx:number, sy:number, sw:number, sh:number, dx:number, dy:number, dw:number, dh:number}}
+ */
+export function calculateAutoCropRectangles(imgWidth, imgHeight, canvasWidth, canvasHeight, focus = 'center') {
+    const desiredAspect = canvasWidth / canvasHeight;
+    const sourceAspect = imgWidth / imgHeight;
+
+    let sw, sh;
+    if (sourceAspect > desiredAspect) {
+        // Image is wider than desired; crop width
+        sh = imgHeight;
+        sw = Math.floor(sh * desiredAspect);
+    } else {
+        // Image is taller; crop height
+        sw = imgWidth;
+        sh = Math.floor(sw / desiredAspect);
+    }
+
+    let sx = 0;
+    let sy = 0;
+    // Position crop based on focus
+    switch ((focus || 'center').toLowerCase()) {
+        case 'left':
+            sx = 0;
+            sy = Math.max(0, Math.floor((imgHeight - sh) / 2));
+            break;
+        case 'right':
+            sx = Math.max(0, imgWidth - sw);
+            sy = Math.max(0, Math.floor((imgHeight - sh) / 2));
+            break;
+        case 'top':
+            sx = Math.max(0, Math.floor((imgWidth - sw) / 2));
+            sy = 0;
+            break;
+        case 'bottom':
+            sx = Math.max(0, Math.floor((imgWidth - sw) / 2));
+            sy = Math.max(0, imgHeight - sh);
+            break;
+        case 'center':
+        default:
+            sx = Math.max(0, Math.floor((imgWidth - sw) / 2));
+            sy = Math.max(0, Math.floor((imgHeight - sh) / 2));
+            break;
+    }
+
+    // Destination rectangle fits canvas while keeping aspect
+    let dw, dh, dx, dy;
+    const cropAspect = sw / sh;
+    const canvasAspect = canvasWidth / canvasHeight;
+    if (cropAspect > canvasAspect) {
+        dw = canvasWidth;
+        dh = canvasWidth / cropAspect;
+    } else {
+        dh = canvasHeight;
+        dw = canvasHeight * cropAspect;
+    }
+    dx = (canvasWidth - dw) / 2;
+    dy = (canvasHeight - dh) / 2;
+
+    return { sx, sy, sw, sh, dx, dy, dw, dh };
+}
+
+/**
  * Build CSS filter string from effects
  * @param {object} effects - Effects object
  * @returns {string} CSS filter string

@@ -5,7 +5,7 @@
  */
 
 import { findSpotData, findPreviewCanvas, findPreviewImage, resolveImageSource } from './utils.js';
-import { calculateCropRectangles, buildFilterString, renderTextObjects } from './rendering.js';
+import { calculateCropRectangles, calculateAutoCropRectangles, buildFilterString, renderTextObjects } from './rendering.js';
 if (typeof window !== 'undefined') {
   window.__PreviewRenderCache__ = window.__PreviewRenderCache__ || {};
 }
@@ -210,6 +210,22 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
             dy = cropRects.dy;
             dw = cropRects.dw;
             dh = cropRects.dh;
+        } else {
+            // Auto-crop fallback: use focus hint and canvas aspect ratio
+            const focus = imageData.variants?.desktop?.focus || imageData.variants?.mobile?.focus || 'center';
+            const autoRects = calculateAutoCropRectangles(
+                img.width, img.height,
+                canvas.width, canvas.height,
+                focus
+            );
+            sx = autoRects.sx;
+            sy = autoRects.sy;
+            sw = autoRects.sw;
+            sh = autoRects.sh;
+            dx = autoRects.dx;
+            dy = autoRects.dy;
+            dw = autoRects.dw;
+            dh = autoRects.dh;
         }
 
         // Apply effects

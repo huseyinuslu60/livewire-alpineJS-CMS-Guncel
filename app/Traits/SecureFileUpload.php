@@ -47,12 +47,14 @@ trait SecureFileUpload
     {
         $errors = [];
 
-        $configuredMaxKb = (int) config('files.max_size_kb', $this->maxFileSize);
+        $configuredMaxKb = (int) min($this->maxFileSize, (int) config('files.max_size_kb', $this->maxFileSize));
         if ($configuredMaxKb <= 0) {
             $configuredMaxKb = $this->maxFileSize;
         }
         if ($file->getSize() > ($configuredMaxKb * 1024)) {
             $errors[] = "Dosya boyutu {$configuredMaxKb}KB'den büyük olamaz.";
+            // Büyük dosyaları diğer kontrolleri çalıştırmadan hemen reddet
+            return $errors;
         }
 
         // Check MIME type

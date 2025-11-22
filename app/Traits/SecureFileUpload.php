@@ -53,6 +53,7 @@ trait SecureFileUpload
         }
         if ($file->getSize() > ($configuredMaxKb * 1024)) {
             $errors[] = "Dosya boyutu {$configuredMaxKb}KB'den büyük olamaz.";
+
             // Büyük dosyaları diğer kontrolleri çalıştırmadan hemen reddet
             return $errors;
         }

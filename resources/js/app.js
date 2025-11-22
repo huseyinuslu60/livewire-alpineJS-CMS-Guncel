@@ -1,53 +1,7 @@
 // Temel import'lar
 import './bootstrap';
 
-// jQuery - Trumbowyg'den ÖNCE import edilmeli ve global olarak expose edilmelidir
-// Global exposure'ı garanti eden özel dosyadan import et
-// Bu dosya window.jQuery ve window.$ değerlerini senkron olarak ayarlar
-import './jquery-init';
-
-// jQuery'nin global olarak expose edildiğini doğrula
-if (typeof window.jQuery === 'undefined' || typeof window.$ === 'undefined') {
-    throw new Error('jQuery global olarak expose edilemedi - jquery-init.js çalışmadı');
-}
-
-// Trumbowyg - jQuery global olarak erişilebilir olduktan SONRA NPM'den import et
-// Trumbowyg jQuery.fn'i genişletir, bu yüzden jQuery önce mevcut olmalıdır
-// Artık jQuery global olduğu için, Trumbowyg güvenle genişletebilir
-import 'trumbowyg';
-import 'trumbowyg/dist/langs/tr.min.js';
-// Trumbowyg CSS
-import 'trumbowyg/dist/ui/trumbowyg.css';
-// Trumbowyg Archive Plugin
-import './trumbowyg-archive-plugin';
-// Trumbowyg SVG ikonları - URL olarak import et ve path'i ayarla
-// Vite SVG'yi bundle edip public URL'ini döndürecek
-import svgPath from 'trumbowyg/dist/ui/icons.svg?url';
-
-// Trumbowyg için SVG path'ini ayarla - jQuery ve Trumbowyg yüklendikten sonra
-// Trumbowyg UMD modülü olduğu için jQuery.fn'e extend etmesi biraz zaman alabilir
-const setTrumbowygSvgPath = () => {
-    if (window.jQuery && window.jQuery.trumbowyg) {
-        window.jQuery.trumbowyg.svgPath = svgPath;
-        return true;
-    }
-    return false;
-};
-
-// Hemen dene
-if (!setTrumbowygSvgPath()) {
-    // Trumbowyg henüz jQuery'ye extend etmemişse, kısa bir süre bekle
-    // Bu, UMD modülünün yüklenmesi için gerekli
-    let attempts = 0;
-    const maxAttempts = 20;
-    const interval = setInterval(() => {
-        attempts++;
-        if (setTrumbowygSvgPath() || attempts >= maxAttempts) {
-            clearInterval(interval);
-        }
-    }, 50);
-}
-// Trix kaldırıldı - artık sadece Trumbowyg kullanılıyor
+// Editörler artık lazy-load ile yükleniyor (editor-loader)
 
 // Alpine.js ve plugin'ler
 import Alpine from 'alpinejs';
@@ -285,7 +239,13 @@ if (import.meta.env.DEV) {
     }
 }
 
+// Editor Lazy Loader - Loads editor chunk only when [data-editor] elements exist
+// This reduces initial bundle size for non-editor pages
+import './editor-loader';
+
 // Editor Lifecycle Manager - Merkezi lifecycle manager tarafından yönetilir
+// Note: Editors are now lazy-loaded via editor-loader.js, but we keep this
+// for backward compatibility and to handle dynamic editor additions
 mountEditorsLifecycle();
 
 // Livewire + Alpine Lifecycle Manager - Merkezi orkestratör
@@ -294,3 +254,102 @@ mountLivewireAlpineLifecycle();
 // Files Modal Handler
 import { initFilesModalHandler } from './files-modal-handler';
 initFilesModalHandler();
+
+// Image Editor State Cleanup - Listen for file removal events
+import { unregisterImage, unregisterImageByIndex } from './image-editor/state';
+
+// Listen for Livewire events to clear image editor state when files are removed
+if (window.Livewire) {
+    window.Livewire.on('image-editor:remove-image', (data) => {
+        if (data && data.imageKey) {
+            unregisterImage(data.imageKey);
+        } else if (data && typeof data.index === 'number') {
+            unregisterImageByIndex(data.index);
+        }
+    });
+
+    // Listen for image preview spot-data update events
+    window.Livewire.on('image-preview:update-spot-data', (data) => {
+        if (data && data.imageKey && data.spotData) {
+            // Find the img element by imageKey
+            const img = document.querySelector(`img[data-image-key="${data.imageKey}"]`);
+            if (img) {
+                // Update data-spot-data attribute
+                img.setAttribute('data-spot-data', data.spotData);
+                img.setAttribute('data-has-spot-data', 'true');
+
+                // Clear canvas before rendering
+                const canvas = document.querySelector(`canvas[data-image-key="${data.imageKey}"]`);
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }
+                }
+
+                // Trigger preview render
+                if (window.renderPreviewWithSpotData) {
+                    setTimeout(() => {
+                        window.renderPreviewWithSpotData(img);
+                    }, 100);
+                }
+
+                // Also trigger initPreviewRenderer
+                if (window.initPreviewRenderer) {
+                    setTimeout(() => {
+                        window.initPreviewRenderer();
+                    }, 200);
+                }
+            }
+        }
+    });
+} else {
+    // Wait for Livewire to be available
+    document.addEventListener('livewire:init', () => {
+        if (window.Livewire && typeof window.Livewire.on === 'function') {
+            window.Livewire.on('image-editor:remove-image', (data) => {
+                if (data && data.imageKey) {
+                    unregisterImage(data.imageKey);
+                } else if (data && typeof data.index === 'number') {
+                    unregisterImageByIndex(data.index);
+                }
+            });
+
+            // Listen for image preview spot-data update events
+            window.Livewire.on('image-preview:update-spot-data', (data) => {
+                if (data && data.imageKey && data.spotData) {
+                    // Find the img element by imageKey
+                    const img = document.querySelector(`img[data-image-key="${data.imageKey}"]`);
+                    if (img) {
+                        // Update data-spot-data attribute
+                        img.setAttribute('data-spot-data', data.spotData);
+                        img.setAttribute('data-has-spot-data', 'true');
+
+                        // Clear canvas before rendering
+                        const canvas = document.querySelector(`canvas[data-image-key="${data.imageKey}"]`);
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            if (ctx) {
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            }
+                        }
+
+                        // Trigger preview render
+                        if (window.renderPreviewWithSpotData) {
+                            setTimeout(() => {
+                                window.renderPreviewWithSpotData(img);
+                            }, 100);
+                        }
+
+                        // Also trigger initPreviewRenderer
+                        if (window.initPreviewRenderer) {
+                            setTimeout(() => {
+                                window.initPreviewRenderer();
+                            }, 200);
+                        }
+                    }
+                }
+            });
+        }
+    });
+}

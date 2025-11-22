@@ -576,6 +576,21 @@
 
     @stack('scripts')
 
+    <!-- Archive File Selector Modal - Posts modülü için özel -->
+    <div id="archive-modal-container" style="display: none;" wire:ignore>
+        <div class="fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="archive-modal-title" role="dialog" aria-modal="true" id="archive-modal-wrapper">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500/75 transition-opacity" aria-hidden="true" id="archive-modal-backdrop"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full relative z-[10000] max-h-[90vh] overflow-y-auto">
+                    <div id="archive-modal-content">
+                        @livewire('posts.archive-file-selector')
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

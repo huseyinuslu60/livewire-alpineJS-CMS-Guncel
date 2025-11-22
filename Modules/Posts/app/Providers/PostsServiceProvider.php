@@ -160,8 +160,12 @@ class PostsServiceProvider extends ServiceProvider
         Livewire::component('posts.post-create-news', \Modules\Posts\Livewire\PostCreateNews::class);
         Livewire::component('posts.post-create-gallery', \Modules\Posts\Livewire\PostCreateGallery::class);
         Livewire::component('posts.post-create-video', \Modules\Posts\Livewire\PostCreateVideo::class);
-        Livewire::component('posts.post-edit', \Modules\Posts\Livewire\PostEdit::class);
+        Livewire::component('posts.post-edit-router', \Modules\Posts\Livewire\PostEditRouter::class);
+        Livewire::component('posts.post-edit-news', \Modules\Posts\Livewire\PostEditNews::class);
+        Livewire::component('posts.post-edit-video', \Modules\Posts\Livewire\PostEditVideo::class);
+        Livewire::component('posts.post-edit-gallery', \Modules\Posts\Livewire\PostEditGallery::class);
         Livewire::component('posts.post-edit-media', \Modules\Posts\Livewire\PostEditMedia::class);
+        Livewire::component('posts.archive-file-selector', \Modules\Posts\Livewire\ArchiveFileSelector::class);
     }
 
     /**

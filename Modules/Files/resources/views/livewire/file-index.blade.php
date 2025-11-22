@@ -451,4 +451,29 @@
     @endif
 
     @vite(['Modules/Files/resources/assets/js/app.js', 'Modules/Files/resources/assets/sass/app.scss'])
+
+    <script>
+        // Livewire event'ini JavaScript event'ine dönüştür
+        // Global Livewire listener kullan (Livewire 3)
+        (function() {
+            const setupListener = () => {
+                if (window.Livewire && typeof window.Livewire.on === 'function') {
+                    window.Livewire.on('filesSelected', (files) => {
+                        const event = new CustomEvent('filesSelected', {
+                            detail: files
+                        });
+                        window.dispatchEvent(event);
+                    });
+                }
+            };
+
+            // Livewire zaten yüklüyse direkt dinle
+            if (window.Livewire) {
+                setupListener();
+            } else {
+                // Livewire henüz yüklenmemişse, yüklendiğinde dinle
+                document.addEventListener('livewire:init', setupListener);
+            }
+        })();
+    </script>
 </div>

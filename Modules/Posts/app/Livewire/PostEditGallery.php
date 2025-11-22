@@ -8,6 +8,7 @@ use App\Services\ValueObjects\Slug;
 use App\Traits\SecureFileUpload;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -23,7 +24,7 @@ use Modules\Posts\Services\PostsService;
  * @property CategoryService $categoryService
  * @property SlugGenerator $slugGenerator
  */
-class PostCreateGallery extends Component
+class PostEditGallery extends Component
 {
     use HandlesArchiveFileSelection, SecureFileUpload, ValidationMessages, WithFileUploads;
 
@@ -84,27 +85,27 @@ class PostCreateGallery extends Component
     public bool $isSaving = false;
 
     /**
-     * Image editor data storage
-     * Key: fileId (string), Value: array with crop, effects, meta data
+     * Görsel düzenleyici veri depolama
+     * Anahtar: fileId (string), Değer: kırpma, efektler, meta verileri içeren dizi
      */
     public array $imageEditorData = [];
 
     /**
-     * Flag to track if image editor was used (to avoid saving empty spot_data)
+     * Görsel düzenleyicinin kullanılıp kullanılmadığını takip eden bayrak (boş spot_data kaydetmeyi önlemek için)
      */
     public bool $imageEditorUsed = false;
 
     /**
-     * Primary image spot_data JSON string or array
-     * Livewire may parse JSON strings to arrays automatically
+     * Ana görsel spot_data JSON string veya dizi
+     * Livewire JSON string'leri otomatik olarak diziye çevirebilir
      *
      * @var string|array|null
      */
     public $primary_image_spot_data = null;
 
     /**
-     * Actual UploadedFile objects mapped by fileId
-     * Kept separate from uploadedFiles meta to stabilize Livewire payload
+     * fileId ile eşleştirilmiş gerçek UploadedFile nesneleri
+     * Livewire payload'ını stabilize etmek için uploadedFiles meta'sından ayrı tutulur
      *
      * @var array<string, \Illuminate\Http\UploadedFile>
      */
@@ -131,6 +132,8 @@ class PostCreateGallery extends Component
     // Primary file index için
     public int $primaryFileIndex = 0;
 
+    public ?Post $post = null;
+
     protected $listeners = ['contentUpdated', 'filesSelectedForPost'];
 
     public function boot()
@@ -140,10 +143,155 @@ class PostCreateGallery extends Component
         $this->slugGenerator = app(SlugGenerator::class);
     }
 
-    public function mount()
+    public function mount(?Post $post = null)
     {
-        Gate::authorize('create posts');
-        $this->published_date = Carbon::now()->format('Y-m-d H:i');
+        Gate::authorize('edit posts');
+
+        // Eğer post parametre olarak geçilmişse (doğrudan route), onu kullan
+        // Eğer post property olarak ayarlanmışsa (iç içe component), zaten ayarlanmış
+        if ($post !== null) {
+            $this->post = $post->load(['files', 'categories', 'tags', 'primaryFile', 'author', 'creator', 'updater']);
+        }
+
+        // Post mevcutsa component verilerini başlat
+        if ($this->post !== null) {
+            $this->initializeFromPost();
+        }
+    }
+
+    /**
+     * Post modelinden component verilerini başlat
+     */
+    protected function initializeFromPost(): void
+    {
+        if ($this->post === null) {
+            return;
+        }
+
+        $this->title = $this->post->title;
+        $this->slug = $this->post->slug;
+        $this->summary = $this->post->summary;
+        // Gallery için JSON formatında content
+        $this->content = $this->post->content;
+        $this->post_position = $this->post->post_position;
+        $this->status = $this->post->status ?: 'draft';
+        $this->published_date = $this->post->published_date ?
+            (is_string($this->post->published_date) ?
+                Carbon::parse($this->post->published_date)->format('Y-m-d H:i') :
+                $this->post->published_date->format('Y-m-d H:i')) :
+            Carbon::now()->format('Y-m-d H:i');
+        $this->is_comment = $this->post->is_comment;
+        $this->is_mainpage = $this->post->is_mainpage;
+        $this->redirect_url = $this->post->redirect_url ?? '';
+        $this->is_photo = $this->post->is_photo;
+        $this->agency_name = $this->post->agency_name ?? '';
+        $this->agency_id = $this->post->agency_id;
+        $this->in_newsletter = $this->post->in_newsletter;
+        $this->no_ads = $this->post->no_ads;
+
+        $this->categoryIds = $this->post->categories ? $this->post->categories->pluck('category_id')->toArray() : [];
+        // tagsInput'ın her zaman string olduğundan emin ol
+        if ($this->post->tags && is_object($this->post->tags) && method_exists($this->post->tags, 'pluck')) {
+            $tags = $this->post->tags->pluck('name')->toArray();
+            $this->tagsInput = is_array($tags) ? implode(', ', array_filter($tags)) : '';
+        } else {
+            $this->tagsInput = '';
+        }
+
+        // Mevcut dosyaları content'den yükle (gallery için)
+        $this->loadExistingFiles();
+
+        // Temiz dosya sistemi başlat
+        $this->uploadedFiles = [];
+
+        // Eğer varsa spot_data'yı yükle
+        $spotData = $this->post->spot_data ?? [];
+        if (isset($spotData['image']) && is_array($spotData['image'])) {
+            // Görsel verilerini Livewire property için JSON string'e çevir
+            $this->primary_image_spot_data = json_encode($spotData['image']);
+        } else {
+            $this->primary_image_spot_data = null;
+        }
+    }
+
+    /**
+     * Hydrate metodu - property'ler ayarlandıktan sonra çağrılır (iç içe component'ler için)
+     */
+    public function hydrate(): void
+    {
+        // Eğer post property olarak ayarlanmışsa ama başlatılmamışsa, başlat
+        if ($this->post !== null && empty($this->title)) {
+            // Post'un eager loaded ilişkilere sahip olduğundan emin ol
+            if (! $this->post->relationLoaded('files')) {
+                $this->post->load(['files', 'categories', 'tags', 'primaryFile', 'author', 'creator', 'updater']);
+            }
+            $this->initializeFromPost();
+        }
+    }
+
+    /**
+     * Veritabanından mevcut dosyaları yükle (galeri yazıları için)
+     */
+    protected function loadExistingFiles(): void
+    {
+        $this->existingFiles = [];
+
+        // Content'i direkt database'den al (güncel veri için)
+        $content = $this->post->content;
+        $galleryData = json_decode($content, true) ?: [];
+
+        // Eğer decode başarısız olursa veya content boşsa, post model'inden tekrar al
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($galleryData) || empty($content)) {
+            $this->post->refresh();
+            $content = $this->post->content;
+            $galleryData = json_decode($content, true) ?: [];
+        }
+
+        if (is_array($galleryData) && ! empty($galleryData)) {
+            // Order'a göre sırala
+            $sortedGalleryData = collect($galleryData)->sortBy('order')->values()->toArray();
+
+            $this->existingFiles = collect($sortedGalleryData)->map(function (array $fileData, int $index) {
+                // file_id'yi koru - eğer yoksa file_path'den hash oluştur (kalıcı olması için)
+                $fileId = $fileData['file_id'] ?? null;
+
+                if (empty($fileId)) {
+                    // file_path'den hash oluştur - kalıcı ID
+                    $filePath = $fileData['file_path'] ?? '';
+                    $fileName = $fileData['filename'] ?? '';
+                    if (! empty($filePath)) {
+                        $fileId = 'existing_'.md5($filePath);
+                    } elseif (! empty($fileName)) {
+                        $fileId = 'existing_'.md5($fileName);
+                    } else {
+                        // Son çare olarak unique ID
+                        $fileId = 'existing_'.uniqid('', true);
+                    }
+                }
+
+                $description = $fileData['description'] ?? '';
+
+                return [
+                    'file_id' => (string) $fileId,
+                    'path' => $fileData['file_path'] ?? '',
+                    'original_name' => $fileData['filename'] ?? '',
+                    'description' => $description,
+                    'primary' => (bool) ($fileData['is_primary'] ?? false),
+                    'type' => $fileData['type'] ?? 'image/jpeg',
+                    'order' => (int) ($fileData['order'] ?? $index),
+                    'uploaded_at' => $fileData['uploaded_at'] ?? now()->toISOString(),
+                ];
+            })->toArray();
+
+            // Ana dosyayı bul
+            $this->primaryFileId = null;
+            foreach ($this->existingFiles as $index => $file) {
+                if ($file['primary'] === true) {
+                    $this->primaryFileId = (string) $file['file_id'];
+                    break;
+                }
+            }
+        }
     }
 
     protected function rules(): array
@@ -167,22 +315,22 @@ class PostCreateGallery extends Component
             'categoryIds' => 'required|array|min:1',
             'categoryIds.*' => 'exists:categories,category_id',
             'tagsInput' => 'nullable|string',
-            'uploadedFiles' => 'required|array|min:1',
+            'uploadedFiles' => 'nullable|array',
             'uploadedFiles.*.file' => 'nullable|image|max:4096',
             'uploadedFiles.*.description' => 'nullable|string|max:500',
         ];
     }
 
     /**
-     * Ensure tagsInput is always a string when updated
+     * tagsInput güncellendiğinde her zaman string olduğundan emin ol
      */
     public function updatedTagsInput($value)
     {
-        // Ensure tagsInput is always a string to prevent Livewire serialization issues
+        // Livewire serileştirme sorunlarını önlemek için tagsInput'ın her zaman string olduğundan emin ol
         if (! is_string($value)) {
             $this->tagsInput = is_array($value) ? implode(', ', array_filter($value)) : (string) ($value ?? '');
         } else {
-            // Clean up the string: remove extra spaces, ensure proper comma separation
+            // String'i temizle: fazla boşlukları kaldır, uygun virgül ayrımını sağla
             $this->tagsInput = trim($value);
         }
     }
@@ -272,13 +420,11 @@ class PostCreateGallery extends Component
                 );
 
                 $uploadedFiles[] = $uploadedFile;
-                // Build preview URL from original selection
+                // Orijinal seçimden önizleme URL'i oluştur
                 $previewForGallery = $imageUrl;
                 if (! (str_starts_with($previewForGallery, 'http') || str_starts_with($previewForGallery, asset('')))) {
                     $previewForGallery = asset('storage/'.ltrim($previewForGallery, '/'));
                 }
-                // Encode spaces for safe URL usage
-                $previewForGallery = preg_replace('/\s+/', '%20', $previewForGallery);
                 $archivePreviewUrls[] = $previewForGallery;
             }
 
@@ -293,9 +439,9 @@ class PostCreateGallery extends Component
                 foreach ($result['files'] as $i => $fileData) {
                     $file = $fileData['file'];
                     $fileId = 'file_'.time().'_'.rand(1000, 9999);
-                    // store file object separately (not serialized by Livewire)
+                    // Dosya nesnesini ayrı olarak sakla (Livewire tarafından serileştirilmez)
                     $this->uploadedFileObjs[$fileId] = $file;
-                    // build preview url
+                    // Önizleme URL'i oluştur
                     $previewUrl = $archivePreviewUrls[$i] ?? '';
                     if (empty($previewUrl)) {
                         try {
@@ -320,9 +466,15 @@ class PostCreateGallery extends Component
                     ];
                 }
                 // Ana görsel yoksa ilkini ata
-                if (empty($this->primaryFileId) && ! empty($this->uploadedFiles)) {
-                    $firstFileId = array_keys($this->uploadedFiles)[0];
-                    $this->primaryFileId = $firstFileId;
+                if (empty($this->primaryFileId)) {
+                    if (! empty($this->uploadedFiles)) {
+                        $firstFileId = array_keys($this->uploadedFiles)[0];
+                        $this->primaryFileId = $firstFileId;
+                    } elseif (! empty($this->existingFiles)) {
+                        // Eğer uploadedFiles boşsa, existingFiles'dan ilkini seç
+                        $firstExistingFile = reset($this->existingFiles);
+                        $this->primaryFileId = $firstExistingFile['file_id'] ?? null;
+                    }
                 }
             }
 
@@ -348,28 +500,28 @@ class PostCreateGallery extends Component
 
     public function updatedPrimaryFileId($value)
     {
-        // Ensure primaryFileId is always a string for consistent comparison
+        // Tutarlı karşılaştırma için primaryFileId'nin her zaman string olduğundan emin ol
         $this->primaryFileId = $value !== null ? (string) $value : null;
 
-        // Force Livewire to re-render to update badges
+        // Rozetleri güncellemek için Livewire'ı yeniden render etmeye zorla
         $this->dispatch('primary-file-changed', primaryFileId: $this->primaryFileId);
     }
 
-    public function savePost()
+    public function updatePost()
     {
         // Duplicate submit'i engelle
         if ($this->isSaving) {
             return;
         }
 
-        Gate::authorize('create posts');
+        Gate::authorize('edit posts');
 
-        // İşlemeden önce hidden input'tan primary_image_spot_data'yı senkronize et
-        // Bu, JS editöründen gelen en son değerin yakalanmasını sağlar
+        // İşlemeden önce gizli input'tan primary_image_spot_data'yı zorla senkronize et
+        // Bu, JS düzenleyicisinden en son değerin yakalanmasını sağlar
         // Hem request input hem de property'yi dene (property wire:model ile güncellenmiş olabilir)
         $primaryImageInputFromRequest = request()->input('primary_image_spot_data');
         if ($primaryImageInputFromRequest) {
-            // Request'te varsa onu kullan (form submit'ten en güncel değer)
+            // Eğer request'te varsa, onu kullan (form gönderiminden en güncel olan)
             $this->primary_image_spot_data = $primaryImageInputFromRequest;
         }
 
@@ -412,14 +564,14 @@ class PostCreateGallery extends Component
             }
 
             // Gallery için dosya kontrolü
-            if (empty($this->uploadedFiles)) {
+            if (empty($this->uploadedFiles) && empty($this->existingFiles)) {
                 $this->addError('uploadedFiles', 'Galeri yazıları için en az bir görsel yüklenmelidir.');
                 $this->isSaving = false;
 
                 return;
             }
 
-            // Additional value validation
+            // Ek değer doğrulaması
             if (strlen($this->title) > 255) {
                 $this->addError('title', 'Başlık en fazla 255 karakter olabilir.');
                 $this->isSaving = false;
@@ -438,10 +590,29 @@ class PostCreateGallery extends Component
 
             // Galeri verilerini PostEdit'teki gibi hazırla
             // uploadedFiles array'i zaten updateOrder ile sıralanmış olmalı
+            // ÖNEMLİ: Sadece yeni dosyaları işle (existing files zaten existingFiles'da ve updateGalleryContent ile işlenecek)
             $galleryData = [];
             if (! empty($this->uploadedFiles)) {
                 $fileKeys = array_keys($this->uploadedFiles);
+
+                // Existing files'ın file_id'lerini topla (duplicate kontrolü için)
+                $existingFileIds = [];
+                foreach ($this->existingFiles as $existingFile) {
+                    if (isset($existingFile['file_id'])) {
+                        $existingFileIds[] = (string) $existingFile['file_id'];
+                    }
+                }
+
                 foreach ($this->uploadedFiles as $fileId => $fileData) {
+                    // Eğer bu dosya existingFiles'da varsa, atla (duplicate önleme)
+                    if (in_array((string) $fileId, $existingFileIds, true)) {
+                        LogHelper::info('PostEditGallery updatePost - Skipping existing file in uploadedFiles', [
+                            'fileId' => $fileId,
+                        ]);
+
+                        continue;
+                    }
+
                     $index = array_search($fileId, $fileKeys);
                     $previewUrl = $fileData['preview_url'] ?? '';
                     $derivedPath = '';
@@ -506,60 +677,71 @@ class PostCreateGallery extends Component
                 }
             }
 
-            // Prepare context for service layer
-            $context = [
-                'formData' => $formData,
-                'orderedFiles' => $orderedFiles,
-                'categoryIds' => $this->categoryIds,
-                'tagIds' => $tagIds,
-                'fileDescriptions' => $fileDescriptions,
-                'primaryFileId' => $this->primaryFileId,
-                'uploadedFilesKeys' => array_keys($this->uploadedFiles),
-            ];
+            $postsService = new PostsService;
 
-            // Create post via service layer
-            $post = $this->postsService->createGalleryPost($context);
+            // Yeni dosyaları hazırla
+            $newFiles = [];
+            if (! empty($this->uploadedFiles)) {
+                foreach ($this->uploadedFiles as $fileId => $_) {
+                    if (isset($this->uploadedFileObjs[$fileId])) {
+                        $newFiles[] = $this->uploadedFileObjs[$fileId];
+                    }
+                }
+            }
+
+            $updatedPost = $postsService->update(
+                $this->post,
+                $formData,
+                $newFiles,
+                $this->categoryIds,
+                $tagIds,
+                $fileDescriptions
+            );
+
+            // Servis güncellemesinden sonra post modelini yenile
+            $this->post = $updatedPost;
+            $this->post->refresh();
 
             // Arşivden seçilen dosyaları post'a bağla
-            $this->linkArchiveFilesToPost($post, true);
+            $this->linkArchiveFilesToPost($this->post, true);
 
-            // Build and save spot_data with image data only
-            // Only save spot_data if image editor was actually used (like PostEdit)
+            // Sadece görsel verileriyle spot_data'yı oluştur ve kaydet
+            // Sadece görsel düzenleyici gerçekten kullanıldıysa spot_data'yı kaydet (PostEdit gibi)
             $spotData = [];
-            $primaryImageSpotData = null; // Initialize outside if block for scope
-            $editorData = null; // Initialize outside if block for scope
+            $primaryImageSpotData = null; // Kapsam için if bloğunun dışında başlat
+            $editorData = null; // Kapsam için if bloğunun dışında başlat
 
-            // Primary file veya primary_image_spot_data varsa görsel verilerini ekle
-            // ÖNEMLİ: Post yeni oluşturulduysa primaryFile null olabilir, ama yine de spot_data'yı kaydetmeliyiz
+            // Ana dosyamız varsa VEYA primary_image_spot_data'mız varsa görsel verilerini ekle
+            // ÖNEMLİ: Post yeni oluşturulmuşsa primaryFile null olabilir, ama yine de spot_data'yı kaydetmemiz gerekir
 
-            // Process spot_data even if primaryFile is null (it will be created after post save)
-            // We can use primaryFileId from property or uploadedFiles to find the right file
-            $shouldProcessSpotData = $post->primaryFile !== null || ! empty($this->primary_image_spot_data) || ! empty($this->imageEditorData);
+            // primaryFile null olsa bile spot_data'yı işle (post kaydedildikten sonra oluşturulacak)
+            // Doğru dosyayı bulmak için property'den veya uploadedFiles'den primaryFileId'yi kullanabiliriz
+            $shouldProcessSpotData = $this->post->primaryFile !== null || ! empty($this->primary_image_spot_data) || ! empty($this->imageEditorData);
 
             if ($shouldProcessSpotData) {
-                // Get image dimensions and hash
+                // Görsel boyutlarını ve hash'i al
                 $width = null;
                 $height = null;
                 $hash = null;
                 $filePath = null;
 
-                if ($post->primaryFile) {
-                    $imagePath = public_path('storage/'.$post->primaryFile->file_path);
-                    $filePath = $post->primaryFile->file_path;
+                if ($this->post->primaryFile) {
+                    $imagePath = public_path('storage/'.$this->post->primaryFile->file_path);
+                    $filePath = $this->post->primaryFile->file_path;
 
                     if (file_exists($imagePath)) {
-                        // Get image dimensions
+                        // Görsel boyutlarını al
                         $imageInfo = @getimagesize($imagePath);
                         if ($imageInfo !== false) {
                             $width = $imageInfo[0];
                             $height = $imageInfo[1];
                         }
 
-                        // Calculate file hash
+                        // Dosya hash'ini hesapla
                         $hash = md5_file($imagePath);
                     }
                 } elseif ($this->primaryFileId && isset($this->uploadedFiles[$this->primaryFileId])) {
-                    // If primaryFile is null but we have primaryFileId, get file_path from uploadedFiles
+                    // Eğer primaryFile null ise ama primaryFileId'miz varsa, uploadedFiles'den file_path'i al
                     $filePath = $this->uploadedFiles[$this->primaryFileId]['file_path'] ?? null;
                     if ($filePath) {
                         $imagePath = public_path('storage/'.$filePath);
@@ -574,29 +756,29 @@ class PostCreateGallery extends Component
                     }
                 }
 
-                // Get image editor data if available (from image editor modal)
-                // Find primary file's fileId from uploadedFiles
-                // Prefer robust mapping by file_path
+                // Eğer mevcutsa görsel düzenleyici verilerini al (görsel düzenleyici modal'ından)
+                // uploadedFiles'den ana dosyanın fileId'sini bul
+                // file_path ile sağlam eşleştirmeyi tercih et
                 $primaryFileId = null;
 
-                // Önce primaryFileId property'sini kullan (en güvenilir)
+                // Önce primaryFileId property'sini kullanmayı dene (en güvenilir)
                 if ($this->primaryFileId) {
                     $primaryFileId = $this->primaryFileId;
                 }
 
-                // If primaryFile exists, try to match by file_path
-                if ($primaryFileId === null && $post->primaryFile) {
+                // Eğer primaryFile varsa, file_path ile eşleştirmeyi dene
+                if ($primaryFileId === null && $this->post->primaryFile) {
                     foreach ($this->uploadedFiles as $fileId => $fileData) {
                         $filePath = array_key_exists('file_path', $fileData) ? $fileData['file_path'] : null;
-                        if (! empty($filePath) && ($filePath === ($post->primaryFile->file_path ?? ''))) {
+                        if (! empty($filePath) && ($filePath === ($this->post->primaryFile->file_path ?? ''))) {
                             $primaryFileId = $fileId;
                             break;
                         }
                     }
-                    // Fallback mapping by name
+                    // İsim ile yedek eşleştirme
                     if ($primaryFileId === null) {
                         foreach ($this->uploadedFiles as $fileId => $fileData) {
-                            if (($fileData['name'] ?? '') === ($post->primaryFile->original_name ?? '')) {
+                            if (($fileData['name'] ?? '') === ($this->post->primaryFile->original_name ?? '')) {
                                 $primaryFileId = $fileId;
                                 break;
                             }
@@ -604,15 +786,15 @@ class PostCreateGallery extends Component
                     }
                 }
 
-                // Fallback: varsa ilk fileId'yi kullan
+                // Yedek: Eğer mevcutsa ilk fileId'yi kullan
                 if ($primaryFileId === null && ! empty($this->uploadedFiles)) {
                     $primaryFileId = array_key_first($this->uploadedFiles);
                 }
 
-                // uploadedFiles meta'da kalıcı spot_data'yı tercih et; yoksa imageEditorData'ya fallback yap
-                // Not: $editorData scope için yukarıda zaten initialize edildi
+                // uploadedFiles meta'sında kalıcı spot_data'yı tercih et; yedek olarak imageEditorData
+                // Not: $editorData zaten yukarıda kapsam için başlatıldı
                 if ($primaryFileId) {
-                    // Önce uploadedFiles'ı kontrol et (en güvenilir, re-render'lardan sonra hayatta kalır)
+                    // Önce uploadedFiles'i kontrol et (en güvenilir, yeniden render'lardan kurtulur)
                     if (isset($this->uploadedFiles[$primaryFileId]['spot_data']) && is_array($this->uploadedFiles[$primaryFileId]['spot_data'])) {
                         $editorData = $this->uploadedFiles[$primaryFileId]['spot_data'];
                     } elseif (isset($this->imageEditorData[$primaryFileId]) && is_array($this->imageEditorData[$primaryFileId])) {
@@ -620,10 +802,10 @@ class PostCreateGallery extends Component
                     }
                 }
 
-                // HER ZAMAN hidden input'tan primary_image_spot_data'yı kontrol et (arşiv görselleri için)
-                // Bu, editorData'dan önceliklidir çünkü doğrudan JS editöründen senkronize edilir
-                // Not: $primaryImageSpotData scope için yukarıda zaten initialize edildi
-                // ÖNEMLİ: Property'nin var olup olmadığını ve boş olmadığını kontrol et (Livewire boş string veya boş array set edebilir)
+                // HER ZAMAN gizli input'tan primary_image_spot_data'yı kontrol et (arşiv görselleri için)
+                // Bu, doğrudan JS düzenleyicisinden senkronize edildiği için editorData'dan önceliklidir
+                // Not: $primaryImageSpotData zaten yukarıda kapsam için başlatıldı
+                // ÖNEMLİ: Property'nin var olduğunu ve boş olmadığını kontrol et (Livewire onu boş string veya boş dizi olarak ayarlayabilir)
                 $hasPrimaryImageSpotData = $this->primary_image_spot_data !== null
                     && $this->primary_image_spot_data !== ''
                     && (is_string($this->primary_image_spot_data) ? strlen($this->primary_image_spot_data) > 0 : (is_array($this->primary_image_spot_data) ? count($this->primary_image_spot_data) > 0 : false));
@@ -637,7 +819,7 @@ class PostCreateGallery extends Component
                         if ($jsonError === JSON_ERROR_NONE && is_array($decodedImageData)) {
                             $primaryImageSpotData = $decodedImageData;
                         } else {
-                            LogHelper::warning('PostCreateGallery savePost - primary_image_spot_data JSON decode hatası', [
+                            LogHelper::warning('PostEditGallery updatePost - primary_image_spot_data JSON decode hatası', [
                                 'json_error' => json_last_error_msg(),
                             ]);
                         }
@@ -655,7 +837,7 @@ class PostCreateGallery extends Component
                     if ($primaryImageSpotData !== null && isset($primaryImageSpotData['original']['path']) && is_string($primaryImageSpotData['original']['path'])) {
                         $origPath = $primaryImageSpotData['original']['path'];
                         if (str_contains($origPath, 'livewire/preview-file')) {
-                            $primaryImageSpotData['original']['path'] = $post->primaryFile->file_path ?? $origPath;
+                            $primaryImageSpotData['original']['path'] = $this->post->primaryFile->file_path ?? $origPath;
                         }
                     }
                 }
@@ -668,7 +850,7 @@ class PostCreateGallery extends Component
                 $mobileFocus = 'center';
                 $imageEffects = [];
                 $imageMeta = [
-                    'alt' => $post->primaryFile->alt_text ?? null,
+                    'alt' => $this->post->primaryFile->alt_text ?? null,
                     'credit' => null,
                     'source' => null,
                 ];
@@ -761,7 +943,7 @@ class PostCreateGallery extends Component
                 // primary_image_spot_data takes priority as it's synced directly from JS editor
                 if ($primaryImageSpotData !== null || $editorData !== null) {
                     // Use original path from primaryImageSpotData if available, otherwise use file_path
-                    $originalPath = $filePath ?? ($post->primaryFile->file_path ?? null);
+                    $originalPath = $filePath ?? ($this->post->primaryFile->file_path ?? null);
                     if ($primaryImageSpotData !== null && isset($primaryImageSpotData['original']['path'])) {
                         $originalPath = $primaryImageSpotData['original']['path'];
                     }
@@ -801,17 +983,31 @@ class PostCreateGallery extends Component
                 }
             }
 
-            // Sadece gerçek editör verisi varsa spot_data'yı kaydet
+            // Only save spot_data if we have actual editor data
             if (! empty($spotData['image'])) {
-                $post->spot_data = $spotData;
-                $post->save();
+                \App\Helpers\LogHelper::info('PostEditGallery updatePost - Saving spot_data', [
+                    'has_image' => true,
+                    'has_original' => true,
+                    'has_variants' => true,
+                    'has_effects' => true,
+                    'has_textObjects' => true,
+                    'textObjects_count' => count($spotData['image']['textObjects']),
+                ]);
+                $this->post->spot_data = $spotData;
+                $this->post->save();
+            } else {
+                \App\Helpers\LogHelper::warning('PostEditGallery updatePost - spot_data is empty, not saving', [
+                    'has_primaryImageSpotData' => $primaryImageSpotData !== null,
+                    'has_editorData' => $editorData !== null,
+                    'spotData_keys' => array_keys($spotData),
+                ]);
             }
 
             // content'i her durumda güncelle: mevcut post files üzerinden
 
             $updatedGalleryData = [];
             /** @var \Illuminate\Database\Eloquent\Collection<int, \Modules\Posts\Models\File> $postFiles */
-            $postFiles = $post->files()->orderBy('order')->get();
+            $postFiles = $this->post->files()->orderBy('order')->get();
 
             foreach ($postFiles as $index => $file) {
                 $name = $file->original_name ?? basename($file->file_path);
@@ -832,37 +1028,33 @@ class PostCreateGallery extends Component
             }
 
             if (! empty($updatedGalleryData)) {
-                $post->update(['content' => json_encode($updatedGalleryData, JSON_UNESCAPED_UNICODE)]);
+                $this->post->update(['content' => json_encode($updatedGalleryData, JSON_UNESCAPED_UNICODE)]);
             }
 
-            // Ana resim indeksini ayarla
-            if (! empty($orderedFiles) && $this->primaryFileId) {
-                // primaryFileId'ye göre index bul
-                $primaryIndex = array_search($this->primaryFileId, array_keys($this->uploadedFiles));
-                if ($primaryIndex !== false) {
-                    $this->postsService->setPrimaryFile($post, $primaryIndex);
-                }
-            }
+            // Update gallery content (existingFiles'dan)
+            $this->updateGalleryContent();
 
-            $this->dispatch('post-created');
+            $this->dispatch('post-updated');
 
             // Success mesajını session flash ile göster ve yönlendir
-            session()->flash('success', $this->createContextualSuccessMessage('created', 'title', 'post'));
+            session()->flash('success', $this->createContextualSuccessMessage('updated', 'title', 'post'));
 
             return redirect()->route('posts.index');
         } catch (\InvalidArgumentException $e) {
             // Validation hataları - direkt mesaj göster
-            LogHelper::warning('PostCreateGallery validation failed', [
+            LogHelper::warning('PostEditGallery validation failed', [
                 'post_type' => 'gallery',
+                'post_id' => $this->post->post_id ?? null,
                 'error' => $e->getMessage(),
             ]);
             $this->addError('general', $e->getMessage());
         } catch (\Exception $e) {
             LogHelper::error('PostsService hatası', [
                 'post_type' => 'gallery',
+                'post_id' => $this->post->post_id ?? null,
                 'error' => $e->getMessage(),
             ]);
-            $this->addError('general', 'Galeri oluşturulurken hata oluştu: '.$e->getMessage());
+            $this->addError('general', 'Galeri güncellenirken hata oluştu: '.$e->getMessage());
         } finally {
             $this->isSaving = false;
         }
@@ -889,7 +1081,7 @@ class PostCreateGallery extends Component
 
     public function updatedNewFiles()
     {
-        // Yeni dosyalar yüklendiğinde uploadedFiles'a ekle
+        // Yeni dosyalar yüklendiğinde uploadedFiles'a ekle (edit sayfasında)
         if (! empty($this->newFiles)) {
             // Secure file processing
             $result = $this->processSecureUploads($this->newFiles);
@@ -923,6 +1115,7 @@ class PostCreateGallery extends Component
                     'mime' => $file->getMimeType(),
                     'description' => '',
                     'alt_text' => '',
+                    'file_path' => $fileData['path'] ?? '',
                 ];
             }
 
@@ -930,9 +1123,15 @@ class PostCreateGallery extends Component
             $this->newFiles = [];
 
             // Eğer ana görsel seçili değilse ve dosya varsa, ilk dosyayı ana görsel yap
-            if (empty($this->primaryFileId) && ! empty($this->uploadedFiles)) {
-                $firstFileId = array_keys($this->uploadedFiles)[0];
-                $this->primaryFileId = $firstFileId;
+            if (empty($this->primaryFileId)) {
+                if (! empty($this->uploadedFiles)) {
+                    $firstFileId = array_keys($this->uploadedFiles)[0];
+                    $this->primaryFileId = $firstFileId;
+                } elseif (! empty($this->existingFiles)) {
+                    // Eğer uploadedFiles boşsa, existingFiles'dan ilkini seç
+                    $firstExistingFile = reset($this->existingFiles);
+                    $this->primaryFileId = $firstExistingFile['file_id'] ?? null;
+                }
             }
         }
     }
@@ -951,10 +1150,73 @@ class PostCreateGallery extends Component
                 if (! empty($this->uploadedFiles)) {
                     $firstFileId = array_keys($this->uploadedFiles)[0];
                     $this->primaryFileId = $firstFileId;
+                } elseif (! empty($this->existingFiles)) {
+                    // Eğer uploadedFiles boşsa, existingFiles'dan ilkini seç
+                    $firstExistingFile = reset($this->existingFiles);
+                    $this->primaryFileId = $firstExistingFile['file_id'] ?? null;
                 } else {
                     $this->primaryFileId = null;
                 }
             }
+        }
+    }
+
+    public function removeExistingFile($fileId)
+    {
+        try {
+            // existingFiles array'inden kaldır
+            foreach ($this->existingFiles as $index => $file) {
+                if (isset($file['file_id']) && (string) $file['file_id'] === (string) $fileId) {
+                    unset($this->existingFiles[$index]);
+                    // Re-index array
+                    $this->existingFiles = array_values($this->existingFiles);
+                    break;
+                }
+            }
+
+            // Eğer silinen dosya ana görsel ise, yeni ana görsel seç
+            if ($this->primaryFileId === (string) $fileId) {
+                // Kalan dosyalar varsa ilkini ana görsel yap
+                if (! empty($this->existingFiles)) {
+                    $firstFile = reset($this->existingFiles);
+                    $this->primaryFileId = $firstFile['file_id'] ?? null;
+                } elseif (! empty($this->uploadedFiles)) {
+                    // Eğer existingFiles boşsa, uploadedFiles'dan ilkini seç
+                    $firstFileId = array_keys($this->uploadedFiles)[0];
+                    $this->primaryFileId = $firstFileId;
+                } else {
+                    $this->primaryFileId = null;
+                }
+            }
+
+            // Veritabanından da kaldır (files tablosundan)
+            // Find file by file_path from existingFiles before removal
+            $filePathToDelete = null;
+            foreach ($this->existingFiles as $file) {
+                if (isset($file['file_id']) && (string) $file['file_id'] === (string) $fileId) {
+                    $filePathToDelete = $file['path'] ?? null;
+                    break;
+                }
+            }
+
+            if ($filePathToDelete) {
+                $fileModel = $this->post->files()->where('file_path', $filePathToDelete)->first();
+                if ($fileModel) {
+                    $fileModel->delete();
+                }
+            }
+
+            // Galeri content'ini güncelle
+            $this->updateGalleryContent();
+
+            session()->flash('success', 'Görsel kaldırıldı.');
+        } catch (\Exception $e) {
+            LogHelper::error('removeExistingFile failed', [
+                'fileId' => $fileId,
+                'post_id' => $this->post->post_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            session()->flash('error', 'Görsel kaldırılırken bir hata oluştu: '.$e->getMessage());
         }
     }
 
@@ -972,6 +1234,10 @@ class PostCreateGallery extends Component
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                     $spotDataImage = $decoded;
                 } else {
+                    LogHelper::warning('PostCreateGallery updateFilePreview - Failed to decode JSON spotDataImage', [
+                        'json_error' => json_last_error_msg(),
+                        'identifier' => $identifier,
+                    ]);
                     $spotDataImage = null;
                 }
             }
@@ -982,17 +1248,39 @@ class PostCreateGallery extends Component
                 $this->imageEditorData[$identifier] = $spotDataImage;
                 $this->imageEditorUsed = true; // Mark that image editor was used
 
-                // Persist into uploadedFiles meta to survive Livewire re-renders
-                // ÖNEMLİ: uploadedFiles[$identifier] yoksa oluştur
-                if (! isset($this->uploadedFiles[$identifier])) {
-                    // uploadedFiles entry'si yoksa initialize et
-                    $this->uploadedFiles[$identifier] = [];
+                // Identifier'ın existing file olup olmadığını kontrol et
+                $isExistingFile = false;
+                foreach ($this->existingFiles as $existingFile) {
+                    if (isset($existingFile['file_id']) && (string) $existingFile['file_id'] === (string) $identifier) {
+                        $isExistingFile = true;
+                        break;
+                    }
                 }
 
-                if (is_array($this->uploadedFiles[$identifier])) {
+                // Sadece yeni dosyalar için uploadedFiles'a ekle (existing files için ekleme)
+                // Existing files için sadece spot_data'yı imageEditorData'da sakla
+                if (! $isExistingFile && ! isset($this->uploadedFiles[$identifier])) {
+                    // Yeni dosya için uploadedFiles entry oluştur
+                    $this->uploadedFiles[$identifier] = [];
+                    LogHelper::info('PostEditGallery updateFilePreview - Created uploadedFiles entry for new file', [
+                        'identifier' => $identifier,
+                    ]);
+                }
+
+                // Eğer uploadedFiles entry varsa (yeni dosya için), spot_data'yı oraya da kaydet
+                if (isset($this->uploadedFiles[$identifier]) && is_array($this->uploadedFiles[$identifier])) {
                     $this->uploadedFiles[$identifier]['spot_data'] = $spotDataImage;
                 }
 
+                LogHelper::info('PostCreateGallery updateFilePreview - Stored spot_data image object', [
+                    'identifier' => $identifier,
+                    'has_uploadedFiles_entry' => isset($this->uploadedFiles[$identifier]),
+                    'has_original' => isset($spotDataImage['original']),
+                    'has_variants' => isset($spotDataImage['variants']),
+                    'has_effects' => isset($spotDataImage['effects']),
+                    'has_textObjects' => isset($spotDataImage['textObjects']),
+                    'textObjects_count' => isset($spotDataImage['textObjects']) ? count($spotDataImage['textObjects']) : 0,
+                ]);
             } else {
                 LogHelper::warning('PostCreateGallery updateFilePreview - spotDataImage is null or not array', [
                     'identifier' => $identifier,
@@ -1016,22 +1304,6 @@ class PostCreateGallery extends Component
                     } catch (\Exception $e) {
                     }
                 } elseif (str_starts_with($imageUrl, 'http')) {
-                    // SSRF guard: allow only same-origin downloads
-                    $allowedHost = parse_url(config('app.url'), PHP_URL_HOST);
-                    $targetHost = parse_url($imageUrl, PHP_URL_HOST);
-                    $constAllowedHosts = (string) config('images.allowed_hosts', '');
-                    $allowedList = array_filter(array_map('trim', explode(',', $constAllowedHosts)));
-                    $hostAllowed = in_array(strtolower($targetHost), array_map('strtolower', $allowedList), true);
-                    if (! $allowedHost || ! $targetHost || (strtolower($allowedHost) !== strtolower($targetHost) && ! $hostAllowed)) {
-                        \App\Helpers\LogHelper::warning('updateFilePreview blocked external download (SSRF guard)', [
-                            'allowed_host' => $allowedHost,
-                            'target_host' => $targetHost,
-                            'image_url' => $imageUrl,
-                            'file_id' => $identifier,
-                        ]);
-
-                        return; // Do not download from external hosts
-                    }
                     // For full URLs, download the content
                     $imageContent = @file_get_contents($imageUrl);
                     if ($imageContent === false) {
@@ -1040,9 +1312,14 @@ class PostCreateGallery extends Component
 
                     // Create temporary file in Livewire's temp directory
                     $tempDir = sys_get_temp_dir();
-                    // 'file' key'inin var olup olmadığını kontrol et (arşiv dosyaları için olmayabilir)
+                    // Check if 'file' key exists (for archive files, it might not exist)
                     if (! isset($this->uploadedFiles[$identifier]['file'])) {
-                        return; // Arşiv dosyaları için dosya güncellemesini atla
+                        LogHelper::warning('PostCreateGallery updateFilePreview - file key not found in uploadedFiles', [
+                            'identifier' => $identifier,
+                            'uploadedFiles_keys' => array_keys($this->uploadedFiles[$identifier] ?? []),
+                        ]);
+
+                        return; // Skip file update for archive files
                     }
                     $oldFile = $this->uploadedFiles[$identifier]['file'];
                     $tempFileName = 'livewire-'.uniqid().'-'.$oldFile->getClientOriginalName();
@@ -1091,9 +1368,14 @@ class PostCreateGallery extends Component
 
                 // If we have a local file path
                 if (file_exists($filePath)) {
-                    // 'file' key'inin var olup olmadığını kontrol et (arşiv dosyaları için olmayabilir)
+                    // Check if 'file' key exists (for archive files, it might not exist)
                     if (! isset($this->uploadedFiles[$identifier]['file'])) {
-                        return; // Arşiv dosyaları için dosya güncellemesini atla
+                        LogHelper::warning('PostCreateGallery updateFilePreview - file key not found in uploadedFiles (local path)', [
+                            'identifier' => $identifier,
+                            'uploadedFiles_keys' => array_keys($this->uploadedFiles[$identifier] ?? []),
+                        ]);
+
+                        return; // Skip file update for archive files
                     }
                     $oldFile = $this->uploadedFiles[$identifier]['file'];
                     $originalName = $oldFile->getClientOriginalName();
@@ -1207,6 +1489,10 @@ class PostCreateGallery extends Component
     {
         // Güvenlik: fileId ve field kontrolü
         if (empty($fileId) || empty($field)) {
+            LogHelper::warning('updateFileById called with empty fileId or field', [
+                'fileId' => $fileId,
+                'field' => $field,
+            ]);
 
             return;
         }
@@ -1250,6 +1536,24 @@ class PostCreateGallery extends Component
             }
         }
 
+        // Try existingFiles array (for edit mode)
+        foreach ($this->existingFiles as $index => $file) {
+            if (isset($file['file_id']) && (string) $file['file_id'] === $fileIdStr) {
+                $oldValue = $file[$field] ?? '';
+                $this->existingFiles[$index][$field] = $value;
+
+                return;
+            }
+        }
+
+        // If not found, log debug info
+        LogHelper::warning('File not found in updateFileById', [
+            'fileId' => $fileId,
+            'fileIdStr' => $fileIdStr,
+            'field' => $field,
+            'has_uploadedFiles' => ! empty($this->uploadedFiles),
+            'has_existingFiles' => ! empty($this->existingFiles),
+        ]);
     }
 
     public function updateFileOrder($fromIndex, $toIndex)
@@ -1321,34 +1625,87 @@ class PostCreateGallery extends Component
     public function updateOrder($order)
     {
         try {
-            // Validation
-            if (! $this->postsService->validateOrder($order, $this->uploadedFiles, false)) {
-                $this->dispatch('order-update-failed', [
-                    'message' => 'Geçersiz sıralama verisi. Lütfen sayfayı yenileyip tekrar deneyin.',
-                ]);
+            // Edit sayfasında existingFiles kullanılıyor, create sayfasında uploadedFiles
+            // Önce existingFiles ile dene (edit için)
+            $useExistingFiles = ! empty($this->existingFiles);
 
-                return;
+            if ($useExistingFiles) {
+                // Validation - existingFiles için
+                if (! $this->postsService->validateOrder($order, $this->existingFiles, true)) {
+                    LogHelper::warning('Geçersiz sıralama verisi alındı (existingFiles)', [
+                        'order' => $order,
+                    ]);
+
+                    $this->dispatch('order-update-failed', [
+                        'message' => 'Geçersiz sıralama verisi. Lütfen sayfayı yenileyip tekrar deneyin.',
+                    ]);
+
+                    return;
+                }
+
+                // Mevcut sıralamayı al (string'e normalize et - JavaScript'ten gelen değerler string olabilir)
+                $currentOrder = array_map('strval', array_column($this->existingFiles, 'file_id'));
+                $order = array_map('strval', $order);
+
+                // Değişiklik var mı kontrol et
+                if ($currentOrder === $order) {
+                    return;
+                }
+
+                // Transaction içinde sıralama ve kaydetme
+                DB::transaction(function () use ($order) {
+                    // PostsService kullanarak sıralama yap
+                    $this->existingFiles = $this->postsService->reorderFiles(
+                        $this->existingFiles,
+                        $order,
+                        true // Index-based array
+                    );
+
+                    // Order değerlerini array index'ine göre güncelle
+                    foreach ($this->existingFiles as $index => &$file) {
+                        $file['order'] = $index;
+                    }
+                    unset($file); // Reference'ı kaldır
+
+                    // Sıralamayı veritabanına kaydet
+                    $this->updateGalleryContent();
+                });
+            } else {
+                // Create sayfası için uploadedFiles kullan
+                // Validation
+                if (! $this->postsService->validateOrder($order, $this->uploadedFiles, false)) {
+                    LogHelper::warning('Geçersiz sıralama verisi alındı (uploadedFiles)', [
+                        'order' => $order,
+                    ]);
+
+                    $this->dispatch('order-update-failed', [
+                        'message' => 'Geçersiz sıralama verisi. Lütfen sayfayı yenileyip tekrar deneyin.',
+                    ]);
+
+                    return;
+                }
+
+                // Mevcut sıralamayı al
+                $currentOrder = array_keys($this->uploadedFiles);
+
+                // Değişiklik var mı kontrol et
+                if ($currentOrder === $order) {
+                    return;
+                }
+
+                // PostsService kullanarak sıralama yap
+                $this->uploadedFiles = $this->postsService->reorderFiles(
+                    $this->uploadedFiles,
+                    $order,
+                    false // Associative array
+                );
             }
-
-            // Mevcut sıralamayı al
-            $currentOrder = array_keys($this->uploadedFiles);
-
-            // Değişiklik var mı kontrol et
-            if ($currentOrder === $order) {
-                return;
-            }
-
-            // PostsService kullanarak sıralama yap
-            $this->uploadedFiles = $this->postsService->reorderFiles(
-                $this->uploadedFiles,
-                $order,
-                false // Associative array
-            );
 
             // Başarı mesajı - Sessizce çalış, alert gösterme
             $this->dispatch('order-updated');
         } catch (\Exception $e) {
-            LogHelper::error('Galeri sıralaması güncellenirken hata oluştu (create)', [
+            LogHelper::error('Galeri sıralaması güncellenirken hata oluştu', [
+                'post_id' => $this->post->post_id ?? null,
                 'order' => $order,
                 'error' => $e->getMessage(),
             ]);
@@ -1357,6 +1714,71 @@ class PostCreateGallery extends Component
             $this->dispatch('order-update-failed', [
                 'message' => 'Sıralama güncellenirken bir hata oluştu: '.$e->getMessage(),
             ]);
+        }
+    }
+
+    private function updateGalleryContent(): bool
+    {
+        try {
+            // existingFiles'dan açıklamaları kontrol et (debug)
+            $descriptions = array_map(function ($file) {
+                return [
+                    'file_id' => $file['file_id'],
+                    'description' => $file['description'] ?? '',
+                    'description_length' => strlen($file['description'] ?? ''),
+                    'has_description' => ! empty($file['description']),
+                    'original_name' => $file['original_name'],
+                ];
+            }, $this->existingFiles);
+
+            // PostsService kullanarak veritabanına kaydet
+            $result = $this->postsService->saveGalleryContent(
+                $this->post,
+                $this->existingFiles,
+                $this->primaryFileId // String olarak gönder (int'e cast etme)
+            );
+
+            if ($result) {
+                // gallery_data'yı güncellemek için refresh() kullan (gallery_data JSON column güncellendi)
+                $this->post->refresh();
+
+                // existingFiles array'indeki primary flag'lerini güncelle
+                $galleryData = $this->post->gallery_data;
+                if (is_array($galleryData)) {
+                    foreach ($this->existingFiles as $index => $file) {
+                        $fileId = (string) $file['file_id'];
+                        // gallery_data'dan bu file_id'ye sahip dosyayı bul
+                        foreach ($galleryData as $galleryFile) {
+                            if (isset($galleryFile['file_id']) && (string) $galleryFile['file_id'] === $fileId) {
+                                $this->existingFiles[$index]['primary'] = (bool) ($galleryFile['is_primary'] ?? false);
+                                break;
+                            }
+                        }
+                    }
+
+                    // primaryFileId'yi güncelle
+                    foreach ($this->existingFiles as $file) {
+                        if ($file['primary'] === true) {
+                            $this->primaryFileId = (string) $file['file_id'];
+                            break;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            LogHelper::error('Galeri içeriği güncellenirken hata oluştu', [
+                'post_id' => $this->post->post_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Kullanıcıya hata göster
+            session()->flash('error', 'Galeri içeriği güncellenirken bir hata oluştu: '.$e->getMessage());
+
+            return false;
         }
     }
 
@@ -1373,10 +1795,8 @@ class PostCreateGallery extends Component
         $postStatuses = PostStatus::all();
 
         /** @var view-string $view */
-        $view = 'posts::livewire.post-create-gallery';
+        $view = 'posts::livewire.post-edit-gallery';
 
-        return view($view, compact('categories', 'postPositions', 'postStatuses'))
-            ->extends('layouts.admin')
-            ->section('content');
+        return view($view, compact('categories', 'postPositions', 'postStatuses'));
     }
 }

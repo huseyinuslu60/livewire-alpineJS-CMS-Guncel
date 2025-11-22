@@ -25,7 +25,7 @@ class LogHelper
      */
     public static function info(string $message, array $context = []): void
     {
-        if (config('app.debug')) {
+        if (config('app.debug') && (bool) config('project.logging_verbose', false)) {
             Log::info($message, $context);
         }
     }

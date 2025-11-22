@@ -95,11 +95,9 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
-                    // jQuery ve Trumbowyg'i ana bundle'da tut
-                    // Bu, jQuery'nin global olarak expose edilmesini ve Trumbowyg'in
-                    // jQuery'ye erişebilmesini garanti eder
+                    // Editor chunk: jQuery and Trumbowyg in separate chunk for lazy loading
                     if (id.includes('node_modules/jquery') || id.includes('node_modules/trumbowyg')) {
-                        return undefined; // Ana bundle'a dahil et
+                        return 'editor';
                     }
 
                     // Vendor chunk for common libraries

@@ -104,8 +104,6 @@
                                                         const imageKey = btn.getAttribute('data-image-key');
                                                         const imageUrl = btn.getAttribute('data-image-url');
                                                         
-                                                        console.log('Image Edit Button Clicked (Gallery):', { imageKey, imageUrl, hasOpenImageEditor: typeof window.openImageEditor !== 'undefined' });
-                                                        
                                                         if (!imageKey || !imageUrl) {
                                                             console.error('Image Edit Button - Missing imageKey or imageUrl');
                                                             return;

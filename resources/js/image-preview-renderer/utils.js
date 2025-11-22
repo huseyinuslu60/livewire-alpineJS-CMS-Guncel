@@ -27,7 +27,7 @@ export function findSpotData(imgElement) {
         // Handle HTML-escaped JSON (common in Blade templates)
         // Try parsing as-is first, then try unescaping if needed
         let parsedJson = spotDataJson;
-        
+
         // If the JSON appears to be HTML-escaped (contains &quot; or similar), try to unescape
         if (spotDataJson.includes('&quot;') || spotDataJson.includes('&amp;') || spotDataJson.includes('&lt;') || spotDataJson.includes('&gt;')) {
             // Create a temporary DOM element to unescape HTML entities
@@ -35,7 +35,7 @@ export function findSpotData(imgElement) {
             tempDiv.innerHTML = spotDataJson;
             parsedJson = tempDiv.textContent || tempDiv.innerText || spotDataJson;
         }
-        
+
         const spotData = JSON.parse(parsedJson);
         // Validate structure
         if (!spotData || !spotData.image) {
@@ -69,18 +69,17 @@ export function findPreviewCanvas(imgElement) {
     if (imageKey) {
         const canvas = document.querySelector(`canvas[data-image-key="${imageKey}"]`);
         if (canvas) {
-            console.log('Preview Renderer - Found canvas by data-image-key:', imageKey);
             return canvas;
         }
     }
 
     // 2) Fallback: Try to find canvas as direct sibling (most common layout)
     // Check previous sibling
-    if (imgElement.previousElementSibling && 
+    if (imgElement.previousElementSibling &&
         imgElement.previousElementSibling.tagName === 'CANVAS') {
         const canvas = imgElement.previousElementSibling;
         // Verify it's a preview canvas (has id starting with preview-canvas- or data-image-key)
-        if ((canvas.id && canvas.id.startsWith('preview-canvas-')) || 
+        if ((canvas.id && canvas.id.startsWith('preview-canvas-')) ||
             canvas.getAttribute('data-image-key')) {
             // If img has imageKey, verify canvas matches
             if (imageKey) {
@@ -95,10 +94,10 @@ export function findPreviewCanvas(imgElement) {
     }
 
     // Check next sibling
-    if (imgElement.nextElementSibling && 
+    if (imgElement.nextElementSibling &&
         imgElement.nextElementSibling.tagName === 'CANVAS') {
         const canvas = imgElement.nextElementSibling;
-        if ((canvas.id && canvas.id.startsWith('preview-canvas-')) || 
+        if ((canvas.id && canvas.id.startsWith('preview-canvas-')) ||
             canvas.getAttribute('data-image-key')) {
             if (imageKey) {
                 const canvasImageKey = canvas.getAttribute('data-image-key');
@@ -171,7 +170,6 @@ export function findPreviewImage(imageKey) {
     // Priority: Find by data-image-key (exact match)
     const img = document.querySelector(`img[data-image-key="${imageKey}"]`);
     if (img) {
-        console.log('Preview Renderer - Found image by data-image-key:', imageKey);
         return img;
     }
 
@@ -200,17 +198,30 @@ export function findPreviewImage(imageKey) {
 
 /**
  * Resolve image source URL from spot_data or img element
+ * IMPORTANT: If original.path is a Livewire temporary file URL, return null to skip preview rendering
+ * Livewire temporary file URLs expire and cause 500 errors
  * @param {HTMLElement} imgElement - The img element
  * @param {object} imageData - Image data from spot_data
- * @returns {string} Image source URL
+ * @returns {string|null} Image source URL or null if Livewire temp URL detected
  */
 export function resolveImageSource(imgElement, imageData) {
     const originalPath = imageData.original?.path;
+
+    // Check if originalPath is a Livewire temporary file URL
+    if (originalPath && (originalPath.includes('/livewire/preview-file/') || originalPath.includes('livewire/preview-file'))) {
+        // Also check if imgElement.src is a Livewire temp URL
+        const imgSrc = imgElement.src || '';
+        if (imgSrc.includes('/livewire/preview-file/') || imgSrc.includes('livewire/preview-file')) {
+            return imgSrc;
+        }
+        return imgSrc;
+    }
+
     if (originalPath) {
         return originalPath.startsWith('http')
             ? originalPath
             : `${window.location.origin}/storage/${originalPath}`;
     }
-    return imgElement.src;
+    return imgElement.src || '';
 }
 

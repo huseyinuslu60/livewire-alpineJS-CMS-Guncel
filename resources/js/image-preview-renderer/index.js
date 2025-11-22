@@ -6,6 +6,9 @@
 
 import { findSpotData, findPreviewCanvas, findPreviewImage, resolveImageSource } from './utils.js';
 import { calculateCropRectangles, buildFilterString, renderTextObjects } from './rendering.js';
+if (typeof window !== 'undefined') {
+  window.__PreviewRenderCache__ = window.__PreviewRenderCache__ || {};
+}
 
 /**
  * Render preview image with spot_data (crop, effects, textObjects)
@@ -31,6 +34,8 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
         return;
     }
 
+    const key = (typeof imgElement.getAttribute === 'function' && (imgElement.getAttribute('data-image-key') || imgElement.id)) || (typeof imgElementOrImageKey === 'string' ? imgElementOrImageKey : 'unknown');
+    const prev = (typeof window !== 'undefined' && window.__PreviewRenderCache__ && window.__PreviewRenderCache__[key]) || null;
     // Find and parse spot_data
     // IMPORTANT: Always parse with try/catch to prevent UI crashes
     let spotData = null;
@@ -44,7 +49,10 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
             canvas.style.display = 'none';
         }
         if (imgElement) {
+            // Ensure img element is visible
             imgElement.style.display = 'block';
+            imgElement.style.visibility = 'visible';
+            imgElement.style.opacity = '1';
         }
         return;
     }
@@ -56,12 +64,22 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
             canvas.style.display = 'none';
         }
         if (imgElement) {
+            // Ensure img element is visible
             imgElement.style.display = 'block';
+            imgElement.style.visibility = 'visible';
+            imgElement.style.opacity = '1';
         }
         return;
     }
 
     const imageData = spotData.image;
+    const spotHash = JSON.stringify(imageData).length + ':' + (imageData.original && imageData.original.path ? imageData.original.path : '') + ':' + (imgElement.src || '');
+    const canvasForSkipCheck = findPreviewCanvas(imgElement);
+    const canvasVisible = !!(canvasForSkipCheck && canvasForSkipCheck.style && canvasForSkipCheck.style.display === 'block');
+    const imgHidden = !!(imgElement && imgElement.style && imgElement.style.display === 'none');
+    if (prev && prev.lastHash === spotHash && prev.done === true && canvasVisible && imgHidden) {
+        return;
+    }
 
     // Find canvas element
     const canvas = findPreviewCanvas(imgElement);
@@ -76,6 +94,28 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
 
     // Resolve image source
     const imageSrc = resolveImageSource(imgElement, imageData);
+
+    // If imageSrc is null, it means both originalPath and imgSrc are Livewire temp URLs
+    // Skip preview rendering and show regular image
+    if (!imageSrc) {
+        console.warn('Preview Renderer - Skipping preview render due to Livewire temp URLs', {
+            originalPath: imageData.original?.path,
+            imgSrc: imgElement.src,
+        });
+        if (canvas) {
+            canvas.style.display = 'none';
+        }
+        if (imgElement) {
+            // Ensure img element is visible
+            imgElement.style.display = 'block';
+            imgElement.style.visibility = 'visible';
+            imgElement.style.opacity = '1';
+            // Remove any inline styles that might hide it
+            imgElement.style.width = '';
+            imgElement.style.height = '';
+        }
+        return;
+    }
 
     // Preview rendering started
 
@@ -124,17 +164,15 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
             canvas.width = canvasWidth;
             canvas.height = canvasHeight;
 
-            // Set canvas CSS size to match img element (visual size)
-            // Use the actual img element dimensions for CSS, not the calculated canvasWidth
-            const imgDisplayWidth = imgElement.clientWidth || imgElement.offsetWidth || canvasWidth;
-            const imgDisplayHeight = imgElement.clientHeight || imgElement.offsetHeight || canvasHeight;
-            canvas.style.width = imgDisplayWidth + 'px';
-            canvas.style.height = imgDisplayHeight + 'px';
+            // Canvas CSS size is handled by CSS classes (w-full h-full), no inline styles needed
+            // This allows CSS to control the visual size properly
 
             canvas.style.display = 'block';
             imgElement.style.display = 'none';
 
-            // Continue with rendering
+            if (typeof window !== 'undefined' && window.__PreviewRenderCache__) {
+              window.__PreviewRenderCache__[key] = { lastHash: spotHash, rendering: true, done: false, ts: Date.now() };
+            }
             renderImage();
         });
 
@@ -199,7 +237,10 @@ export function renderPreviewWithSpotData(imgElementOrImageKey) {
                 cropHeight: dh   // Cropped image height in canvas
             });
 
-            // Preview rendering complete
+            if (typeof window !== 'undefined' && window.__PreviewRenderCache__ && window.__PreviewRenderCache__[key]) {
+                window.__PreviewRenderCache__[key].rendering = false;
+                window.__PreviewRenderCache__[key].done = true;
+            }
         }
     };
 
@@ -230,7 +271,7 @@ function processImageForPreview(img) {
     const spotDataJson = img.getAttribute('data-spot-data');
 
     // Validate spot_data exists and is valid
-    if (!hasSpotData || !spotDataJson || spotDataJson.length < 50) {
+    if (!hasSpotData || !spotDataJson || spotDataJson.length < 10) {
         // No valid spot_data on this image, skip it
         return;
     }
@@ -273,72 +314,44 @@ function renderImagePreview(img) {
  * Call this after DOM is loaded or after Livewire updates
  */
 export function initPreviewRenderer() {
-    // Find all IMG elements with spot_data attribute (must be IMG elements, not other elements)
-    const imagesWithSpotData = document.querySelectorAll('img[data-has-spot-data="true"][data-spot-data]');
-
-    // Process each image that has valid spot_data
-    imagesWithSpotData.forEach(img => {
-        // Verify it's actually an IMG element
-        if (img.tagName !== 'IMG') {
-            return;
+    const debounce = (fn) => { if (typeof window === 'undefined') return fn(); clearTimeout(window.__previewDebounceTimer); window.__previewDebounceTimer = setTimeout(fn, 150); };
+    const scan = () => {
+        const imagesWithSpotData = document.querySelectorAll('img[data-has-spot-data="true"][data-spot-data]');
+        const previewImages = document.querySelectorAll('img[id^="preview-img-"][data-spot-data]');
+        const imagesSet = new Set();
+        imagesWithSpotData.forEach(img => imagesSet.add(img));
+        previewImages.forEach(img => imagesSet.add(img));
+        if (typeof window !== 'undefined') {
+            if (!window.__PreviewObserver__) {
+                window.__PreviewObserver__ = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => { const el = entry.target; if (entry.isIntersecting) { window.__PreviewObserver__.unobserve(el); processImageForPreview(el); } });
+                }, { root: null, rootMargin: '0px', threshold: 0 });
+            }
         }
-
-        // Verify spot_data exists and is valid
-        // Note: Minimum length check is lenient (20 chars) to allow small but valid JSON
-        // Very small JSONs like {"image":{}} are still valid, just unlikely to have meaningful data
-        const spotDataJson = img.getAttribute('data-spot-data');
-        if (!spotDataJson || spotDataJson.length < 20) {
-            return;
-        }
-
-        // Process this image
-        processImageForPreview(img);
-    });
-
-    // Also check preview-img-* images that might not have data-has-spot-data set yet
-    // But only if they have data-spot-data attribute
-    const previewImages = document.querySelectorAll('img[id^="preview-img-"][data-spot-data]');
-    // Convert NodeList to Array for includes check
-    const imagesWithSpotDataArray = Array.from(imagesWithSpotData);
-    previewImages.forEach(img => {
-        // Skip if already processed
-        if (imagesWithSpotDataArray.includes(img)) {
-            return;
-        }
-
-        // Verify spot_data exists and is valid
-        // Note: Minimum length check is lenient (20 chars) to allow small but valid JSON
-        // Very small JSONs like {"image":{}} are still valid, just unlikely to have meaningful data
-        const spotDataJson = img.getAttribute('data-spot-data');
-        if (!spotDataJson || spotDataJson.length < 20) {
-            return;
-        }
-
-        // Set data-has-spot-data if not set
-        if (img.getAttribute('data-has-spot-data') !== 'true') {
-            img.setAttribute('data-has-spot-data', 'true');
-        }
-
-        // Process this image
-        processImageForPreview(img);
-    });
+        imagesSet.forEach(img => {
+            if (img.tagName !== 'IMG') return;
+            const spotDataJson = img.getAttribute('data-spot-data');
+            if (!spotDataJson || spotDataJson.length < 20) return;
+            if (img.getAttribute('data-has-spot-data') !== 'true') { img.setAttribute('data-has-spot-data', 'true'); }
+            const rect = img.getBoundingClientRect();
+            const visible = rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= (window.innerHeight || 0) && rect.left <= (window.innerWidth || 0);
+            if (visible) { processImageForPreview(img); } else if (typeof window !== 'undefined' && window.__PreviewObserver__) { window.__PreviewObserver__.observe(img); }
+        });
+    };
+    debounce(scan);
 }
 
 /**
  * Setup event listeners for Livewire and custom events
  */
 function setupEventListeners() {
+    if (typeof window !== 'undefined') {
+        if (window.__PREVIEW_EVT_BOUND__) return;
+        window.__PREVIEW_EVT_BOUND__ = true;
+    }
     // Re-render on Livewire update
-    const livewireEvents = ['livewire:update', 'livewire:updated', 'livewire:load'];
-    const renderDelays = [100, 300, 600]; // Multiple delays to catch elements created at different times
-
-    livewireEvents.forEach(eventName => {
-        document.addEventListener(eventName, function() {
-            renderDelays.forEach(delay => {
-                setTimeout(() => initPreviewRenderer(), delay);
-            });
-        });
-    });
+    const reinit = () => initPreviewRenderer();
+    ['livewire:update','livewire:updated','livewire:load','livewire:message.processed'].forEach(eventName => { document.addEventListener(eventName, () => reinit()); });
 
     // Listen for custom image-edited event
     document.addEventListener('image-edited', function() {
@@ -346,6 +359,11 @@ function setupEventListeners() {
         customDelays.forEach(delay => {
             setTimeout(() => initPreviewRenderer(), delay);
         });
+    });
+
+    // Also listen for Livewire browser event 'image-updated'
+    document.addEventListener('image-updated', function() {
+        setTimeout(() => initPreviewRenderer(), 200);
     });
 }
 

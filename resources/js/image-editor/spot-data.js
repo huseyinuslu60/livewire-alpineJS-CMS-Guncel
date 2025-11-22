@@ -341,10 +341,15 @@ export function createSpotDataMethods() {
 
       // If originalImagePath is not set, try to extract it from imageUrl
       if (!originalPath && this.imageUrl) {
-        // Remove domain and /storage/ prefix to get relative path
-        originalPath = this.imageUrl.replace(/^https?:\/\/[^\/]+/, ''); // Remove domain
-        originalPath = originalPath.replace(/^\/storage\//, ''); // Remove /storage/ prefix
-        originalPath = originalPath.replace(/^storage\//, ''); // Remove storage/ prefix
+        let urlPath = this.imageUrl.replace(/^https?:\/\/[^\/]+/, '');
+        urlPath = urlPath.replace(/^\/storage\//, '');
+        urlPath = urlPath.replace(/^storage\//, '');
+        // Skip Livewire temporary URLs to allow renderer to use img.src
+        if (urlPath.includes('livewire/preview-file')) {
+          originalPath = '';
+        } else {
+          originalPath = urlPath;
+        }
       }
 
       // If still no path, use empty string (should not happen in normal flow)

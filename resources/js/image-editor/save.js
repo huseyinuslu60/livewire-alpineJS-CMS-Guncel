@@ -1,6 +1,6 @@
 /**
- * Image Editor - Save Operations
- * Saving edited images and updating previews
+ * Görsel Editörü - Kaydetme İşlemleri
+ * Düzenlenmiş görselleri kaydetme ve önizlemeleri güncelleme
  */
 
 import { updateImageSpotData, getCurrentImageConfig, getImageConfig } from './state.js';
@@ -25,45 +25,84 @@ export function createSaveMethods() {
     },
 
     /**
-     * Helper: Find parent Livewire component
+     * Yardımcı: Ana Livewire component'ini bul
+     * Component'i bulmak için birden fazla strateji kullanır
      */
     findParentLivewireComponent() {
-      // Try to find Livewire component using Livewire API
-      if (window.Livewire) {
-        const livewireComponents = window.Livewire.all();
-        if (livewireComponents && livewireComponents.length > 0) {
-          for (const component of livewireComponents) {
-            if (component.__instance && typeof component.__instance.updateFilePreview === 'function') {
-              return component;
-            }
-          }
-        }
+      if (!window.Livewire) {
+        console.warn('Image Editor - findParentLivewireComponent: Livewire not available');
+        return null;
       }
 
-      // Fallback: Try to find by traversing DOM
-      const editorEl = document.querySelector('[x-data*="imageEditor"]');
-      if (editorEl) {
-        let current = editorEl.parentElement;
-        while (current && current !== document.body) {
-          if (current.hasAttribute && current.hasAttribute('wire:id')) {
-            const wireId = current.getAttribute('wire:id');
-            if (window.Livewire && window.Livewire.find) {
-              const component = window.Livewire.find(wireId);
-              if (component && component.__instance && typeof component.__instance.updateFilePreview === 'function') {
+      // Strateji 1: updateFilePreview metoduna göre bulmayı dene (en spesifik)
+      const livewireComponents = window.Livewire.all();
+      if (livewireComponents && livewireComponents.length > 0) {
+        for (const component of livewireComponents) {
+          if (component && typeof component.call === 'function') {
+            // Check if component has updateFilePreview method by trying to get it
+            try {
+              // Check if component has the method by checking its properties
+              if (component.get && (
+                component.get('uploadedFiles') !== undefined ||
+                component.get('selectedArchiveFilesPreview') !== undefined ||
+                component.get('imageEditorData') !== undefined
+              )) {
+                // Bu PostCreateGallery veya benzer bir component gibi görünüyor
                 return component;
               }
+            } catch (e) {
+              // Continue searching
             }
           }
-          current = current.parentElement;
         }
       }
 
+      // Strateji 2: Hidden input veya herhangi bir elementten wire:id'ye göre bul
+      const primaryImageInput = document.getElementById('primary_image_spot_data');
+      let wireId = null;
+
+      if (primaryImageInput) {
+        wireId = primaryImageInput.closest('[wire\\:id]')?.getAttribute('wire:id');
+      }
+
+      if (!wireId) {
+        // Try to find any wire:id on the page
+        const wireElement = document.querySelector('[wire\\:id]');
+        if (wireElement) {
+          wireId = wireElement.getAttribute('wire:id');
+        }
+      }
+
+      if (wireId && window.Livewire.find) {
+        try {
+          const component = window.Livewire.find(wireId);
+          if (component && typeof component.call === 'function') {
+            return component;
+          }
+        } catch (e) {
+          console.warn('Image Editor - findParentLivewireComponent: Failed to find component by wire:id:', e);
+        }
+      }
+
+      // Strateji 3: Son çare olarak Livewire.first()'i dene
+      if (typeof window.Livewire.first === 'function') {
+        try {
+          const component = window.Livewire.first();
+          if (component && typeof component.call === 'function') {
+            return component;
+          }
+        } catch (e) {
+          console.warn('Image Editor - findParentLivewireComponent: Livewire.first() failed:', e);
+        }
+      }
+
+      console.warn('Image Editor - findParentLivewireComponent: Could not find Livewire component');
       return null;
     },
 
     /**
-     * Helper: Find preview image element by imageKey (NEW: imageKey-based approach)
-     * Falls back to legacy fileId/index if imageKey not provided
+     * Yardımcı: imageKey'ye göre önizleme görsel elementini bul (YENİ: imageKey tabanlı yaklaşım)
+     * imageKey sağlanmazsa eski fileId/index'e geri döner
      */
     findPreviewImageElementByIdentifiers(fileId = null, index = null, imageKey = null) {
       // NEW: Prioritize imageKey-based search
@@ -71,27 +110,24 @@ export function createSaveMethods() {
       if (targetImageKey) {
         const img = document.querySelector(`img[data-image-key="${targetImageKey}"]`);
         if (img) {
-          console.log('Image Editor - Found preview image by imageKey:', targetImageKey);
           return img;
         }
       }
 
-      // Legacy fallback: Try by fileId/index (for backward compatibility)
+      // Eski fallback: fileId/index'e göre dene (geriye dönük uyumluluk için)
       const targetFileId = fileId !== null && fileId !== undefined ? fileId : this.currentFileId;
       const targetIndex = index !== null && index !== undefined ? index : this.currentIndex;
 
-      // First try to find by file ID (most specific)
+      // Önce file ID'ye göre bulmayı dene (en spesifik)
       if (targetFileId) {
         const img = document.querySelector(`#preview-img-${targetFileId}`);
         if (img && img.tagName === 'IMG') {
-          console.log('Image Editor - Found preview image by fileId (legacy):', targetFileId);
           return img;
         }
 
         // Also try by data-file-id attribute
         const imgByDataAttr = document.querySelector(`img[data-file-id="${targetFileId}"]`);
         if (imgByDataAttr) {
-          console.log('Image Editor - Found preview image by data-file-id (legacy):', targetFileId);
           return imgByDataAttr;
         }
       }
@@ -101,7 +137,6 @@ export function createSaveMethods() {
         // Try exact match first
         let img = document.querySelector(`img[data-file-index="${targetIndex}"]`);
         if (img) {
-          console.log('Image Editor - Found preview image by exact index (legacy):', targetIndex);
           return img;
         }
 
@@ -111,7 +146,6 @@ export function createSaveMethods() {
           const imgIndex = imgEl.getAttribute('data-file-index');
           // Strict comparison - must match exactly
           if (String(imgIndex) === String(targetIndex) || Number(imgIndex) === Number(targetIndex)) {
-            console.log('Image Editor - Found preview image by matching index (legacy):', targetIndex);
             return imgEl;
           }
         }
@@ -122,15 +156,14 @@ export function createSaveMethods() {
           const imgIndex = imgEl.getAttribute('data-file-index');
           // Strict comparison - must match exactly
           if (String(imgIndex) === String(targetIndex) || Number(imgIndex) === Number(targetIndex)) {
-            console.log('Image Editor - Found preview image by id pattern and index (legacy):', targetIndex);
             return imgEl;
           }
         }
       }
 
-      // CRITICAL: Do NOT use fallback methods that return random images
-      // This would cause wrong preview to show for other posts
-      // If we can't find the exact match, return null and let retry logic handle it
+      // KRİTİK: Rastgele görseller döndüren fallback metodları kullanma
+      // Bu, diğer yazılar için yanlış önizleme göstermesine neden olur
+      // Tam eşleşmeyi bulamazsak null döndür ve yeniden deneme mantığının halledmesine izin ver
       console.warn('Image Editor - Could not find preview image element:', {
         targetImageKey: targetImageKey,
         targetFileId: targetFileId,
@@ -144,17 +177,17 @@ export function createSaveMethods() {
     },
 
     /**
-     * Helper: Find preview image element
-     * IMPORTANT: Must find the EXACT image element matching currentFileId or currentIndex
-     * Never return a random image element, as this would show wrong preview for other posts
+     * Yardımcı: Önizleme görsel elementini bul
+     * ÖNEMLİ: currentFileId veya currentIndex ile eşleşen TAM görsel elementi bulmalı
+     * Rastgele bir görsel elementi asla döndürme, bu diğer yazılar için yanlış önizleme göstermesine neden olur
      */
     findPreviewImageElement() {
       return this.findPreviewImageElementByIdentifiers();
     },
 
     /**
-     * Helper: Update preview element with spot_data
-     * IMPORTANT: Must clear canvas before updating to prevent showing old preview
+     * Yardımcı: spot_data ile önizleme elementini güncelle
+     * ÖNEMLİ: Eski önizlemeyi göstermeyi önlemek için güncellemeden önce canvas'ı temizlemeli
      */
     updatePreviewElement(previewImg, spotDataJson) {
       if (!previewImg || !spotDataJson) {
@@ -162,9 +195,9 @@ export function createSaveMethods() {
         return false;
       }
 
-      // Validate spotData
-      // Note: Minimum length check is lenient (20 chars) to allow small but valid JSON
-      // Very small JSONs like {"image":{}} are still valid, just unlikely to have meaningful data
+      // spotData'yı doğrula
+      // Not: Minimum uzunluk kontrolü esnek (20 karakter) küçük ama geçerli JSON'lara izin vermek için
+      // {"image":{}} gibi çok küçük JSON'lar hala geçerli, sadece anlamlı veri içerme olasılığı düşük
       if (!spotDataJson || spotDataJson.length < 20) {
         console.warn('Image Editor - updatePreviewElement: spotDataJson too short or missing');
         return false;
@@ -177,60 +210,55 @@ export function createSaveMethods() {
           return false;
         }
 
-        // Verify this is the correct image element
-        const fileId = previewImg.id.replace('preview-img-', '');
+        const imageKeyAttr = previewImg.getAttribute('data-image-key');
+        const fileId = previewImg.id ? previewImg.id.replace('preview-img-', '') : '';
         const dataFileId = previewImg.getAttribute('data-file-id');
         const dataFileIndex = previewImg.getAttribute('data-file-index');
 
-        // Verify match with currentFileId or currentIndex
+        // Geçici yüklemeler için imageKey tam eşleşmesini tercih et; eski uyumsuzluk kontrollerini atla
+        if (!imageKeyAttr) {
         if (this.currentFileId) {
           if (fileId !== String(this.currentFileId) && dataFileId !== String(this.currentFileId)) {
-            console.warn('Image Editor - updatePreviewElement: FileId mismatch', {
-              fileId: fileId,
-              dataFileId: dataFileId,
-              currentFileId: this.currentFileId,
-            });
-            return false;
+              if (import.meta?.env?.DEV) console.warn('Image Editor - updatePreviewElement: FileId mismatch', {
+                  fileId: fileId,
+                  dataFileId: dataFileId,
+                  currentFileId: this.currentFileId,
+              });
+              return false;
           }
         } else if (this.currentIndex !== null && this.currentIndex !== undefined) {
           if (String(dataFileIndex) !== String(this.currentIndex)) {
-            console.warn('Image Editor - updatePreviewElement: Index mismatch', {
+            if (import.meta?.env?.DEV) console.warn('Image Editor - updatePreviewElement: Index mismatch', {
               dataFileIndex: dataFileIndex,
               currentIndex: this.currentIndex,
             });
             return false;
           }
         }
+        }
 
-        console.log('Image Editor - updatePreviewElement: Updating preview', {
-          fileId: fileId,
-          dataFileId: dataFileId,
-          dataFileIndex: dataFileIndex,
-          currentFileId: this.currentFileId,
-          currentIndex: this.currentIndex,
-        });
 
-        // Update attributes - CRITICAL: These attributes are the single source of truth for spot_data
+        // Attribute'ları güncelle - KRİTİK: Bu attribute'lar spot_data için tek gerçek kaynak
         previewImg.setAttribute('data-spot-data', spotDataJson);
         previewImg.setAttribute('data-has-spot-data', 'true');
 
-        // Set data-file-index if needed (for new uploads)
+        // Gerekirse data-file-index'i ayarla (yeni yüklemeler için)
         if (this.currentIndex !== null && this.currentIndex !== undefined) {
           previewImg.setAttribute('data-file-index', String(this.currentIndex));
         }
 
-        // Set data-file-id if we have currentFileId (for existing files)
+        // currentFileId varsa data-file-id'yi ayarla (mevcut dosyalar için)
         if (this.currentFileId) {
           previewImg.setAttribute('data-file-id', String(this.currentFileId));
         }
 
-        // Ensure data-image-url is set if not already present
-        // This helps with re-edit scenarios where we need the original image URL
+        // Henüz yoksa data-image-url'nin ayarlandığından emin ol
+        // Bu, orijinal görsel URL'sine ihtiyaç duyduğumuz yeniden düzenleme senaryolarında yardımcı olur
         if (!previewImg.getAttribute('data-image-url') && this.imageUrl) {
           previewImg.setAttribute('data-image-url', this.imageUrl);
         }
 
-        // Ensure canvas exists and clear it
+        // Canvas'ın var olduğundan ve temizlendiğinden emin ol
         const parent = previewImg.parentElement;
         if (parent) {
           let canvas = parent.querySelector('canvas[id^="preview-canvas-"]') || parent.querySelector('canvas');
@@ -251,7 +279,7 @@ export function createSaveMethods() {
             canvas.id = canvasId;
             parent.insertBefore(canvas, previewImg);
           } else {
-            // Clear existing canvas to prevent showing old preview
+            // Eski önizlemeyi göstermeyi önlemek için mevcut canvas'ı temizle
             const ctx = canvas.getContext('2d');
             if (ctx) {
               ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -262,42 +290,15 @@ export function createSaveMethods() {
         // Render preview - use multiple strategies to ensure it works
         const renderPreview = () => {
           if (window.renderPreviewWithSpotData) {
-            try {
-              window.renderPreviewWithSpotData(previewImg);
-            } catch (e) {
-              console.warn('Image Editor - renderPreviewWithSpotData error:', e);
-            }
+            try { window.renderPreviewWithSpotData(previewImg); } catch(e) {}
           }
         };
-
-        // Try immediate render if image is loaded
         if (previewImg.complete) {
-          // Use requestAnimationFrame to ensure DOM is ready
-          requestAnimationFrame(() => {
-            setTimeout(renderPreview, 50);
-          });
+          requestAnimationFrame(renderPreview);
         } else {
-          // Wait for image load
-          previewImg.addEventListener('load', function() {
-            requestAnimationFrame(() => {
-              setTimeout(renderPreview, 50);
-            });
-          }, { once: true });
-
-          // Also try after a delay in case load event doesn't fire
-          setTimeout(() => {
-            if (previewImg.complete) {
-              renderPreview();
-            }
-          }, 200);
+          previewImg.addEventListener('load', () => requestAnimationFrame(renderPreview), { once: true });
         }
 
-        // Force render after a short delay to ensure everything is ready
-        setTimeout(renderPreview, 100);
-        setTimeout(renderPreview, 300);
-        setTimeout(renderPreview, 500);
-
-        console.log('Image Editor - updatePreviewElement: Preview updated successfully');
         return true;
       } catch (e) {
         console.warn('Image Editor - Failed to parse spotData:', e);
@@ -312,7 +313,7 @@ export function createSaveMethods() {
      * @param {number|null} savedIndex - Saved index (for use after editor closes)
      * @param {number} maxAttempts - Maximum retry attempts
      */
-    updatePreviewWithRetry(spotDataJson, savedFileId = null, savedIndex = null, savedImageKey = null, maxAttempts = 10) {
+    updatePreviewWithRetry(spotDataJson, savedFileId = null, savedIndex = null, savedImageKey = null, maxAttempts = 3) {
       const updatePreview = (attempt = 1) => {
         // NEW: Prioritize imageKey-based search
         const targetImageKey = savedImageKey || this.currentImageKey;
@@ -350,65 +351,7 @@ export function createSaveMethods() {
       // Initial attempt
       updatePreview();
 
-      // Listen for Livewire events with longer delays
-      const livewireEvents = ['livewire:update', 'livewire:updated', 'livewire:load'];
-      livewireEvents.forEach(eventName => {
-        document.addEventListener(eventName, () => {
-          // Multiple attempts with increasing delays
-          setTimeout(() => {
-            updatePreview();
-            setTimeout(() => {
-              updatePreview();
-              if (window.initPreviewRenderer) {
-                window.initPreviewRenderer();
-              }
-            }, 200);
-          }, 300);
-
-          setTimeout(() => {
-            updatePreview();
-            if (window.initPreviewRenderer) {
-              window.initPreviewRenderer();
-            }
-          }, 800);
-
-          setTimeout(() => {
-            updatePreview();
-            if (window.initPreviewRenderer) {
-              window.initPreviewRenderer();
-            }
-          }, 1500);
-        }, { once: true });
-      });
-
-      // Multiple fallback attempts with increasing delays
-      setTimeout(() => {
-        updatePreview();
-        if (window.initPreviewRenderer) {
-          window.initPreviewRenderer();
-        }
-      }, 500);
-
-      setTimeout(() => {
-        updatePreview();
-        if (window.initPreviewRenderer) {
-          window.initPreviewRenderer();
-        }
-      }, 1000);
-
-      setTimeout(() => {
-        updatePreview();
-        if (window.initPreviewRenderer) {
-          window.initPreviewRenderer();
-        }
-      }, 2000);
-
-      setTimeout(() => {
-        updatePreview();
-        if (window.initPreviewRenderer) {
-          window.initPreviewRenderer();
-        }
-      }, 3000);
+      document.addEventListener('livewire:updated', () => setTimeout(updatePreview, 200), { once: true });
     },
 
     /**
@@ -438,14 +381,16 @@ export function createSaveMethods() {
         // the original image and apply all edits from scratch.
         // originalImagePath should already be set from spot_data when opening the editor
         if (!this.originalImagePath && this.imageUrl) {
-          // Extract path from imageUrl if originalImagePath is not set
           let newOriginalPath = this.imageUrl;
-          // Remove domain and /storage/ prefix to get relative path
-          newOriginalPath = newOriginalPath.replace(/^https?:\/\/[^\/]+/, ''); // Remove domain
-          newOriginalPath = newOriginalPath.replace(/^\/storage\//, ''); // Remove /storage/ prefix
-          newOriginalPath = newOriginalPath.replace(/^storage\//, ''); // Remove storage/ prefix
-          this.originalImagePath = newOriginalPath || null;
-          console.log('Image Editor - Set originalImagePath from imageUrl:', this.originalImagePath);
+          newOriginalPath = newOriginalPath.replace(/^https?:\/\/[^\/]+/, '');
+          newOriginalPath = newOriginalPath.replace(/^\/storage\//, '');
+          newOriginalPath = newOriginalPath.replace(/^storage\//, '');
+          // Avoid setting Livewire temporary URLs as original path
+          if (newOriginalPath.includes('livewire/preview-file')) {
+            this.originalImagePath = null;
+          } else {
+            this.originalImagePath = newOriginalPath || null;
+          }
         }
 
         // Build editor data using helper
@@ -462,12 +407,6 @@ export function createSaveMethods() {
         // This will be saved to spot_data['image'] in database
         const imageDataJson = spotData.image ? JSON.stringify(spotData.image) : spotDataJson;
 
-        console.log('Image Editor - saveEditedImage: Built spotData', {
-          spotDataStructure: Object.keys(spotData),
-          hasImage: !!spotData.image,
-          imageDataJsonLength: imageDataJson.length,
-          spotDataJsonLength: spotDataJson.length,
-        });
 
         // CRITICAL: Save imageKey BEFORE closing editor (NEW: imageKey-based approach)
         // This is the single source of truth for identifying the image
@@ -480,27 +419,34 @@ export function createSaveMethods() {
         // Update spotData in state (NEW: imageKey-based state management)
         if (savedImageKey) {
           updateImageSpotData(savedImageKey, spotData);
-          console.log('Image Editor - Updated spotData in state for imageKey:', savedImageKey);
         }
 
-        console.log('Image Editor - Built spot_data after save:', {
-          originalImagePath: spotData.image?.original?.path,
-          hasTextObjects: !!(spotData.image?.textObjects && spotData.image.textObjects.length > 0),
-          textObjectsCount: spotData.image?.textObjects?.length || 0,
-          hasEffects: !!spotData.image?.effects,
-          canvas: spotData.image?.canvas,
-          savedFileId: savedFileId,
-          savedIndex: savedIndex,
-        });
 
         // IMPORTANT: We do NOT send the edited image file to the server
-        // We only send the spot_data (editorData) to update the database
-        // The original image file remains unchanged
+        // Sadece veritabanını güncellemek için spot_data'yı (editorData) gönderiyoruz
+        // Orijinal görsel dosyası değişmeden kalır
+
         if (parentWire && typeof parentWire.call === 'function') {
           try {
-            const identifier = savedFileId !== null && savedFileId !== undefined
+            // Extract identifier from imageKey if savedFileId/savedIndex are not available
+            // imageKey format: 'temp:file_1763736804_7504' or 'existing:123'
+            let identifier = savedFileId !== null && savedFileId !== undefined
               ? savedFileId
               : (savedIndex !== null && savedIndex !== undefined ? savedIndex : '');
+
+            // If identifier is still empty, try to extract from imageKey
+            if ((identifier === '' || identifier === null || identifier === undefined) && savedImageKey) {
+              if (savedImageKey.startsWith('temp:')) {
+                // Extract fileId from temp:file_xxx format
+                const fileIdFromKey = savedImageKey.replace('temp:', '');
+                identifier = fileIdFromKey;
+              } else if (savedImageKey.startsWith('existing:')) {
+                // Extract fileId from existing:xxx format
+                const fileIdFromKey = savedImageKey.replace('existing:', '');
+                identifier = fileIdFromKey;
+              }
+            }
+
 
             // Get original image URL (not the edited version)
             const originalImageUrl = this.originalImagePath
@@ -509,13 +455,29 @@ export function createSaveMethods() {
                   : `${window.location.origin}/storage/${this.originalImagePath}`)
               : this.imageUrl;
 
-            // Call updateFilePreview with original image URL and editorData
+            // Call updateFilePreview only if identifier is valid
             // The imageUrl parameter is the ORIGINAL image, not the edited version
             // The server will NOT update the file_path, only the spot_data
-            parentWire.call('updateFilePreview', identifier, originalImageUrl, null, editorDataJson);
+            // ÖNEMLİ: imageDataJson'ı (spot_data görsel objesi) gönder, editorDataJson'ı (ham editör verisi) değil
+            if (identifier !== '' && identifier !== null && identifier !== undefined) {
+
+              parentWire.call('updateFilePreview', identifier, originalImageUrl, null, imageDataJson);
+
+            } else {
+              console.warn('Image Editor - updateFilePreview NOT called: invalid identifier', {
+                identifier,
+                savedFileId,
+                savedIndex,
+              });
+            }
           } catch (e) {
             console.error('Image Editor - Could not call updateFilePreview:', e);
           }
+        } else {
+          console.warn('Image Editor - updateFilePreview NOT called: parentWire not found or invalid', {
+            hasParentWire: !!parentWire,
+            parentWireType: parentWire ? typeof parentWire.call : 'null',
+          });
         }
 
         // Dispatch event (NEW: include imageKey)
@@ -545,6 +507,16 @@ export function createSaveMethods() {
             previewImg.setAttribute('data-spot-data', spotDataJson);
             previewImg.setAttribute('data-has-spot-data', 'true');
 
+            // Ensure renderer runs after Livewire re-render
+            setTimeout(() => {
+              if (window.renderPreviewWithSpotData) {
+                try { window.renderPreviewWithSpotData(previewImg); } catch(e) {}
+              }
+              if (window.initPreviewRenderer) {
+                try { window.initPreviewRenderer(); } catch(e) {}
+              }
+            }, 50);
+
             // Update canvas if exists
             const canvas = document.querySelector(`canvas[data-image-key="${savedImageKey}"]`);
             if (canvas) {
@@ -555,9 +527,27 @@ export function createSaveMethods() {
             }
 
             // NEW: If this is primary image, update hidden input for Livewire sync
-            // Primary image key format: 'existing:<fileId>'
-            // Check if this imageKey corresponds to primary image
-            if (savedImageKey.startsWith('existing:')) {
+            // Primary image key format: 'existing:<fileId>' (for archive files) or 'temp:<fileId>' (for uploaded files)
+            // For archive files (existing:), always update the hidden input
+            // For uploaded files (temp:), check if it's the primary file
+            const isArchiveFile = savedImageKey.startsWith('existing:');
+            const isUploadedFile = savedImageKey.startsWith('temp:');
+            let shouldUpdatePrimaryInput = false;
+
+            if (isArchiveFile) {
+              // Archive files: always update (they might become primary later)
+              shouldUpdatePrimaryInput = true;
+            } else if (isUploadedFile) {
+              // Uploaded files: check if this is the primary file
+              // Try to find the primary file radio button or check primaryFileId
+              const fileIdFromKey = savedImageKey.replace('temp:', '');
+              const primaryRadio = document.querySelector(`input[name="primaryFile"][value="${fileIdFromKey}"]`);
+              if (primaryRadio && primaryRadio.checked) {
+                shouldUpdatePrimaryInput = true;
+              }
+            }
+
+            if (shouldUpdatePrimaryInput) {
               const primaryImageInput = document.getElementById('primary_image_spot_data');
               if (primaryImageInput) {
                 // Update hidden input value with only the image object (not the wrapper)
@@ -565,17 +555,56 @@ export function createSaveMethods() {
                 // hidden input needs: {...} (just the image object)
                 primaryImageInput.value = imageDataJson;
 
-                // Trigger input event for Livewire wire:model.lazy to sync
+                // Trigger input event for Livewire wire:model to sync
+                // Use both native input event and Livewire's wire:model event
                 primaryImageInput.dispatchEvent(new Event('input', { bubbles: true }));
-
-                // Also trigger change event for better compatibility
                 primaryImageInput.dispatchEvent(new Event('change', { bubbles: true }));
 
-                console.log('Image Editor - Updated primary_image_spot_data hidden input:', {
-                  imageKey: savedImageKey,
-                  imageDataLength: imageDataJson.length,
-                  hasImage: !!spotData.image,
-                });
+                // Force Livewire to sync by calling wire:model update directly
+                // Try multiple methods to ensure sync
+                const syncToLivewire = () => {
+                  try {
+                    // Method 1: Find Livewire component by wire:id
+                    const wireId = primaryImageInput.closest('[wire\\:id]')?.getAttribute('wire:id') ||
+                                  document.querySelector('[wire\\:id]')?.getAttribute('wire:id');
+                    if (wireId && window.Livewire && window.Livewire.find) {
+                      const component = window.Livewire.find(wireId);
+                      if (component && component.set) {
+                        component.set('primary_image_spot_data', imageDataJson);
+                        return true;
+                      }
+                    }
+
+                    // Method 2: Use $wire from Alpine.js context
+                    if (window.Alpine && primaryImageInput.closest('[x-data]')) {
+                      const alpineEl = primaryImageInput.closest('[x-data]');
+                      if (alpineEl && alpineEl._x_dataStack && alpineEl._x_dataStack[0] && alpineEl._x_dataStack[0].$wire) {
+                        alpineEl._x_dataStack[0].$wire.set('primary_image_spot_data', imageDataJson);
+                        return true;
+                      }
+                    }
+
+                    // Method 3: Use Livewire's wire:model sync mechanism
+                    // Trigger wire:model:sync event
+                    primaryImageInput.dispatchEvent(new CustomEvent('wire:model:sync', {
+                      bubbles: true,
+                      detail: { value: imageDataJson }
+                    }));
+
+                  } catch (e) {
+                    console.warn('Image Editor - Failed to sync to Livewire:', e);
+                  }
+                  return false;
+                };
+
+                // Sync immediately
+                syncToLivewire();
+
+                // Also sync after a short delay to ensure it's processed
+                setTimeout(() => {
+                  syncToLivewire();
+                }, 100);
+
               } else {
                 console.warn('Image Editor - primary_image_spot_data hidden input not found');
               }
@@ -654,7 +683,14 @@ export function createSaveMethods() {
 
       // Build editor data using helper
       const editorData = this.buildEditorData();
-      const editorDataJson = JSON.stringify(editorData);
+
+      // Build spot_data from editor data
+      const spotData = this.buildSpotData(editorData);
+
+      // Extract image data for updateFilePreview (only the 'image' part, not the wrapper)
+      // spotData format: { image: {...} }
+      // For updateFilePreview, we need just the image object: {...}
+      const imageDataJson = spotData.image ? JSON.stringify(spotData.image) : JSON.stringify(spotData);
 
       try {
         // Use current image URL (don't upload new image, just update editor data)
@@ -663,11 +699,11 @@ export function createSaveMethods() {
           : (this.currentIndex !== null && this.currentIndex !== undefined ? this.currentIndex : null);
 
         if (identifier !== null) {
-          parentWire.call('updateFilePreview', identifier, this.imageUrl, null, editorDataJson);
+          // ÖNEMLİ: imageDataJson'ı (spot_data görsel objesi) gönder, editorDataJson'ı değil
+          parentWire.call('updateFilePreview', identifier, this.imageUrl, null, imageDataJson);
         }
 
-        // Build and update spot_data
-        const spotData = this.buildSpotData(editorData);
+        // Build full spot_data JSON for preview update
         const spotDataJson = JSON.stringify(spotData);
 
         // Update preview with retry logic

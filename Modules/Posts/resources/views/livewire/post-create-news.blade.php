@@ -8,7 +8,8 @@
              });">
     <!-- Flash Messages -->
     @if (session()->has('success'))
-        <div x-show="showSuccess"
+        <div x-data="{ showSuccess: true }"
+             x-show="showSuccess"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -60,6 +61,20 @@
 
     <!-- Success Message -->
     <x-success-message :message="$successMessage" />
+
+    <!-- General Error Message -->
+    @error('general')
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 shadow-sm">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-500 text-lg"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-red-800">{{ $message }}</p>
+                </div>
+            </div>
+        </div>
+    @enderror
 
     <!-- Modern Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
@@ -171,7 +186,7 @@
                             </label>
                             <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors duration-200 relative">
                                 <!-- Arşivden Seç Butonu - Dropzone'un sol köşesinde -->
-                                <button type="button" 
+                                <button type="button"
                                         onclick="document.dispatchEvent(new CustomEvent('openFilesModal', { detail: { mode: 'select', multiple: false, type: 'image' } }))"
                                         class="absolute top-3 left-3 inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors duration-150 shadow-md z-10">
                                     <i class="fas fa-archive mr-1"></i>
@@ -198,19 +213,60 @@
                                 </div>
                             </div>
 
+                            @if(!empty($selectedArchiveFilesPreview) && empty($files))
+                                <div class="mt-4">
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        @foreach($selectedArchiveFilesPreview as $index => $archiveFile)
+                                            @php
+                                                $imageKey = 'existing:' . ($archiveFile['id'] ?? ('archive-'.$index));
+                                                $imageUrl = $archiveFile['url'] ?? '';
+                                            @endphp
+                                            <div class="relative group image-preview-card"
+                                                 data-image-key="{{ $imageKey }}">
+                                                <canvas class="image-preview-canvas w-full h-24 object-cover rounded-lg border border-gray-200"
+                                                        data-image-key="{{ $imageKey }}"
+                                                        style="display: none;"></canvas>
+                                                <img src="{{ $imageUrl }}"
+                                                     class="image-preview-img w-full h-24 object-cover rounded-lg border border-gray-200"
+                                                     alt="Preview"
+                                                     data-image-key="{{ $imageKey }}"
+                                                     data-image-url="{{ $imageUrl }}"
+                                                     data-spot-data=""
+                                                     data-has-spot-data="false"
+                                                     onload="if(window.renderPreviewWithSpotData){ window.renderPreviewWithSpotData(this); }">
+                                                <button type="button"
+                                                        class="absolute top-1 left-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 z-10 opacity-0 group-hover:opacity-100 image-edit-button"
+                                                        data-image-key="{{ $imageKey }}"
+                                                        data-image-url="{{ $imageUrl }}"
+                                                        onclick="(function(){ const k=this.getAttribute('data-image-key'); const u=this.getAttribute('data-image-url'); if(window.openImageEditor){ window.openImageEditor(k,{url:u}); } }).call(this);"
+                                                        title="Resmi Düzenle">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button"
+                                                        class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 z-10 opacity-0 group-hover:opacity-100"
+                                                        wire:click="removeSelectedArchiveFile({{ $archiveFile['id'] ?? 'null' }}, {{ $index }})"
+                                                        title="Kaldır">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Seçilen Dosyaların Önizlemesi -->
                             @if($files)
                                 <div class="mt-4">
                                     <h6 class="text-sm font-medium text-gray-700 mb-3">
                                         <i class="fas fa-images mr-1"></i>
-                                        Seçilen Dosyalar ({{ count($files) }})
+                                        Yüklenen Dosyalar ({{ count($files) }})
                                     </h6>
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                         @foreach($files as $index => $file)
                                             @php
                                                 // Generate imageKey for new upload (temp image)
                                                 $imageKey = 'temp:' . $index;
-                                                
+
                                                 // Livewire temporaryUrl() kullan - eğer çalışmazsa base64 fallback
                                                 $previewUrl = null;
                                                 try {
@@ -243,7 +299,7 @@
                                                         $previewUrl = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-size="12">Resim yüklenemedi</text></svg>');
                                                     }
                                                 }
-                                                
+
                                                 // Use edited URL if available
                                                 $imageUrl = $editedFileUrls[$index] ?? $previewUrl;
                                             @endphp
@@ -254,13 +310,51 @@
                                                         data-image-key="{{ $imageKey }}"
                                                         style="display: none;"></canvas>
                                                 {{-- Fallback image --}}
+                                                @php
+                                                    $spotDataJson = '';
+                                                    $hasSpotData = false;
+                                                    if (isset($imageEditorData[$index]) && is_array($imageEditorData[$index])) {
+                                                        $originalPathForSpot = null;
+                                                        if (!empty($editedFileUrls[$index])) {
+                                                            $originalPathForSpot = $editedFileUrls[$index];
+                                                        } elseif (!empty($imageUrl) && strpos($imageUrl, '/livewire/preview-file/') === false && strpos($imageUrl, 'livewire/preview-file') === false) {
+                                                            $originalPathForSpot = $imageUrl;
+                                                        }
+
+                                                        $spotData = [
+                                                            'image' => [
+                                                                'original' => [
+                                                                    'path' => $originalPathForSpot,
+                                                                    'width' => null,
+                                                                    'height' => null,
+                                                                    'hash' => null,
+                                                                ],
+                                                                'variants' => [
+                                                                    'desktop' => [
+                                                                        'crop' => $imageEditorData[$index]['crop']['desktop'] ?? $imageEditorData[$index]['desktopCrop'] ?? [],
+                                                                        'focus' => $imageEditorData[$index]['focus']['desktop'] ?? $imageEditorData[$index]['desktopFocus'] ?? 'center',
+                                                                    ],
+                                                                    'mobile' => [
+                                                                        'crop' => $imageEditorData[$index]['crop']['mobile'] ?? $imageEditorData[$index]['mobileCrop'] ?? [],
+                                                                        'focus' => $imageEditorData[$index]['focus']['mobile'] ?? $imageEditorData[$index]['mobileFocus'] ?? 'center',
+                                                                    ],
+                                                                ],
+                                                                'effects' => $imageEditorData[$index]['effects'] ?? [],
+                                                                'textObjects' => $imageEditorData[$index]['textObjects'] ?? [],
+                                                                'canvas' => $imageEditorData[$index]['canvas'] ?? ['width' => 0, 'height' => 0],
+                                                            ],
+                                                        ];
+                                                        $spotDataJson = json_encode($spotData);
+                                                        $hasSpotData = !empty($spotDataJson) && strlen($spotDataJson) > 20;
+                                                    }
+                                                @endphp
                                                 <img src="{{ $imageUrl }}"
                                                      class="image-preview-img w-full h-24 object-cover rounded-lg border border-gray-200"
                                                      alt="Preview {{ $index + 1 }}"
                                                      data-image-key="{{ $imageKey }}"
                                                      data-image-url="{{ $imageUrl }}"
-                                                     data-spot-data=""
-                                                     data-has-spot-data="false"
+                                                     data-spot-data="{{ $hasSpotData ? htmlspecialchars($spotDataJson, ENT_QUOTES, 'UTF-8') : '' }}"
+                                                     data-has-spot-data="{{ $hasSpotData ? 'true' : 'false' }}"
                                                      data-file-index="{{ $index }}"
                                                      onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }">
                                                 <!-- Düzenle Butonu -->
@@ -268,71 +362,14 @@
                                                         class="absolute top-1 left-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 z-10 opacity-0 group-hover:opacity-100 image-edit-button"
                                                         data-image-key="{{ $imageKey }}"
                                                         data-image-url="{{ $imageUrl }}"
-                                                        onclick="(function () {
-                                                            const btn = this;
-                                                            const imageKey = btn.getAttribute('data-image-key');
-                                                            const imageUrl = btn.getAttribute('data-image-url');
-                                                            
-                                                            if (!imageKey || !imageUrl) {
-                                                                console.error('Image Edit Button - Missing imageKey or imageUrl');
-                                                                return;
-                                                            }
-                                                            
-                                                            // Find img element by imageKey
-                                                            const img = document.querySelector('img[data-image-key=' + JSON.stringify(imageKey) + ']');
-                                                            let initialSpotData = null;
-                                                            
-                                                            if (img) {
-                                                                const spotJson = img.getAttribute('data-spot-data');
-                                                                if (spotJson && spotJson.length > 20) {
-                                                                    try {
-                                                                        // Handle HTML-escaped JSON
-                                                                        let parsedJson = spotJson;
-                                                                        if (spotJson.includes('&quot;') || spotJson.includes('&amp;') || spotJson.includes('&lt;') || spotJson.includes('&gt;')) {
-                                                                            const tempDiv = document.createElement('div');
-                                                                            tempDiv.innerHTML = spotJson;
-                                                                            parsedJson = tempDiv.textContent || tempDiv.innerText || spotJson;
-                                                                        }
-                                                                        initialSpotData = JSON.parse(parsedJson);
-                                                                    } catch(e) {
-                                                                        console.error('Image Edit Button - Failed to parse spot_data from img:', e);
-                                                                        initialSpotData = null;
-                                                                    }
-                                                                }
-                                                            }
-                                                            
-                                                            if (typeof window.openImageEditor === 'function') {
-                                                                try {
-                                                                    window.openImageEditor(imageKey, {
-                                                                        url: imageUrl,
-                                                                        initialSpotData: initialSpotData,
-                                                                    });
-                                                                } catch(e) {
-                                                                    console.error('Image Edit Button - Error calling openImageEditor:', e);
-                                                                }
-                                                            } else {
-                                                                console.error('Image Edit Button - window.openImageEditor is not defined');
-                                                                let attempts = 0;
-                                                                const checkInterval = setInterval(() => {
-                                                                    attempts++;
-                                                                    if (typeof window.openImageEditor === 'function') {
-                                                                        clearInterval(checkInterval);
-                                                                        window.openImageEditor(imageKey, {
-                                                                            url: imageUrl,
-                                                                            initialSpotData: initialSpotData,
-                                                                        });
-                                                                    } else if (attempts >= 10) {
-                                                                        clearInterval(checkInterval);
-                                                                    }
-                                                                }, 100);
-                                                            }
-                                                        }).call(this);"
+                                                        onclick="(function(){ const k=this.getAttribute('data-image-key'); const u=this.getAttribute('data-image-url'); if(window.openImageEditor){ window.openImageEditor(k,{url:u}); } }).call(this);"
                                                         title="Resmi Düzenle">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                                 <!-- Kaldır Butonu -->
                                                 <button type="button"
                                                         class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 z-10"
+                                                        onclick="(function(){ var idx={{ $index }}; if (window.imageEditorUnregisterByIndex) { try { window.imageEditorUnregisterByIndex(idx); } catch(e){} } }).call(this);"
                                                         wire:click="removeFile({{ $index }})"
                                                         title="Resmi Kaldır">
                                                     <i class="fas fa-times"></i>

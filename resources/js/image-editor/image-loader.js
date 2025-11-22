@@ -37,21 +37,9 @@ export function createImageLoaderMethods() {
 
         // Apply crop and effects if available, otherwise load full image
         const crop = this.getActiveCrop();
-        console.log('Image Editor - loadImage: Checking crop:', {
-          crop: crop,
-          desktopCrop: this.desktopCrop,
-          desktopCropLength: this.desktopCrop?.length,
-          mobileCrop: this.mobileCrop,
-          mobileCropLength: this.mobileCrop?.length,
-          hasSpotData: !!this.spotData,
-          isArrayDesktop: Array.isArray(this.desktopCrop),
-          isArrayMobile: Array.isArray(this.mobileCrop),
-        });
         if (crop && this.spotData) {
-          console.log('Image Editor - loadImage: Using applyCropAndEffects');
           this.applyCropAndEffects(img, crop, maxWidth, maxHeight, savedCanvasWidth, savedCanvasHeight);
         } else {
-          console.log('Image Editor - loadImage: Using loadFullImage (no crop or no spotData)');
           this.loadFullImage(img, maxWidth, maxHeight, scaleX, scaleY, savedCanvasWidth, savedCanvasHeight);
         }
       };
@@ -78,6 +66,54 @@ export function createImageLoaderMethods() {
       if (!imageSrc) {
         console.warn('Image Editor - No image source available');
         return null;
+      }
+
+      // IMPORTANT: If imageSrc is a Livewire preview file URL, try to get file_path from uploadedFiles
+      // Livewire preview file URLs expire and cause 500 errors
+      if (imageSrc.includes('livewire/preview-file')) {
+        console.warn('Image Editor - resolveImageSource: Detected Livewire preview file URL, trying to find file_path', {
+          imageSrc: imageSrc.substring(0, 100),
+        });
+
+        // Try to find file_path from uploadedFiles using currentFileId or currentIndex
+        const fileId = this.currentFileId;
+        const index = this.currentIndex;
+        const imageKey = this.currentImageKey;
+
+        // Try to find file_path from img element's data attributes
+        let filePath = null;
+        if (imageKey) {
+          const img = document.querySelector(`img[data-image-key="${imageKey}"]`);
+          if (img) {
+            filePath = img.getAttribute('data-file-path') || img.getAttribute('data-original-path');
+            if (filePath) {
+              imageSrc = filePath;
+            }
+          }
+        }
+
+        // If still not found, try to extract from imageKey (temp:file_xxx or existing:xxx)
+        if (!filePath && imageKey) {
+          if (imageKey.startsWith('temp:')) {
+            // For temp files, try to find in uploadedFiles
+            const fileIdFromKey = imageKey.replace('temp:', '');
+            // Try to find img element with matching data-file-id
+            const img = document.querySelector(`img[data-file-id="${fileIdFromKey}"]`);
+            if (img) {
+              filePath = img.getAttribute('data-file-path') || img.getAttribute('data-original-path');
+              if (filePath) {
+                imageSrc = filePath;
+              }
+            }
+          }
+        }
+
+        // If still Livewire URL, log warning but continue (might work if not expired)
+        if (imageSrc.includes('livewire/preview-file')) {
+          console.warn('Image Editor - resolveImageSource: Could not find file_path, using Livewire URL (may fail if expired)', {
+            imageSrc: imageSrc.substring(0, 100),
+          });
+        }
       }
 
       // Convert relative path to full URL if needed
@@ -143,11 +179,6 @@ export function createImageLoaderMethods() {
       if (savedCanvasWidth && savedCanvasHeight) {
         scaleX = canvasWidth / savedCanvasWidth;
         scaleY = canvasHeight / savedCanvasHeight;
-        console.log('Image Editor - Scaling from saved canvas:', {
-          savedCanvas: { width: savedCanvasWidth, height: savedCanvasHeight },
-          newCanvas: { width: canvasWidth, height: canvasHeight },
-          scale: { x: scaleX, y: scaleY },
-        });
       } else if (this.savedTextObjects && this.savedTextObjects.length > 0) {
         // Fallback: calculate from original image dimensions
         const savedCanvasAspect = this.originalImageWidth / this.originalImageHeight;
@@ -165,11 +196,6 @@ export function createImageLoaderMethods() {
         scaleX = canvasWidth / calculatedSavedCanvasWidth;
         scaleY = canvasHeight / calculatedSavedCanvasHeight;
 
-        console.log('Image Editor - Scaling from calculated canvas:', {
-          calculatedSavedCanvas: { width: calculatedSavedCanvasWidth, height: calculatedSavedCanvasHeight },
-          newCanvas: { width: canvasWidth, height: canvasHeight },
-          scale: { x: scaleX, y: scaleY },
-        });
       }
 
       return { scaleX, scaleY, savedCanvasWidth, savedCanvasHeight };
@@ -181,21 +207,6 @@ export function createImageLoaderMethods() {
     applyCropAndEffects(img, crop, maxWidth, maxHeight, savedCanvasWidth, savedCanvasHeight) {
       const [cropX, cropY, cropWidth, cropHeight] = crop;
 
-      console.log('Image Editor - applyCropAndEffects: Starting', {
-        crop: crop,
-        originalSize: { width: this.originalImageWidth, height: this.originalImageHeight },
-        imageSize: { width: img.width, height: img.height },
-        effects: {
-          brightness: this.brightness,
-          contrast: this.contrast,
-          saturation: this.saturation,
-          hue: this.hue,
-          exposure: this.exposure,
-          blur: this.blur,
-        },
-        savedTextObjectsCount: this.savedTextObjects?.length || 0,
-        savedCanvas: { width: savedCanvasWidth, height: savedCanvasHeight },
-      });
 
       // Create temporary canvas for cropping
       const tempCanvas = document.createElement('canvas');
@@ -279,10 +290,6 @@ export function createImageLoaderMethods() {
           cropHeight
         );
 
-        console.log('Image Editor - applyCropAndEffects: TextObjects loaded', {
-          textObjectsCount: this.textObjects.length,
-          canvasSize: { width: croppedCanvasWidth, height: croppedCanvasHeight },
-        });
 
         // Reset zoom and pan
         this.zoom = 1;
@@ -292,11 +299,6 @@ export function createImageLoaderMethods() {
         // Draw immediately - effects already applied to croppedImg, textObjects will be drawn in draw()
         requestAnimationFrame(() => {
           if (this.image && this.ctx && this.canvas) {
-            console.log('Image Editor - applyCropAndEffects: Drawing', {
-              textObjectsCount: this.textObjects.length,
-              filterString: this.buildFilterString(),
-              crop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight },
-            });
 
             this.draw();
             this.saveState();
@@ -311,7 +313,6 @@ export function createImageLoaderMethods() {
           }
         });
 
-        console.log('Image Editor - Crop and effects applied successfully');
       };
 
       croppedImg.src = tempCanvas.toDataURL();
@@ -321,19 +322,11 @@ export function createImageLoaderMethods() {
      * Load full image without crop (but with effects if available)
      */
     loadFullImage(img, maxWidth, maxHeight, scaleX, scaleY, savedCanvasWidth, savedCanvasHeight) {
-      console.log('Image Editor - loadFullImage: Starting', {
-        imageSize: { width: img.width, height: img.height },
-        maxSize: { width: maxWidth, height: maxHeight },
-        savedCanvas: { width: savedCanvasWidth, height: savedCanvasHeight },
-        hasSpotData: !!this.spotData,
-        effects: {
-          brightness: this.brightness,
-          contrast: this.contrast,
-          saturation: this.saturation,
-          hue: this.hue,
-          exposure: this.exposure,
-          blur: this.blur,
-        },
+      if (import.meta?.env?.DEV) console.log('Image Editor - loadFullImage', {
+        saturation: this.saturation,
+        hue: this.hue,
+        exposure: this.exposure,
+        blur: this.blur,
         savedTextObjectsCount: this.savedTextObjects?.length || 0,
       });
 
@@ -369,10 +362,6 @@ export function createImageLoaderMethods() {
       // Scale and load textObjects BEFORE drawing
       this.scaleAndLoadTextObjects(canvasWidth, canvasHeight, savedCanvasWidth, savedCanvasHeight, scaleX, scaleY);
 
-      console.log('Image Editor - loadFullImage: TextObjects loaded', {
-        textObjectsCount: this.textObjects.length,
-        canvasSize: { width: canvasWidth, height: canvasHeight },
-      });
 
       // Initialize layers
       this.layers = [{
@@ -392,40 +381,34 @@ export function createImageLoaderMethods() {
 
       // Draw immediately - effects and textObjects will be applied in draw()
       // Use requestAnimationFrame to ensure canvas is ready
-      requestAnimationFrame(() => {
-        if (this.image && this.ctx && this.canvas) {
-          const filterString = this.buildFilterString();
-          console.log('Image Editor - loadFullImage: Drawing', {
-            effects: {
-              brightness: this.brightness,
-              contrast: this.contrast,
-              saturation: this.saturation,
-              hue: this.hue,
-              exposure: this.exposure,
-              blur: this.blur,
-            },
-            textObjectsCount: this.textObjects.length,
-            filterString: filterString,
-            hasSpotData: !!this.spotData,
-            desktopCropLength: this.desktopCrop?.length,
-            willApplyEffects: filterString !== 'none',
+      // IMPORTANT: Wait for image to be fully loaded before drawing
+      const drawWhenReady = () => {
+        if (!this.image || !this.ctx || !this.canvas) {
+          console.warn('Image Editor - loadFullImage: Not ready yet, retrying...', {
+            hasImage: !!this.image,
+            hasCtx: !!this.ctx,
+            hasCanvas: !!this.canvas,
           });
-
-          this.draw();
-          this.saveState();
-          this.updateCanvasTransform();
-
-          // Double-check after a short delay to ensure effects are applied
-          setTimeout(() => {
-            if (this.image && this.ctx && this.canvas) {
-              console.log('Image Editor - loadFullImage: Redrawing after delay', {
-                filterString: this.buildFilterString(),
-              });
-              this.draw();
-            }
-          }, 50);
+          // Retry after a short delay
+          setTimeout(drawWhenReady, 50);
+          return;
         }
-      });
+
+        const filterString = this.buildFilterString();
+
+        this.draw();
+        this.saveState();
+        this.updateCanvasTransform();
+
+        // Double-check after a short delay to ensure effects are applied
+        setTimeout(() => {
+          if (this.image && this.ctx && this.canvas) {
+            this.draw();
+          }
+        }, 50);
+      };
+
+      requestAnimationFrame(drawWhenReady);
 
       // Show crop overlay if crop tool is active
       this.showCropOverlayIfNeeded(img);
@@ -461,15 +444,6 @@ export function createImageLoaderMethods() {
       // Show crop overlay
       this.isCropping = true;
 
-      console.log('Image Editor - Showing crop overlay:', {
-        originalCrop: crop,
-        canvasCrop: {
-          startX: this.cropStartX,
-          startY: this.cropStartY,
-          endX: this.cropEndX,
-          endY: this.cropEndY,
-        },
-      });
     },
   };
 }

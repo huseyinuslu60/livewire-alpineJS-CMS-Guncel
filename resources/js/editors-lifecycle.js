@@ -594,3 +594,6 @@ export function mountEditorsLifecycle() {
     __edState.observer = observer;
   }
 }
+
+// Export initTrumbowyg for editor chunk usage
+export { initTrumbowyg };

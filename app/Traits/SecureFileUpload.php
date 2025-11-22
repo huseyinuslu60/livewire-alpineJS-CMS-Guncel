@@ -28,7 +28,7 @@ trait SecureFileUpload
     /**
      * Maximum file size in KB
      */
-    protected int $maxFileSize = 10240; // 10MB (default, can be overridden)
+    protected int $maxFileSize = 10240;
 
     /**
      * Dangerous file extensions that should never be allowed
@@ -47,9 +47,12 @@ trait SecureFileUpload
     {
         $errors = [];
 
-        // Check file size
-        if ($file->getSize() > ($this->maxFileSize * 1024)) {
-            $errors[] = "Dosya boyutu {$this->maxFileSize}KB'den büyük olamaz.";
+        $configuredMaxKb = (int) config('files.max_size_kb', $this->maxFileSize);
+        if ($configuredMaxKb <= 0) {
+            $configuredMaxKb = $this->maxFileSize;
+        }
+        if ($file->getSize() > ($configuredMaxKb * 1024)) {
+            $errors[] = "Dosya boyutu {$configuredMaxKb}KB'den büyük olamaz.";
         }
 
         // Check MIME type

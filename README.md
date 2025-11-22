@@ -365,3 +365,47 @@ Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır.
 ---
 
 ⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!
+---
+## 🔥 Son Durum Özet (2025-11)
+### Teknoloji ve Mimarî
+- Laravel 12 (PHP 8.2), Livewire 3, Tailwind v4, Vite 7, Alpine.js 3
+- Modüler yapı (Nwidart), Spatie Permissions
+### Güvenlik İyileştirmeleri
+- XSS Sanitizer (`App\Support\Sanitizer`):
+  - Gallery `caption/description` sanitize; `alt_text` escape
+  - Articles/News `content` sanitize
+- SSRF Guard (same-origin):
+  - Dış domain’den indirmeler kapalı; whitelist: `IMAGE_DOWNLOAD_ALLOWED_HOSTS`
+- Güvenli Upload (`App\Traits\SecureFileUpload`):
+  - MIME/extension + finfo doğrulama, kötü içerik tespiti, UUID dosya isimleri
+  - Upload boyutu `.env` ile ayarlanır: `FILES_MAX_SIZE_KB`
+### Performans İyileştirmeleri
+- Composite indexler:
+  - `files(post_id, file_path)`
+  - `posts_categories(category_id, post_id)`, `posts_tags(tag_id, post_id)`
+- Gallery batch update: tek sorgu + bellek içi eşleştirme
+- Vite chunk-splitting: editor/vendor/module bazlı ayrım
+### Editör Lazy-Load
+- jQuery + Trumbowyg ana bundle’dan ayrıldı; `[data-editor]` olduğunda editor chunk yüklenir
+- Dosyalar:
+  - `resources/js/editor-loader.js`
+  - `resources/js/editors/trumbowyg-init.js`
+  - `resources/js/editors-lifecycle.js`
+### Komutlar
+```bash
+composer format:test   # stil kontrol
+composer format        # stil düzeltme
+composer analyse       # statik analiz
+php -d memory_limit=512M vendor/bin/phpstan analyse  # gerekirse
+npm run build          # prod build
+php artisan migrate:fresh --seed
+```
+### Ortam Değişkenleri
+```env
+FILES_MAX_SIZE_KB=20480
+IMAGE_DOWNLOAD_ALLOWED_HOSTS=cdn.example.com,images.example.net
+```
+### Troubleshooting
+- Editör yüklenmiyor: `[data-editor]` attribute’u yoksa editor chunk yüklenmez
+- PHPStan bellek uyarısı: artırılmış memory ile çalıştırın
+- Gallery preview uyuşmazlığı: `data-image-key` tutarlı olmalı (`temp:<id>` / `existing:<fileId>`)

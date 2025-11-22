@@ -70,6 +70,16 @@ class Post extends Model
 
     protected $primaryKey = 'post_id';
 
+    /**
+     * Get the route key for the model.
+     *
+     * @return string
+     */
+    public function getRouteKeyName()
+    {
+        return 'post_id';
+    }
+
     protected $fillable = [
         'author_id',
         'title',

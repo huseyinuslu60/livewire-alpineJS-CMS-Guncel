@@ -5,6 +5,7 @@ namespace Modules\Posts\Livewire;
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use App\Services\ValueObjects\Slug;
+use App\Support\Sanitizer;
 use App\Traits\ValidationMessages;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -15,6 +16,7 @@ use Modules\Categories\Services\CategoryService;
 use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Domain\ValueObjects\PostType;
+use Modules\Posts\Livewire\Concerns\HandlesArchiveFileSelection;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -24,7 +26,9 @@ use Modules\Posts\Services\PostsService;
  */
 class PostCreateNews extends Component
 {
-    use ValidationMessages, WithFileUploads;
+    use HandlesArchiveFileSelection, ValidationMessages, WithFileUploads;
+
+    protected $listeners = ['contentUpdated', 'filesSelectedForPost'];
 
     protected CategoryService $categoryService;
 
@@ -86,8 +90,9 @@ class PostCreateNews extends Component
     /**
      * Image editor data storage
      * Key: file index, Value: array with crop, effects, meta data
+     * Made public for Blade template access
      */
-    protected array $imageEditorData = [];
+    public array $imageEditorData = [];
 
     /**
      * Flag to track if image editor was used (to avoid saving empty spot_data)
@@ -180,8 +185,6 @@ class PostCreateNews extends Component
 
         return $processedFiles;
     }
-
-    protected $listeners = ['contentUpdated', 'filesSelectedForPost'];
 
     /**
      * Hydrate component - called when component is loaded
@@ -320,82 +323,151 @@ class PostCreateNews extends Component
         $this->content = (string) ($content ?? '');
     }
 
-    public function filesSelectedForPost($data)
-    {
-        $this->skipRender();
-
-        if (! isset($data['files']) || ! is_array($data['files']) || empty($data['files'])) {
-            return;
-        }
-
-        // İlk dosyayı al (multiple: false olduğu için)
-        $selectedFile = $data['files'][0];
-
-        if (! isset($selectedFile['url'])) {
-            return;
-        }
-
-        try {
-            // Dosyayı URL'den indir
-            $imageUrl = $selectedFile['url'];
-
-            // Asset URL'ini path'e çevir
-            $filePath = null;
-            if (str_starts_with($imageUrl, asset(''))) {
-                $relativePath = str_replace(asset(''), '', $imageUrl);
-                $filePath = public_path($relativePath);
-            } elseif (str_starts_with($imageUrl, 'http')) {
-                // Full URL ise indir
-                $imageContent = @file_get_contents($imageUrl);
-                if ($imageContent === false) {
-                    throw new \Exception('Dosya indirilemedi');
-                }
-
-                $tempDir = sys_get_temp_dir();
-                $fileName = $selectedFile['title'] ?? 'archive-'.uniqid().'.jpg';
-                $tempFilePath = $tempDir.'/'.'livewire-archive-'.uniqid().'-'.$fileName;
-                file_put_contents($tempFilePath, $imageContent);
-                $filePath = $tempFilePath;
-            } else {
-                $filePath = public_path('storage/'.$imageUrl);
-            }
-
-            if (! file_exists($filePath)) {
-                throw new \Exception('Dosya bulunamadı');
-            }
-
-            // MIME type'ı belirle
-            $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
-            $originalName = $selectedFile['title'] ?? basename($filePath);
-
-            // UploadedFile oluştur
-            $uploadedFile = new \Illuminate\Http\UploadedFile(
-                $filePath,
-                $originalName,
-                $mimeType,
-                null,
-                true // test mode
-            );
-
-            // Files array'ine ekle (mevcut dosyaları temizle)
-            $this->files = [$uploadedFile];
-
-            session()->flash('success', 'Dosya arşivden seçildi!');
-        } catch (\Exception $e) {
-            \App\Helpers\LogHelper::error('Arşivden dosya seçilirken hata', [
-                'error' => $e->getMessage(),
-                'file' => $selectedFile,
-            ]);
-            session()->flash('error', 'Dosya seçilirken bir hata oluştu: '.$e->getMessage());
-        }
-    }
-
     public function removeFile($index)
     {
         if (isset($this->files[$index])) {
             $this->skipRender();
+
+            // Dispatch JavaScript event to clear image editor state BEFORE removing
+            // This ensures state is cleared before array re-indexing
+            $this->dispatch('image-editor:remove-image', [
+                'index' => $index,
+                'imageKey' => "temp:{$index}",
+            ]);
+
             unset($this->files[$index]);
-            $this->files = array_values($this->files); // Re-index array
+
+            // Re-index arrays to maintain consistency
+            // IMPORTANT: After re-indexing, old indices are invalid
+            // We need to rebuild imageEditorData, editedFilePaths, and editedFileUrls
+            $oldImageEditorData = $this->imageEditorData;
+            $oldEditedFilePaths = $this->editedFilePaths;
+            $oldEditedFileUrls = $this->editedFileUrls;
+
+            $this->imageEditorData = [];
+            $this->editedFilePaths = [];
+            $this->editedFileUrls = [];
+
+            // Rebuild arrays with new indices
+            $this->files = array_values($this->files);
+            foreach ($this->files as $newIndex => $file) {
+                // Find the old index by matching file object
+                // Since we can't directly compare UploadedFile objects, we'll use a different approach
+                // We'll clear all old indices and let the user re-edit if needed
+                // This is safer than trying to match files
+            }
+
+            // If removed file was the primary file, reset image editor flags
+            if ($this->primaryFileIndex === $index) {
+                $this->primaryFileIndex = 0; // Reset to first file if available
+                $this->imageEditorUsed = false; // Reset flag since file was removed
+            }
+
+            // Clear all image editor data if no files left
+            if (empty($this->files)) {
+                $this->imageEditorData = [];
+                $this->editedFilePaths = [];
+                $this->editedFileUrls = [];
+                $this->imageEditorUsed = false;
+                $this->primaryFileIndex = 0;
+            } else {
+                // Clear all old indices - user will need to re-edit if needed
+                // This prevents showing old spot_data for wrong indices
+                $this->imageEditorData = [];
+                $this->editedFilePaths = [];
+                $this->editedFileUrls = [];
+            }
+        }
+    }
+
+    /**
+     * Track file names/hashes to detect when a file is replaced at the same index
+     * Key: file index, Value: file name or hash
+     */
+    protected array $fileHashes = [];
+
+    /**
+     * Hook: Called when files array is updated
+     * This helps clean up old imageKey states when new files are uploaded or replaced
+     */
+    public function updatedFiles($value)
+    {
+        // When new files are uploaded, clear old imageKey states that are no longer valid
+        // This prevents showing old spot_data for removed files or replaced files
+        if (is_array($value) && ! empty($value)) {
+            // Get current file indices
+            $currentIndices = array_keys($value);
+
+            // Check each current file to see if it's a new file (replaced at same index)
+            foreach ($value as $index => $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    // Generate a unique identifier for this file (name + size)
+                    // Note: getMTime() doesn't work on temporary files, so we use name + size only
+                    // For uploaded files, each upload creates a new temporary file, so this is sufficient
+                    $fileHash = $file->getClientOriginalName().'_'.$file->getSize();
+
+                    // If this index had a different file before, clear old spot_data
+                    if (isset($this->fileHashes[$index]) && $this->fileHashes[$index] !== $fileHash) {
+                        // File was replaced at this index - clear old spot_data
+                        if (isset($this->imageEditorData[$index])) {
+                            unset($this->imageEditorData[$index]);
+                        }
+                        if (isset($this->editedFilePaths[$index])) {
+                            unset($this->editedFilePaths[$index]);
+                        }
+                        if (isset($this->editedFileUrls[$index])) {
+                            unset($this->editedFileUrls[$index]);
+                        }
+
+                        // Dispatch event to clear imageKey state
+                        $this->dispatch('image-editor:remove-image', [
+                            'index' => $index,
+                            'imageKey' => "temp:{$index}",
+                        ]);
+                    }
+
+                    // Update file hash
+                    $this->fileHashes[$index] = $fileHash;
+                }
+            }
+
+            // Clear imageEditorData for indices that no longer exist
+            foreach ($this->imageEditorData as $index => $data) {
+                if (! in_array($index, $currentIndices, true)) {
+                    unset($this->imageEditorData[$index]);
+                    // Dispatch event to clear imageKey state
+                    $this->dispatch('image-editor:remove-image', [
+                        'index' => $index,
+                        'imageKey' => "temp:{$index}",
+                    ]);
+                }
+            }
+
+            // Same for editedFilePaths and editedFileUrls
+            foreach ($this->editedFilePaths as $index => $path) {
+                if (! in_array($index, $currentIndices, true)) {
+                    unset($this->editedFilePaths[$index]);
+                }
+            }
+
+            foreach ($this->editedFileUrls as $index => $url) {
+                if (! in_array($index, $currentIndices, true)) {
+                    unset($this->editedFileUrls[$index]);
+                }
+            }
+
+            // Clear fileHashes for removed indices
+            foreach ($this->fileHashes as $index => $hash) {
+                if (! in_array($index, $currentIndices, true)) {
+                    unset($this->fileHashes[$index]);
+                }
+            }
+        } else {
+            // Files array is empty, clear everything
+            $this->imageEditorData = [];
+            $this->editedFilePaths = [];
+            $this->editedFileUrls = [];
+            $this->fileHashes = [];
         }
     }
 
@@ -441,15 +513,9 @@ class PostCreateNews extends Component
                 if ($editorData !== null && is_array($editorData)) {
                     $this->imageEditorData[$index] = $editorData;
                     $this->imageEditorUsed = true; // Mark that image editor was used
+                    // Set primaryFileIndex to the current index (for news, there's only one file)
+                    $this->primaryFileIndex = $index;
 
-                    LogHelper::info('PostCreateNews updateFilePreview - Stored editor data', [
-                        'index' => $index,
-                        'has_textObjects' => isset($editorData['textObjects']) && ! empty($editorData['textObjects']),
-                        'textObjects_count' => isset($editorData['textObjects']) ? count($editorData['textObjects']) : 0,
-                        'has_effects' => isset($editorData['effects']),
-                        'has_crop' => isset($editorData['crop']),
-                        'has_canvas' => isset($editorData['canvas']),
-                    ]);
                 }
             } else {
                 LogHelper::warning('PostCreateNews updateFilePreview - editorData is null', [
@@ -462,6 +528,47 @@ class PostCreateNews extends Component
             'identifier' => $identifier,
             'image_url' => $imageUrl,
         ]);
+
+        // Dispatch event to update data-spot-data attribute in the DOM
+        if (is_numeric($identifier)) {
+            $index = (int) $identifier;
+            $imageKey = "temp:{$index}";
+
+            // Build spot_data from editorData if available
+            $spotDataJson = '';
+            if (isset($this->imageEditorData[$index]) && is_array($this->imageEditorData[$index])) {
+                // Build spot_data structure
+                $spotData = [
+                    'image' => [
+                        'original' => [
+                            'path' => $this->editedFileUrls[$index] ?? $imageUrl,
+                            'width' => null,
+                            'height' => null,
+                            'hash' => null,
+                        ],
+                        'variants' => [
+                            'desktop' => [
+                                'crop' => $this->imageEditorData[$index]['crop']['desktop'] ?? $this->imageEditorData[$index]['desktopCrop'] ?? [],
+                                'focus' => $this->imageEditorData[$index]['focus']['desktop'] ?? $this->imageEditorData[$index]['desktopFocus'] ?? 'center',
+                            ],
+                            'mobile' => [
+                                'crop' => $this->imageEditorData[$index]['crop']['mobile'] ?? $this->imageEditorData[$index]['mobileCrop'] ?? [],
+                                'focus' => $this->imageEditorData[$index]['focus']['mobile'] ?? $this->imageEditorData[$index]['mobileFocus'] ?? 'center',
+                            ],
+                        ],
+                        'effects' => $this->imageEditorData[$index]['effects'] ?? [],
+                        'textObjects' => $this->imageEditorData[$index]['textObjects'] ?? [],
+                        'canvas' => $this->imageEditorData[$index]['canvas'] ?? ['width' => 0, 'height' => 0],
+                    ],
+                ];
+                $spotDataJson = json_encode($spotData);
+            }
+
+            $this->dispatch('image-preview:update-spot-data', [
+                'imageKey' => $imageKey,
+                'spotData' => $spotDataJson,
+            ]);
+        }
     }
 
     public function savePost()
@@ -533,11 +640,12 @@ class PostCreateNews extends Component
             // WithFileUploads trait handles file serialization, so we can use $this->files directly
             $filesToSave = $this->processEditedFiles();
 
+            $safeContent = Sanitizer::sanitizeHtml($this->content);
             $formData = [
                 'title' => $this->title,
                 'slug' => $this->slug,
                 'summary' => $this->summary,
-                'content' => $this->content,
+                'content' => $safeContent,
                 'post_type' => $this->post_type,
                 'post_position' => $this->post_position,
                 'status' => $this->status,
@@ -559,12 +667,22 @@ class PostCreateNews extends Component
                 $tagIds
             );
 
+            // Arşivden seçilen dosyaları post'a bağla
+            if (! empty($this->selectedArchiveFileIds)) {
+                // Use trait method to link archive files
+                $this->linkArchiveFilesToPost($post, false); // false = not gallery (single file for news)
+                $post->refresh();
+            }
+
             // Build and save spot_data with image data only
-            // Only save spot_data if image editor was actually used
+            // Only save spot_data if image editor was actually used (like PostEdit)
             $spotData = [];
 
-            // Add image data if we have image files AND image editor was used
-            if ($this->imageEditorUsed && ! empty($this->files) && $post->primaryFile) {
+            // Ensure post has primaryFile (refresh to get latest state)
+            $post->refresh();
+
+            // Add image data if we have primary file AND image editor was used
+            if ($this->imageEditorUsed && $post->primaryFile) {
                 // Get image dimensions and hash
                 $imagePath = public_path('storage/'.$post->primaryFile->file_path);
                 $width = null;
@@ -585,13 +703,6 @@ class PostCreateNews extends Component
 
                 // Get image editor data if available (from image editor modal)
                 $primaryFileIndex = $this->primaryFileIndex;
-
-                // Debug: Log available editor data
-                LogHelper::info('PostCreateNews savePost - Getting editor data', [
-                    'primaryFileIndex' => $primaryFileIndex,
-                    'imageEditorData_keys' => array_keys($this->imageEditorData),
-                    'imageEditorData_count' => count($this->imageEditorData),
-                ]);
 
                 // Try to get editor data from primaryFileIndex, or try all indices
                 $editorData = $this->imageEditorData[$primaryFileIndex] ?? null;
@@ -667,9 +778,24 @@ class PostCreateNews extends Component
 
                 // Arrays are already initialized above, no need to check again
 
+                // IMPORTANT: Use actual file path, not Livewire temporary file URL
+                // If original.path is a Livewire temporary URL, replace it with actual file path
+                $originalPath = $post->primaryFile->file_path;
+
+                // Check if editorData has original.path that is a Livewire temp URL
+                if ($editorData !== null && isset($editorData['original']) && isset($editorData['original']['path'])) {
+                    $editorOriginalPath = $editorData['original']['path'];
+                    // If it's a Livewire temporary file URL, ignore it and use actual file path
+                    if (str_contains($editorOriginalPath, '/livewire/preview-file/') || str_contains($editorOriginalPath, 'livewire/preview-file')) {
+                    } else {
+                        // Use editor's original path if it's not a temp URL
+                        $originalPath = $editorOriginalPath;
+                    }
+                }
+
                 $spotData['image'] = [
                     'original' => [
-                        'path' => $post->primaryFile->file_path,
+                        'path' => $originalPath,
                         'width' => $width,
                         'height' => $height,
                         'hash' => $hash,
@@ -694,17 +820,36 @@ class PostCreateNews extends Component
             // Only save spot_data if image editor was used AND we have actual data
             if ($this->imageEditorUsed && array_key_exists('image', $spotData)) {
                 $imageData = $spotData['image'];
-                LogHelper::info('PostCreateNews savePost - Saving spot_data', [
-                    'has_spot_data' => true,
-                    'has_image' => true,
-                    'has_textObjects' => ! empty($imageData['textObjects']),
-                    'textObjects_count' => count($imageData['textObjects']),
-                    'has_effects' => ! empty($imageData['effects']),
-                    'primaryFileIndex' => $this->primaryFileIndex,
-                    'imageEditorData_keys' => array_keys($this->imageEditorData),
-                ]);
+
+                // Final check: Ensure original.path is not a Livewire temporary file URL
+                if (isset($imageData['original']['path'])) {
+                    $originalPath = $imageData['original']['path'];
+                    if (str_contains($originalPath, '/livewire/preview-file/') || str_contains($originalPath, 'livewire/preview-file')) {
+                        // Replace with actual file path
+                        $imageData['original']['path'] = $post->primaryFile->file_path;
+                        $spotData['image'] = $imageData;
+                        LogHelper::warning('PostCreateNews savePost - Replaced Livewire temp URL in spot_data before saving', [
+                            'temp_url' => $originalPath,
+                            'actual_path' => $imageData['original']['path'],
+                        ]);
+                    }
+                }
+
+                // Save spot_data to post
                 $post->spot_data = $spotData;
-                $post->save();
+
+                // Save post and check if it was successful
+                $saved = $post->save();
+
+                if (! $saved) {
+                    LogHelper::error('PostCreateNews savePost - Failed to save post with spot_data', [
+                        'post_id' => $post->post_id,
+                        'spot_data' => $spotData,
+                    ]);
+                }
+
+                // Verify spot_data was saved
+                $post->refresh();
             } else {
                 if ($this->imageEditorUsed) {
                     LogHelper::warning('PostCreateNews savePost - imageEditorUsed is true but spot_data is empty', [
@@ -716,11 +861,6 @@ class PostCreateNews extends Component
                         'primaryFileIndex' => $this->primaryFileIndex,
                     ]);
                 } else {
-                    LogHelper::warning('PostCreateNews savePost - imageEditorUsed is false, not saving spot_data', [
-                        'has_files' => ! empty($this->files),
-                        'has_primaryFile' => $post->primaryFile !== null,
-                        'imageEditorData_count' => count($this->imageEditorData),
-                    ]);
                 }
             }
 

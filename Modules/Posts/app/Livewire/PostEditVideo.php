@@ -19,13 +19,14 @@ use Modules\Posts\Domain\Repositories\PostFileRepositoryInterface;
 use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
 use Modules\Posts\Domain\ValueObjects\PostType;
+use Modules\Posts\Livewire\Concerns\HandlesArchiveFileSelection;
 use Modules\Posts\Models\File;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
-class PostEdit extends Component
+class PostEditVideo extends Component
 {
-    use SecureFileUpload, ValidationMessages, WithFileUploads;
+    use HandlesArchiveFileSelection, SecureFileUpload, ValidationMessages, WithFileUploads;
 
     protected PostsService $postsService;
 
@@ -35,7 +36,7 @@ class PostEdit extends Component
 
     protected SlugGenerator $slugGenerator;
 
-    public Post $post;
+    public ?Post $post = null;
 
     public string $title = '';
 
@@ -122,6 +123,12 @@ class PostEdit extends Component
     public bool $imageEditorUsed = false;
 
     /**
+     * Flag to track if files were selected from archive (to prevent duplicate file uploads)
+     * Must be public for Livewire serialization
+     */
+    public bool $archiveFilesLinked = false;
+
+    /**
      * Primary image spot_data JSON string
      * Used to sync image editor data with Livewire and save to post_data['image']
      */
@@ -150,20 +157,31 @@ class PostEdit extends Component
         $this->slugGenerator = app(SlugGenerator::class);
     }
 
-    public function mount($post)
+    public function mount(?Post $post = null)
     {
         Gate::authorize('edit posts');
 
-        // Eğer $post string ise, Post model'ini bul
-        if (is_string($post) || is_numeric($post)) {
-            $postId = $post;
-        } else {
-            $postId = $post->post_id;
+        // Eğer post parametre olarak geçilmişse (doğrudan route), onu kullan
+        // Eğer post property olarak ayarlanmışsa (iç içe component), zaten ayarlanmış
+        if ($post !== null) {
+            $this->post = $post->load(['files', 'categories', 'tags', 'primaryFile', 'author', 'creator', 'updater']);
         }
 
-        // Model'i eager loading ile yükle (refresh() gereksiz - findOrFail zaten fresh data getiriyor)
-        $this->post = Post::with(['files', 'categories', 'tags', 'primaryFile', 'author', 'creator', 'updater'])
-            ->findOrFail($postId);
+        // Post mevcutsa component verilerini başlat
+        if ($this->post !== null) {
+            $this->initializeFromPost();
+        }
+    }
+
+    /**
+     * Post modelinden component verilerini başlat
+     */
+    protected function initializeFromPost(): void
+    {
+        if ($this->post === null) {
+            return;
+        }
+
         $this->postType = $this->post->post_type;
 
         $this->title = $this->post->title;
@@ -787,72 +805,71 @@ class PostEdit extends Component
 
     public function filesSelectedForPost($data)
     {
-        $this->skipRender();
+        // PostEdit'te post zaten mevcut, direkt bağlayabiliriz
+        // Trait'teki filesSelectedForPost metodunu override ediyoruz
+        // skipRender() kaldırıldı - ön izlemenin güncellenmesi için render gerekli
 
         if (! isset($data['files']) || ! is_array($data['files']) || empty($data['files'])) {
             return;
         }
 
-        // İlk dosyayı al (multiple: false olduğu için)
-        $selectedFile = $data['files'][0];
+        // Extract file IDs and preview info from selected files
+        $fileIds = [];
+        $previewData = [];
+        foreach ($data['files'] as $selectedFile) {
+            if (isset($selectedFile['id'])) {
+                $fileIds[] = $selectedFile['id'];
+                // Ön izleme için dosya bilgilerini sakla
+                $previewData[] = [
+                    'id' => $selectedFile['id'],
+                    'url' => $selectedFile['url'] ?? '',
+                    'title' => $selectedFile['title'] ?? '',
+                    'type' => $selectedFile['type'] ?? 'image',
+                ];
+            }
+        }
 
-        if (! isset($selectedFile['url'])) {
+        if (empty($fileIds)) {
             return;
         }
 
-        try {
-            // Dosyayı URL'den indir
-            $imageUrl = $selectedFile['url'];
+        // Store file IDs temporarily
+        $this->selectedArchiveFileIds = array_merge($this->selectedArchiveFileIds, $fileIds);
 
-            // Asset URL'ini path'e çevir
-            $filePath = null;
-            if (str_starts_with($imageUrl, asset(''))) {
-                $relativePath = str_replace(asset(''), '', $imageUrl);
-                $filePath = public_path($relativePath);
-            } elseif (str_starts_with($imageUrl, 'http')) {
-                // Full URL ise indir
-                $imageContent = @file_get_contents($imageUrl);
-                if ($imageContent === false) {
-                    throw new \Exception('Dosya indirilemedi');
-                }
-
-                $tempDir = sys_get_temp_dir();
-                $fileName = $selectedFile['title'] ?? 'archive-'.uniqid().'.jpg';
-                $tempFilePath = $tempDir.'/'.'livewire-archive-'.uniqid().'-'.$fileName;
-                file_put_contents($tempFilePath, $imageContent);
-                $filePath = $tempFilePath;
-            } else {
-                $filePath = public_path('storage/'.$imageUrl);
-            }
-
-            if (! file_exists($filePath)) {
-                throw new \Exception('Dosya bulunamadı');
-            }
-
-            // MIME type'ı belirle
-            $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
-            $originalName = $selectedFile['title'] ?? basename($filePath);
-
-            // UploadedFile oluştur
-            $uploadedFile = new \Illuminate\Http\UploadedFile(
-                $filePath,
-                $originalName,
-                $mimeType,
-                null,
-                true // test mode
-            );
-
-            // newFiles array'ine ekle (mevcut dosyaları temizle)
-            $this->newFiles = [$uploadedFile];
-
-            session()->flash('success', 'Dosya arşivden seçildi!');
-        } catch (\Exception $e) {
-            \App\Helpers\LogHelper::error('Arşivden dosya seçilirken hata', [
-                'error' => $e->getMessage(),
-                'file' => $selectedFile,
-            ]);
-            session()->flash('error', 'Dosya seçilirken bir hata oluştu: '.$e->getMessage());
+        // Ön izleme için dosya bilgilerini sakla
+        if (isset($data['multiple']) && $data['multiple'] === true) {
+            $this->selectedArchiveFilesPreview = array_merge($this->selectedArchiveFilesPreview, $previewData);
+        } else {
+            $this->selectedArchiveFilesPreview = $previewData;
         }
+
+        // Directly link files to post (edit mode - post already exists)
+        if (! empty($this->selectedArchiveFileIds)) {
+            $isGallery = $this->post->post_type === 'gallery';
+            $this->linkArchiveFilesToPost($this->post, $isGallery);
+
+            // Set flag to prevent duplicate file uploads in updatePost
+            $this->archiveFilesLinked = true;
+
+            // Refresh post to get updated files
+            $this->post->refresh();
+
+            // Reload existing files for gallery posts
+            if ($isGallery) {
+                $this->loadExistingFiles();
+            } else {
+                // For news/video, update primaryFileId
+                if ($this->post->primaryFile) {
+                    $this->primaryFileId = (string) $this->post->primaryFile->file_id;
+                }
+            }
+
+            // Clear selectedArchiveFileIds after linking (already linked)
+            $this->selectedArchiveFileIds = [];
+        }
+
+        $fileCount = count($fileIds);
+        session()->flash('success', $fileCount.' dosya arşivden seçildi ve post\'a bağlandı.');
     }
 
     public function updateFileOrder($fromIndex, $toIndex)
@@ -1545,7 +1562,14 @@ class PostEdit extends Component
             }
 
             // News/Video için resim güncelleme
-            if (in_array($this->post_type, ['news', 'video']) && ! empty($this->uploadedFiles)) {
+            // IMPORTANT: Arşivden seçilen dosyalar zaten linkArchiveFilesToPost ile bağlandı,
+            // bu yüzden burada sadece dropzone'dan yüklenen yeni dosyaları işle
+            // Arşivden seçilen dosyalar için uploadedFiles kullanılmamalı
+            // Ayrıca, image editor'den sonra uploadedFiles boş olmalı (sadece spot_data güncelleniyor)
+            // Eğer uploadedFiles dolu ise, bu dropzone'dan yeni dosya yüklendiği anlamına gelir
+            // archiveFilesLinked flag'i arşivden dosya seçildiğini gösterir, bu durumda dosya kopyalama yapma
+            // ÖNEMLİ: Görsel düzenleyici kullanıldıysa (imageEditorUsed), uploadedFiles'ı işleme (duplicate önleme)
+            if (in_array($this->post_type, ['news', 'video']) && ! empty($this->uploadedFiles) && ! $this->archiveFilesLinked && ! $this->imageEditorUsed) {
                 // Mevcut primary file'ı bul ve güncelle
                 $existingPrimaryFile = $this->post->primaryFile;
 
@@ -1946,6 +1970,9 @@ class PostEdit extends Component
             }
 
             $this->dispatch('post-updated');
+
+            // Clear archiveFilesLinked flag after successful update
+            $this->archiveFilesLinked = false;
 
             // Success mesajını session flash ile göster ve yönlendir
             $successMessage = $this->createContextualSuccessMessage('updated', 'title', 'post');
@@ -2408,20 +2435,28 @@ class PostEdit extends Component
             ]);
 
             // Hata durumunda orijinal sıralamayı koru
-            // mount() zaten eager loading ile yüklüyor, refresh() gereksiz
-            $this->mount($this->post->post_id);
+            // Post'u refresh et ve existingFiles'ı yeniden yükle
+            $this->post->refresh();
+            $this->loadExistingFiles();
         }
     }
 
     /**
-     * Hydrate component - called when component is loaded/re-rendered
-     * Ensures existingFiles is always up-to-date for gallery posts
+     * Hydrate metodu - property'ler ayarlandıktan sonra çağrılır (iç içe component'ler için)
      */
-    public function hydrate()
+    public function hydrate(): void
     {
+        // Eğer post property olarak ayarlanmışsa ama başlatılmamışsa, başlat
+        if ($this->post !== null && empty($this->title)) {
+            // Post'un eager loaded ilişkilere sahip olduğundan emin ol
+            if (! $this->post->relationLoaded('files')) {
+                $this->post->load(['files', 'categories', 'tags', 'primaryFile', 'author', 'creator', 'updater']);
+            }
+            $this->initializeFromPost();
+        }
+
         // Gallery post'ları için existingFiles'ı her zaman yeniden yükle
         // Bu sayede description'lar her zaman güncel olur (sayfa yenilendiğinde bile)
-        // updateFileById zaten veritabanına kaydediyor, o yüzden her zaman veritabanından yüklemek güvenli
         if (isset($this->post) && $this->post->post_type === 'gallery') {
             // Eager loading ile ilişkileri yükle (refresh() yerine - daha performanslı)
             $this->post->load('files');
@@ -2448,10 +2483,8 @@ class PostEdit extends Component
         $postStatuses = PostStatus::all();
 
         /** @var view-string $view */
-        $view = 'posts::livewire.post-edit';
+        $view = 'posts::livewire.post-edit-video';
 
-        return view($view, compact('categories', 'postTypes', 'postPositions', 'postStatuses'))
-            ->extends('layouts.admin')
-            ->section('content');
+        return view($view, compact('categories', 'postTypes', 'postPositions', 'postStatuses'));
     }
 }

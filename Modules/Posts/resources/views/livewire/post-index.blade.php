@@ -501,9 +501,15 @@
                                         $spotDataJson = json_encode(['image' => $imageData]);
                                     }
                                     
-                                    // Generate imageKey for existing primary file
-                                    $imageKey = $primaryFile ? 'existing:' . $primaryFile->file_id : null;
-                                    $imageUrl = $primaryFile ? asset('storage/' . $primaryFile->file_path) : null;
+                                    // Generate imageKey for existing primary file with robust fallback
+                                    $imageKey = null;
+                                    $imageUrl = null;
+                                    if ($primaryFile) {
+                                        $path = is_object($primaryFile) ? ($primaryFile->file_path ?? null) : (is_array($primaryFile) ? ($primaryFile['file_path'] ?? null) : null);
+                                        $id = is_object($primaryFile) ? ($primaryFile->file_id ?? null) : (is_array($primaryFile) ? ($primaryFile['file_id'] ?? null) : null);
+                                        $imageUrl = $path ? asset('storage/' . $path) : null;
+                                        $imageKey = 'existing:' . ($id ?? ($path ? md5($path) : 'unknown'));
+                                    }
                                 @endphp
                                 
                                 @if($primaryFile && $primaryFile->is_image)
@@ -526,7 +532,7 @@
                                                  data-spot-data=""
                                                  data-has-spot-data="false"
                                              @endif
-                                             data-file-id="{{ $primaryFile->file_id }}"
+                                             data-file-id="{{ $primaryFile->file_id ?? ($primaryFile->file_path ? md5($primaryFile->file_path) : 'unknown') }}"
                                              onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }">
                                     </div>
                                 @else

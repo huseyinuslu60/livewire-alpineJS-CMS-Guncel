@@ -4,6 +4,7 @@ namespace Modules\Articles\Services;
 
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
+use App\Support\Sanitizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Modules\Articles\Domain\Events\ArticleCreated;
@@ -45,6 +46,9 @@ class ArticleService
             $data = $this->articleValidator->ensurePublishedAt($data);
 
             return DB::transaction(function () use ($data) {
+                if (isset($data['content'])) {
+                    $data['content'] = Sanitizer::sanitizeHtml($data['content']);
+                }
                 // Generate slug if not provided
                 if (empty($data['slug']) && ! empty($data['title'])) {
                     $slug = $this->slugGenerator->generate($data['title'], Article::class, 'slug', 'article_id');
@@ -85,6 +89,9 @@ class ArticleService
             $data = $this->articleValidator->ensurePublishedAt($data);
 
             return DB::transaction(function () use ($article, $data) {
+                if (isset($data['content'])) {
+                    $data['content'] = Sanitizer::sanitizeHtml($data['content']);
+                }
                 // Generate slug if title changed and slug is empty
                 if (isset($data['title']) && $data['title'] !== $article->title && empty($data['slug'])) {
                     $slug = $this->slugGenerator->generate($data['title'], Article::class, 'slug', 'article_id', $article->article_id);

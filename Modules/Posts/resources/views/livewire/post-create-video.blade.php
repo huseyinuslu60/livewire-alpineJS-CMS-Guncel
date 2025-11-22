@@ -1,6 +1,5 @@
 <div x-data="postsForm()"
-     x-init="initTrumbowygSync();
-             // Initialize image editor reference
+     x-init="// Initialize image editor reference
              $nextTick(() => {
                  const editorEl = document.querySelector('[x-data*=imageEditor]');
                  if (editorEl && editorEl._x_dataStack && editorEl._x_dataStack[0]) {
@@ -9,7 +8,7 @@
              });">
     <!-- Flash Messages -->
     @if (session()->has('success'))
-        <div x-show="showSuccess" 
+        <div x-show="showSuccess"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -34,8 +33,8 @@
     @endif
 
     @if (session()->has('error'))
-        <div x-data="{ showError: true }" 
-             x-show="showError" 
+        <div x-data="{ showError: true }"
+             x-show="showError"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 transform scale-95"
              x-transition:enter-end="opacity-100 transform scale-100"
@@ -62,6 +61,20 @@
     <!-- Success Message -->
     <x-success-message :message="$successMessage" />
 
+    <!-- General Error Message -->
+    @error('general')
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 shadow-sm">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-500 text-lg"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-red-800">{{ $message }}</p>
+                </div>
+            </div>
+        </div>
+    @enderror
+
     <!-- Modern Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
@@ -76,7 +89,7 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('posts.index') }}" 
+                    <a href="{{ route('posts.index') }}"
                        class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-150">
                         <i class="fas fa-arrow-left mr-2"></i>
                         Geri Dön
@@ -99,10 +112,10 @@
                                 <i class="fas fa-heading mr-1 text-red-500"></i>
                                 Başlık *
                             </label>
-                            <input type="text" 
-                                   wire:model.live="title" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('title') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                   id="title" 
+                            <input type="text"
+                                   wire:model.live="title"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('title') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   id="title"
                                    placeholder="Video başlığını girin..."
                                    required>
                             @error('title')
@@ -116,10 +129,10 @@
                                 <i class="fas fa-link mr-1 text-red-500"></i>
                                 Slug
                             </label>
-                            <input type="text" 
-                                   wire:model="slug" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('slug') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                   id="slug" 
+                            <input type="text"
+                                   wire:model="slug"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('slug') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   id="slug"
                                    placeholder="URL slug'ı (otomatik oluşturulur)">
                             @error('slug')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -132,10 +145,10 @@
                                 <i class="fas fa-file-alt mr-1 text-red-500"></i>
                                 Özet
                             </label>
-                            <textarea wire:model.live="summary" 
-                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('summary') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                      id="summary" 
-                                      rows="3" 
+                            <textarea wire:model.live="summary"
+                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('summary') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                      id="summary"
+                                      rows="3"
                                       placeholder="Video özetini girin..."></textarea>
                             @error('summary')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -167,10 +180,10 @@
                                 <i class="fas fa-code mr-1 text-red-500"></i>
                                 Video Embed Kodu *
                             </label>
-                            <textarea wire:model.live="embed_code" 
-                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('embed_code') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                      id="embed_code" 
-                                      rows="4" 
+                            <textarea wire:model.live="embed_code"
+                                      class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('embed_code') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                      id="embed_code"
+                                      rows="4"
                                       placeholder="<iframe src='...' width='630' height='354'></iframe>"
                                       required></textarea>
                             @error('embed_code')
@@ -178,7 +191,7 @@
                             @enderror
                             <p class="mt-2 text-xs text-gray-500">
                                 <i class="fas fa-info-circle mr-1"></i>
-                                YouTube, Vimeo veya diğer video platformlarından embed kodunu yapıştırın. 
+                                YouTube, Vimeo veya diğer video platformlarından embed kodunu yapıştırın.
                                 Düzgün görünmesi için width="630" ve height="354" olarak düzenleyin.
                             </p>
                         </div>
@@ -191,7 +204,7 @@
                             </label>
                             <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-red-400 transition-colors duration-200 relative">
                                 <!-- Arşivden Seç Butonu - Dropzone'un sol köşesinde -->
-                                <button type="button" 
+                                <button type="button"
                                         onclick="document.dispatchEvent(new CustomEvent('openFilesModal', { detail: { mode: 'select', multiple: false, type: 'image' } }))"
                                         class="absolute top-3 left-3 inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors duration-150 shadow-md z-10">
                                     <i class="fas fa-archive mr-1"></i>
@@ -217,7 +230,50 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
+                            @if(!empty($selectedArchiveFilesPreview) && empty($files))
+                                <div class="mt-4">
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        @foreach($selectedArchiveFilesPreview as $index => $archiveFile)
+                                            @php
+                                                $imageKey = 'existing:' . ($archiveFile['id'] ?? ('archive-'.$index));
+                                                $imageUrl = $archiveFile['url'] ?? '';
+                                            @endphp
+                                            <div class="relative group image-preview-card"
+                                                 data-image-key="{{ $imageKey }}">
+                                                <canvas class="image-preview-canvas w-full h-24 object-cover rounded-lg border border-gray-200"
+                                                        data-image-key="{{ $imageKey }}"
+                                                        style="display: none;"></canvas>
+                                                <img src="{{ $imageUrl }}"
+                                                     class="image-preview-img w-full h-24 object-cover rounded-lg border border-gray-200 bg-gray-100"
+                                                     alt="Preview"
+                                                     data-image-key="{{ $imageKey }}"
+                                                     data-image-url="{{ $imageUrl }}"
+                                                     data-spot-data=""
+                                                     data-has-spot-data="false"
+                                                     onload="if(window.renderPreviewWithSpotData){ window.renderPreviewWithSpotData(this); }">
+                                                <div class="absolute top-1 right-1 flex gap-1">
+                                                    <button type="button"
+                                                            class="bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 shadow-md image-edit-button"
+                                                            data-image-key="{{ $imageKey }}"
+                                                            data-image-url="{{ $imageUrl }}"
+                                                            onclick="(function(){ const k=this.getAttribute('data-image-key'); const u=this.getAttribute('data-image-url'); if(window.openImageEditor){ window.openImageEditor(k,{url:u}); } }).call(this);"
+                                                            title="Düzenle">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button type="button"
+                                                            class="bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 shadow-md"
+                                                            wire:click="removeSelectedArchiveFile({{ $archiveFile['id'] ?? 'null' }}, {{ $index }})"
+                                                            title="Kaldır">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
                             <!-- Seçilen Dosyaların Önizlemesi -->
                             @if($files)
                                 <div class="mt-4">
@@ -230,7 +286,7 @@
                                             @php
                                                 // Generate imageKey for new upload (temp image)
                                                 $imageKey = 'temp:' . $index;
-                                                
+
                                                 $previewUrl = null;
                                                 try {
                                                     $previewUrl = $file->temporaryUrl();
@@ -257,7 +313,7 @@
                                                         $previewUrl = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#f3f4f6"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-size="12">Resim yüklenemedi</text></svg>');
                                                     }
                                                 }
-                                                
+
                                                 $imageUrl = $previewUrl;
                                             @endphp
                                             <div class="relative group image-preview-card"
@@ -267,8 +323,8 @@
                                                         data-image-key="{{ $imageKey }}"
                                                         style="display: none;"></canvas>
                                                 {{-- Fallback image --}}
-                                                <img src="{{ $imageUrl }}" 
-                                                     class="image-preview-img w-full h-24 object-cover rounded-lg border border-gray-200 bg-gray-100" 
+                                                <img src="{{ $imageUrl }}"
+                                                     class="image-preview-img w-full h-24 object-cover rounded-lg border border-gray-200 bg-gray-100"
                                                      alt="Preview {{ $index + 1 }}"
                                                      data-image-key="{{ $imageKey }}"
                                                      data-image-url="{{ $imageUrl }}"
@@ -280,74 +336,17 @@
                                                      loading="lazy">
                                                 {{-- Top right corner buttons --}}
                                                 <div class="absolute top-1 right-1 flex gap-1">
-                                                    <button type="button" 
+                                                    <button type="button"
                                                             class="bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-blue-600 transition-colors duration-200 shadow-md image-edit-button"
                                                             data-image-key="{{ $imageKey }}"
                                                             data-image-url="{{ $imageUrl }}"
-                                                            onclick="(function () {
-                                                                const btn = this;
-                                                                const imageKey = btn.getAttribute('data-image-key');
-                                                                const imageUrl = btn.getAttribute('data-image-url');
-                                                                
-                                                                if (!imageKey || !imageUrl) {
-                                                                    console.error('Image Edit Button - Missing imageKey or imageUrl');
-                                                                    return;
-                                                                }
-                                                                
-                                                                // Find img element by imageKey
-                                                                const img = document.querySelector('img[data-image-key=' + JSON.stringify(imageKey) + ']');
-                                                                let initialSpotData = null;
-                                                                
-                                                                if (img) {
-                                                                    const spotJson = img.getAttribute('data-spot-data');
-                                                                    if (spotJson && spotJson.length > 20) {
-                                                                        try {
-                                                                            // Handle HTML-escaped JSON
-                                                                            let parsedJson = spotJson;
-                                                                            if (spotJson.includes('&quot;') || spotJson.includes('&amp;') || spotJson.includes('&lt;') || spotJson.includes('&gt;')) {
-                                                                                const tempDiv = document.createElement('div');
-                                                                                tempDiv.innerHTML = spotJson;
-                                                                                parsedJson = tempDiv.textContent || tempDiv.innerText || spotJson;
-                                                                            }
-                                                                            initialSpotData = JSON.parse(parsedJson);
-                                                                        } catch(e) {
-                                                                            console.error('Image Edit Button - Failed to parse spot_data from img:', e);
-                                                                            initialSpotData = null;
-                                                                        }
-                                                                    }
-                                                                }
-                                                                
-                                                                if (typeof window.openImageEditor === 'function') {
-                                                                    try {
-                                                                        window.openImageEditor(imageKey, {
-                                                                            url: imageUrl,
-                                                                            initialSpotData: initialSpotData,
-                                                                        });
-                                                                    } catch(e) {
-                                                                        console.error('Image Edit Button - Error calling openImageEditor:', e);
-                                                                    }
-                                                                } else {
-                                                                    console.error('Image Edit Button - window.openImageEditor is not defined');
-                                                                    let attempts = 0;
-                                                                    const checkInterval = setInterval(() => {
-                                                                        attempts++;
-                                                                        if (typeof window.openImageEditor === 'function') {
-                                                                            clearInterval(checkInterval);
-                                                                            window.openImageEditor(imageKey, {
-                                                                                url: imageUrl,
-                                                                                initialSpotData: initialSpotData,
-                                                                            });
-                                                                        } else if (attempts >= 10) {
-                                                                            clearInterval(checkInterval);
-                                                                        }
-                                                                    }, 100);
-                                                                }
-                                                            }).call(this);"
+                                                            onclick="(function(){ const k=this.getAttribute('data-image-key'); const u=this.getAttribute('data-image-url'); if(window.openImageEditor){ window.openImageEditor(k,{url:u}); } }).call(this);"
                                                             title="Düzenle">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <button type="button" 
+                                                    <button type="button"
                                                             class="bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 shadow-md"
+                                                            onclick="(function(){ var idx={{ $index }}; if (window.imageEditorUnregisterByIndex) { try { window.imageEditorUnregisterByIndex(idx); } catch(e){} } }).call(this);"
                                                             wire:click="removeFile({{ $index }})"
                                                             title="Thumbnail'i Kaldır">
                                                         <i class="fas fa-times"></i>
@@ -361,7 +360,7 @@
                                     </div>
                                 </div>
                             @endif
-                            
+
                             @error('files.*')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
@@ -373,7 +372,7 @@
 
                         <!-- Form Actions -->
                         <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-                            <button type="submit" 
+                            <button type="submit"
                                     class="inline-flex items-center px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200">
                                 <i class="fas fa-save mr-2"></i>
                                 Video Ekle
@@ -400,9 +399,9 @@
                                 <i class="fas fa-layers mr-1 text-red-500"></i>
                                 Pozisyon *
                             </label>
-                            <select wire:model.live="post_position" 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm" 
-                                    id="post_position" 
+                            <select wire:model.live="post_position"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                                    id="post_position"
                                     required>
                                 @foreach($postPositions as $position)
                                     <option value="{{ $position }}">{{ \Modules\Posts\Domain\ValueObjects\PostPosition::labels()[$position] ?? ucfirst($position) }}</option>
@@ -416,9 +415,9 @@
                                 <i class="fas fa-flag mr-1 text-red-500"></i>
                                 Durum *
                             </label>
-                            <select wire:model.live="status" 
-                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm" 
-                                    id="status" 
+                            <select wire:model.live="status"
+                                    class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                                    id="status"
                                     required>
                                 <option value="draft">Pasif</option>
                                 <option value="published">Aktif</option>
@@ -432,9 +431,9 @@
                                 <i class="fas fa-calendar mr-1 text-red-500"></i>
                                 Yayın Tarihi
                             </label>
-                            <input type="datetime-local" 
-                                   wire:model.live="published_date" 
-                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                            <input type="datetime-local"
+                                   wire:model.live="published_date"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
                                    id="published_date">
                         </div>
                     </div>
@@ -449,9 +448,9 @@
                         Kategoriler *
                     </h3>
                     <div wire:ignore>
-                        <select wire:model.live="categoryIds" 
-                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('categoryIds') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror" 
-                                id="categoryIds" 
+                        <select wire:model.live="categoryIds"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm @error('categoryIds') border-red-500 focus:border-red-500 focus:ring-red-500 @enderror"
+                                id="categoryIds"
                                 multiple>
                             @foreach($categories as $category)
                                 <option value="{{ $category->category_id }}">{{ $category->name }}</option>
@@ -481,10 +480,10 @@
                         <label for="redirect_url" class="block text-sm font-medium text-gray-700 mb-2">
                             URL
                         </label>
-                        <input type="url" 
-                               wire:model.live="redirect_url" 
-                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm" 
-                               id="redirect_url" 
+                        <input type="url"
+                               wire:model.live="redirect_url"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                               id="redirect_url"
                                placeholder="https://example.com">
                         <p class="mt-2 text-xs text-gray-500">
                             <i class="fas fa-info-circle mr-1"></i>
@@ -507,7 +506,7 @@
                             <template x-for="(tag, index) in tags" :key="index">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
                                     <span x-text="tag"></span>
-                                    <button type="button" 
+                                    <button type="button"
                                             @click="removeTag(index)"
                                             class="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-red-200 transition-colors">
                                         <i class="fas fa-times text-xs"></i>
@@ -515,21 +514,21 @@
                                 </span>
                             </template>
                         </div>
-                        
+
                         <!-- Yeni Etiket Ekleme -->
                         <div class="flex space-x-2">
-                            <input type="text" 
+                            <input type="text"
                                    x-model="newTag"
                                    @keydown="keydown($event)"
-                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
                                    placeholder="Etiket ekle...">
-                            <button type="button" 
+                            <button type="button"
                                     @click="addTag()"
                                     class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
-                        
+
                         <p class="text-xs text-gray-500">
                             <i class="fas fa-info-circle mr-1"></i>
                             Etiketleri virgülle ayırın veya Enter tuşuna basın.
@@ -548,8 +547,8 @@
                     <div class="space-y-4">
                         <!-- Yorumlara izin ver -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="is_comment" 
+                            <input type="checkbox"
+                                   wire:model.live="is_comment"
                                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-comment mr-1"></i>
@@ -559,8 +558,8 @@
 
                         <!-- Ana sayfada göster -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="is_mainpage" 
+                            <input type="checkbox"
+                                   wire:model.live="is_mainpage"
                                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-home mr-1"></i>
@@ -570,8 +569,8 @@
 
                         <!-- Bülten'de göster -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="in_newsletter" 
+                            <input type="checkbox"
+                                   wire:model.live="in_newsletter"
                                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-envelope mr-1"></i>
@@ -581,8 +580,8 @@
 
                         <!-- Reklam gösterme -->
                         <label class="flex items-center">
-                            <input type="checkbox" 
-                                   wire:model.live="no_ads" 
+                            <input type="checkbox"
+                                   wire:model.live="no_ads"
                                    class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
                             <span class="ml-2 text-sm text-gray-700">
                                 <i class="fas fa-ad mr-1"></i>

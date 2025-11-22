@@ -5,6 +5,7 @@ namespace Modules\Posts\Services;
 use App\Helpers\LogHelper;
 use App\Services\SlugGenerator;
 use App\Services\ValueObjects\Slug;
+use App\Support\Sanitizer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -318,15 +319,8 @@ class PostsService
                     $description = $fileDescriptions[$filename]['description'] ?? '';
                     $altText = $fileDescriptions[$filename]['alt_text'] ?? '';
 
-                    LogHelper::info('PostsService::storeFiles - Dosya işleniyor:', [
-                        'index' => $index,
-                        'filename' => $filename,
-                        'description' => $description,
-                        'description_length' => strlen($description),
-                        'alt_text' => $altText,
-                        'fileDescriptions_keys' => array_keys($fileDescriptions),
-                    ]);
-
+                    $safeDescription = Sanitizer::sanitizeHtml($description);
+                    $safeAlt = Sanitizer::escape($altText);
                     $uploadedFiles[] = [
                         'post_id' => $post->post_id,
                         'title' => $file->getClientOriginalName(),
@@ -334,8 +328,8 @@ class PostsService
                         'file_path' => $path,
                         'primary' => $primaryIndex === $index,
                         'order' => $index,
-                        'caption' => $description, // Description'ı caption olarak kaydet
-                        'alt_text' => $altText, // Alt text'i kaydet
+                        'caption' => $safeDescription, // Description'ı caption olarak kaydet (sanitize)
+                        'alt_text' => $safeAlt, // Alt text'i escape et
                     ];
 
                     $galleryData[] = [
@@ -345,8 +339,8 @@ class PostsService
                         'type' => $file->getMimeType(),
                         'is_primary' => $primaryIndex === $index,
                         'uploaded_at' => now()->toISOString(),
-                        'description' => $description,
-                        'alt_text' => $altText,
+                        'description' => $safeDescription,
+                        'alt_text' => $safeAlt,
                     ];
                 }
             }
@@ -473,6 +467,69 @@ class PostsService
     // ============================================
 
     /**
+     * Create a gallery post with all related data
+     *
+     * @param  array  $context  Context array containing:
+     *                          - formData: array of post data
+     *                          - orderedFiles: array of UploadedFile objects
+     *                          - categoryIds: array of category IDs
+     *                          - tagIds: array of tag IDs (strings, will be converted)
+     *                          - fileDescriptions: array of file descriptions keyed by filename
+     *                          - primaryFileId: string|null primary file identifier
+     *                          - uploadedFilesKeys: array of uploaded file keys for index lookup
+     * @return Post Created post
+     */
+    public function createGalleryPost(array $context): Post
+    {
+        try {
+            return DB::transaction(function () use ($context) {
+                $formData = $context['formData'];
+                $orderedFiles = $context['orderedFiles'] ?? [];
+                $categoryIds = $context['categoryIds'] ?? [];
+                $tagIds = $context['tagIds'] ?? [];
+                $fileDescriptions = $context['fileDescriptions'] ?? [];
+                $primaryFileId = $context['primaryFileId'] ?? null;
+                $uploadedFilesKeys = $context['uploadedFilesKeys'] ?? [];
+
+                // Convert tag strings to IDs if needed
+                if (! empty($tagIds) && is_string($tagIds[0] ?? null)) {
+                    $tagIds = array_filter(array_map('trim', $tagIds));
+                }
+
+                // Find primary file index before creating post
+                $primaryIndex = null;
+                if ($primaryFileId !== null && ! empty($uploadedFilesKeys)) {
+                    $primaryIndex = array_search($primaryFileId, $uploadedFilesKeys);
+                    if ($primaryIndex === false) {
+                        $primaryIndex = null;
+                    }
+                }
+
+                // Create the post (this handles file storage and relationships)
+                $post = $this->create(
+                    $formData,
+                    $orderedFiles,
+                    $categoryIds,
+                    $tagIds,
+                    $fileDescriptions
+                );
+
+                // Set primary file after post creation
+                if ($primaryIndex !== null) {
+                    $this->setPrimaryFile($post, $primaryIndex);
+                }
+
+                return $post;
+            });
+        } catch (\Exception $e) {
+            LogHelper::error('PostsService createGalleryPost error', [
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * Galeri içeriğini veritabanına kaydet
      *
      * @param  Post  $post  Post modeli
@@ -499,19 +556,55 @@ class PostsService
                 $post->content = $jsonContent;
                 $post->save();
 
-                // Files tablosundaki caption alanını da senkronize et
-                // file_path üzerinden eşleştirerek ilgili kayıtları güncelle
-                foreach ($galleryData as $item) {
-                    $filePath = $item['file_path'] ?? '';
-                    if (! empty($filePath)) {
-                        /** @var \Modules\Posts\Models\File|null $file */
-                        $file = $this->postFileRepository->getQuery()
-                            ->where('post_id', $post->post_id)
-                            ->where('file_path', $filePath)
-                            ->first();
+                // Files tablosundaki caption, order, and primary alanlarını da senkronize et
+                // Batch update to avoid N+1 queries
+                $filePaths = array_filter(array_column($galleryData, 'file_path'));
+                if (! empty($filePaths)) {
+                    // Fetch all files in one query
+                    $files = File::where('post_id', $post->post_id)
+                        ->whereIn('file_path', $filePaths)
+                        ->get()
+                        ->keyBy('file_path');
 
+                    // Update files in-memory
+                    $updates = [];
+                    foreach ($galleryData as $item) {
+                        $filePath = $item['file_path'] ?? '';
+                        if (! empty($filePath) && isset($files[$filePath])) {
+                            $file = $files[$filePath];
+                            $updateData = [];
+
+                            // Update description/caption
+                            if (isset($item['description'])) {
+                                $updateData['caption'] = Sanitizer::sanitizeHtml($item['description']);
+                            }
+
+                            // Update order
+                            if (isset($item['order'])) {
+                                $updateData['order'] = $item['order'];
+                            }
+
+                            // Update primary flag
+                            if (isset($item['is_primary'])) {
+                                $updateData['primary'] = (bool) $item['is_primary'];
+                            }
+
+                            // Update alt_text if provided
+                            if (isset($item['alt_text'])) {
+                                $updateData['alt_text'] = Sanitizer::escape($item['alt_text']);
+                            }
+
+                            if (! empty($updateData)) {
+                                $updates[$file->file_id] = $updateData;
+                            }
+                        }
+                    }
+
+                    // Batch update files
+                    foreach ($updates as $fileId => $updateData) {
+                        $file = $files->firstWhere('file_id', $fileId);
                         if ($file) {
-                            $this->postFileRepository->update($file, ['caption' => $item['description'] ?? '']);
+                            $this->postFileRepository->update($file, $updateData);
                         }
                     }
                 }
@@ -610,11 +703,6 @@ class PostsService
     protected function reorderIndexedFiles(array $files, array $order): array
     {
         if (empty($order)) {
-            LogHelper::warning('reorderIndexedFiles: Geçersiz sıralama verisi', [
-                'order' => $order,
-                'files_count' => count($files),
-            ]);
-
             return $files;
         }
 
@@ -630,11 +718,6 @@ class PostsService
         }
 
         if (count($reorderedFiles) !== count($files)) {
-            LogHelper::warning('File count mismatch after reordering indexed files', [
-                'original_count' => count($files),
-                'reordered_count' => count($reorderedFiles),
-            ]);
-
             return $files;
         }
 
@@ -651,11 +734,6 @@ class PostsService
     protected function reorderAssociativeFiles(array $files, array $order): array
     {
         if (empty($order)) {
-            LogHelper::warning('reorderAssociativeFiles: Geçersiz sıralama verisi', [
-                'order' => $order,
-                'files_count' => count($files),
-            ]);
-
             return $files;
         }
 
@@ -668,11 +746,6 @@ class PostsService
         }
 
         if (count($reorderedFiles) !== count($files)) {
-            LogHelper::warning('File count mismatch after reordering associative files', [
-                'original_count' => count($files),
-                'reordered_count' => count($reorderedFiles),
-            ]);
-
             return $files;
         }
 
@@ -760,15 +833,6 @@ class PostsService
                 $post->update(['content' => json_encode($galleryData, JSON_UNESCAPED_UNICODE)]);
             }
 
-            // Debug için (sadece development'ta)
-            if (config('app.debug')) {
-                LogHelper::info('PostsService galeriye dosyalar eklendi:', [
-                    'post_id' => $post->post_id,
-                    'existing_count' => count($existingContentData),
-                    'new_count' => count($galleryData),
-                    'total_count' => count($updatedContentData ?? $galleryData),
-                ]);
-            }
         } catch (\Exception $e) {
             LogHelper::error('PostsService addFilesToGallery error', [
                 'post_id' => $post->post_id,

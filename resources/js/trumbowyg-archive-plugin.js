@@ -22,13 +22,25 @@
                     const btnDef = {
                         fn: function() {
                             // Open files modal
+                            // Range'i kaydet (imleç konumunu sakla)
                             trumbowyg.saveRange();
+                            
+                            // Range'i Trumbowyg instance'ında sakla (restore için)
+                            if (!trumbowyg.savedRange) {
+                                trumbowyg.savedRange = null;
+                            }
+                            // saveRange() zaten range'i saklıyor, restoreRange() ile geri yüklenebilir
 
+                            // Textarea'yı bul ve ID'sini al
+                            const textarea = trumbowyg.$ta[0];
+                            const textareaId = textarea?.id || null;
+                            
                             // Dispatch event to open files modal
                             const event = new CustomEvent('trumbowyg:openArchive', {
                                 detail: {
                                     editor: trumbowyg,
-                                    textarea: trumbowyg.$ta[0]
+                                    textarea: textarea,
+                                    textareaId: textareaId
                                 }
                             });
                             document.dispatchEvent(event);

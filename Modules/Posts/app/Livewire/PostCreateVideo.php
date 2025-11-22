@@ -13,6 +13,7 @@ use Livewire\WithFileUploads;
 use Modules\Categories\Services\CategoryService;
 use Modules\Posts\Domain\ValueObjects\PostPosition;
 use Modules\Posts\Domain\ValueObjects\PostStatus;
+use Modules\Posts\Livewire\Concerns\HandlesArchiveFileSelection;
 use Modules\Posts\Models\Post;
 use Modules\Posts\Services\PostsService;
 
@@ -23,7 +24,7 @@ use Modules\Posts\Services\PostsService;
  */
 class PostCreateVideo extends Component
 {
-    use ValidationMessages, WithFileUploads;
+    use HandlesArchiveFileSelection, ValidationMessages, WithFileUploads;
 
     protected CategoryService $categoryService;
 
@@ -167,76 +168,6 @@ class PostCreateVideo extends Component
     public function contentUpdated($content)
     {
         $this->content = $content;
-    }
-
-    public function filesSelectedForPost($data)
-    {
-        $this->skipRender();
-
-        if (! isset($data['files']) || ! is_array($data['files']) || empty($data['files'])) {
-            return;
-        }
-
-        // İlk dosyayı al (multiple: false olduğu için)
-        $selectedFile = $data['files'][0];
-
-        if (! isset($selectedFile['url'])) {
-            return;
-        }
-
-        try {
-            // Dosyayı URL'den indir
-            $imageUrl = $selectedFile['url'];
-
-            // Asset URL'ini path'e çevir
-            $filePath = null;
-            if (str_starts_with($imageUrl, asset(''))) {
-                $relativePath = str_replace(asset(''), '', $imageUrl);
-                $filePath = public_path($relativePath);
-            } elseif (str_starts_with($imageUrl, 'http')) {
-                // Full URL ise indir
-                $imageContent = @file_get_contents($imageUrl);
-                if ($imageContent === false) {
-                    throw new \Exception('Dosya indirilemedi');
-                }
-
-                $tempDir = sys_get_temp_dir();
-                $fileName = $selectedFile['title'] ?? 'archive-'.uniqid().'.jpg';
-                $tempFilePath = $tempDir.'/'.'livewire-archive-'.uniqid().'-'.$fileName;
-                file_put_contents($tempFilePath, $imageContent);
-                $filePath = $tempFilePath;
-            } else {
-                $filePath = public_path('storage/'.$imageUrl);
-            }
-
-            if (! file_exists($filePath)) {
-                throw new \Exception('Dosya bulunamadı');
-            }
-
-            // MIME type'ı belirle
-            $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
-            $originalName = $selectedFile['title'] ?? basename($filePath);
-
-            // UploadedFile oluştur
-            $uploadedFile = new \Illuminate\Http\UploadedFile(
-                $filePath,
-                $originalName,
-                $mimeType,
-                null,
-                true // test mode
-            );
-
-            // Files array'ine ekle (mevcut dosyaları temizle)
-            $this->files = [$uploadedFile];
-
-            session()->flash('success', 'Dosya arşivden seçildi!');
-        } catch (\Exception $e) {
-            \App\Helpers\LogHelper::error('Arşivden dosya seçilirken hata', [
-                'error' => $e->getMessage(),
-                'file' => $selectedFile,
-            ]);
-            session()->flash('error', 'Dosya seçilirken bir hata oluştu: '.$e->getMessage());
-        }
     }
 
     public function removeFile($index)
@@ -443,12 +374,15 @@ class PostCreateVideo extends Component
                 $tagIds
             );
 
+            // Arşivden seçilen dosyaları post'a bağla
+            $this->linkArchiveFilesToPost($post, false);
+
             // Build and save spot_data with image data only
-            // Only save spot_data if image editor was actually used
+            // Only save spot_data if image editor was actually used (like PostEdit)
             $spotData = [];
 
-            // Add image data if we have image files AND image editor was used
-            if ($this->imageEditorUsed && ! empty($this->files) && $post->primaryFile) {
+            // Add image data if we have primary file AND image editor was used
+            if ($this->imageEditorUsed && $post->primaryFile) {
                 // Get image dimensions and hash
                 $imagePath = public_path('storage/'.$post->primaryFile->file_path);
                 $width = null;
@@ -519,6 +453,15 @@ class PostCreateVideo extends Component
                     }
                 }
 
+                // Extract canvas dimensions for scaling textObjects on reload
+                $canvasDimensions = ['width' => 0, 'height' => 0];
+                if ($editorData !== null && isset($editorData['canvas']) && is_array($editorData['canvas'])) {
+                    $canvasDimensions = [
+                        'width' => isset($editorData['canvas']['width']) ? (int) $editorData['canvas']['width'] : 0,
+                        'height' => isset($editorData['canvas']['height']) ? (int) $editorData['canvas']['height'] : 0,
+                    ];
+                }
+
                 // Arrays are already initialized above, no need to check again
 
                 $spotData['image'] = [
@@ -541,11 +484,12 @@ class PostCreateVideo extends Component
                     'effects' => $imageEffects,
                     'meta' => $imageMeta,
                     'textObjects' => $textObjects,
+                    'canvas' => $canvasDimensions,
                 ];
             }
 
-            // Only save spot_data if image editor was used
-            if ($this->imageEditorUsed) {
+            // Only save spot_data if image editor was used AND we have actual data
+            if ($this->imageEditorUsed && array_key_exists('image', $spotData)) {
                 $post->spot_data = $spotData;
                 $post->save();
             }

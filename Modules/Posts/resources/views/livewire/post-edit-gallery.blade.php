@@ -77,8 +77,8 @@
                         <i class="fas fa-images text-white text-xl"></i>
                     </div>
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-900 mb-1">Yeni Galeri Oluştur</h2>
-                        <p class="text-gray-600">Çoklu resim galerisi oluşturun</p>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-1">Galeri Düzenle</h2>
+                        <p class="text-gray-600">Mevcut galeriyi düzenleyin</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
@@ -98,7 +98,7 @@
         <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div class="p-6">
-                    <form wire:submit.prevent="savePost"
+                    <form wire:submit.prevent="updatePost"
                           onsubmit="(function(e) {
                             // Force sync primary_image_spot_data before form submit
                             const primaryImageInput = document.getElementById('primary_image_spot_data');
@@ -110,13 +110,11 @@
                                   const component = window.Livewire.find(wireId);
                                   if (component) {
                                     component.set('primary_image_spot_data', primaryImageInput.value);
-                                    console.log('Form submit - Synced primary_image_spot_data:', primaryImageInput.value.length);
+                                    }
+                                  } catch (err) {
                                   }
-                                } catch (err) {
-                                  console.warn('Form submit - Failed to sync primary_image_spot_data:', err);
                                 }
                               }
-                            }
                           })(event);">
                         <!-- Başlık -->
                         <div class="mb-6">
@@ -303,12 +301,15 @@
                                                     @endif
 
                             <!-- Görsel Önizleme -->
-                             @if(!empty($uploadedFiles))
+                            @php
+                                $totalFiles = count($existingFiles ?? []) + count($uploadedFiles ?? []);
+                            @endphp
+                            @if(!empty($existingFiles) || !empty($uploadedFiles))
                                 <div class="mt-6">
                                     <div class="flex justify-between items-center mb-4">
                                         <h6 class="text-lg font-medium text-gray-900">
                                             <i class="fas fa-eye mr-2 text-green-500"></i>
-                                            Galeri Görselleri ({{ count($uploadedFiles) }} adet)
+                                            Galeri Görselleri ({{ $totalFiles }} adet)
                                         </h6>
                                         <button type="button"
                                                 class="inline-flex items-center px-3 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 transition-colors duration-150"
@@ -318,11 +319,155 @@
                                         </button>
                                     </div>
                                      <div class="space-y-4" id="gallery-sortable" x-data="gallerySortable()">
+                                        {{-- Mevcut Dosyalar (existingFiles) --}}
+                                        @if(!empty($existingFiles))
+                                            @foreach($existingFiles as $index => $file)
+                                                @php
+                                                    $fileId = $file['file_id'];
+                                                    $imageKey = 'existing:' . $fileId;
+                                                    $imageUrl = asset('storage/' . $file['path']);
+                                                    $description = $file['description'] ?? '';
+                                                    $altText = $file['alt_text'] ?? '';
+                                                    $isPrimary = $file['primary'] ?? false;
+                                                    // Get spot_data from post if available (only for primary image)
+                                                    $spotData = null;
+                                                    if ($isPrimary && $this->post->spot_data && isset($this->post->spot_data['image'])) {
+                                                        $spotData = $this->post->spot_data['image'];
+                                                    }
+                                                @endphp
+                                                <div wire:key="existing-file-{{ $fileId }}" class="gallery-item bg-gray-50 rounded-xl p-4 border border-gray-200 relative" data-index="{{ $index }}" id="gallery-item-{{ $fileId }}">
+                                                    <!-- Sortable Handle -->
+                                                    <div class="sortable-handle absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10 cursor-grab hover:bg-blue-600 transition-colors">
+                                                        <i class="fas fa-grip-vertical mr-1"></i>
+                                                        {{ $index + 1 }}
+                                                    </div>
+
+                                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                                        <!-- Sol taraf: Resim -->
+                                                        <div class="lg:col-span-1">
+                                                            <div class="relative group">
+                                                                <div class="image-preview-card"
+                                                                     wire:ignore
+                                                                     x-init="window.renderPreviewWithSpotData($el.querySelector('img.image-preview-img'))"
+                                                                     data-image-key="{{ $imageKey }}">
+                                                                    <div class="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 overflow-hidden">
+                                                                        {{-- Preview canvas for spot_data rendering --}}
+                                                                        <canvas class="image-preview-canvas w-full h-full object-cover"
+                                                                                data-image-key="{{ $imageKey }}"
+                                                                                style="display: none;"></canvas>
+                                                                        {{-- Fallback image --}}
+                                                                        @php
+                                                                            $spotArray = null;
+                                                                            // Only load spot_data for primary image
+                                                                            if ($isPrimary && $spotData && is_array($spotData)) {
+                                                                                $spotArray = ['image' => $spotData];
+                                                                            }
+                                                                        @endphp
+                                                                        <img src="{{ $imageUrl }}"
+                                                                             class="image-preview-img w-full h-full object-cover"
+                                                                             alt="Preview"
+                                                                             data-image-key="{{ $imageKey }}"
+                                                                             data-image-url="{{ $imageUrl }}"
+                                                                             data-file-path="{{ $file['path'] }}"
+                                                                             data-original-path="{{ $file['path'] }}"
+                                                                             @if(!empty($spotArray))
+                                                                                 data-spot-data='@json($spotArray)'
+                                                                                 data-has-spot-data="true"
+                                                                             @else
+                                                                                 data-spot-data=""
+                                                                                 data-has-spot-data="false"
+                                                                             @endif
+                                                                             data-file-id="{{ $fileId }}"
+                                                                             onload="if(window.renderPreviewWithSpotData) { window.renderPreviewWithSpotData(this); } else { setTimeout(() => { if(window.renderPreviewWithSpotData) window.renderPreviewWithSpotData(this); }, 100); }"
+                                                                             onerror="console.error('Image preview error:', this.src); this.style.backgroundColor='#f3f4f6';"
+                                                                             loading="lazy">
+                                                                    </div>
+                                                                </div>
+                                                                {{-- Top right corner buttons - outside wire:ignore so they update when primaryFileId changes --}}
+                                                                <div class="absolute top-2 right-2 flex gap-2 z-20">
+                                                                    {{-- Düzenle butonu sadece ana görsel için göster --}}
+                                                                    @if($fileId === $primaryFileId || (string)$fileId === (string)$primaryFileId)
+                                                                        <button type="button"
+                                                                                class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-blue-600 transition-colors duration-200 shadow-md image-edit-button"
+                                                                                data-image-key="{{ $imageKey }}"
+                                                                                data-image-url="{{ $imageUrl }}"
+                                                                                data-file-path="{{ $file['path'] }}"
+                                                                                onclick="(function(){ const k=this.getAttribute('data-image-key'); const u=this.getAttribute('data-image-url'); const p=this.getAttribute('data-file-path'); if(window.openImageEditor){ window.openImageEditor(k,{url:u, filePath:p}); } }).call(this);"
+                                                                                title="Düzenle"
+                                                                                wire:key="edit-existing-button-{{ $fileId }}">
+                                                                            <i class="fas fa-edit"></i>
+                                                                        </button>
+                                                                    @endif
+                                                                    <button type="button"
+                                                                            class="bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-red-600 transition-colors duration-200 shadow-md"
+                                                                            onclick="(function(){ var key='{{ $imageKey }}'; if (window.imageEditorUnregister) { try { window.imageEditorUnregister(key); } catch(e){} } }).call(this);"
+                                                                            wire:click="removeExistingFile('{{ $fileId }}')"
+                                                                            title="Kaldır">
+                                                                        <i class="fas fa-times"></i>
+                                                                    </button>
+                                                                </div>
+                                                                {{-- Primary badge - outside wire:ignore so it updates --}}
+                                                                @if($fileId === $primaryFileId || (string)$fileId === (string)$primaryFileId)
+                                                                    <div class="absolute bottom-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10"
+                                                                         wire:key="primary-existing-badge-{{ $fileId }}">
+                                                                        <i class="fas fa-star mr-1"></i>
+                                                                        Ana
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                            <!-- Ana Görsel Seçimi -->
+                                                            <div class="mt-3">
+                                                                <label class="flex items-center">
+                                                                    <input type="radio"
+                                                                           name="primaryExistingFile"
+                                                                           id="primaryExistingFile{{ $fileId }}"
+                                                                           wire:model.live="primaryFileId"
+                                                                           value="{{ $fileId }}"
+                                                                           class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300">
+                                                                    <span class="ml-2 text-sm text-gray-700">
+                                                                        <i class="fas fa-star mr-1"></i>
+                                                                        Ana Görsel
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+                                                            <div class="mt-2 text-xs text-gray-500 flex items-center gap-1 min-w-0" title="{{ $file['original_name'] ?? 'Unknown' }}">
+                                                                <i class="fas fa-file flex-shrink-0"></i>
+                                                                <span class="truncate block min-w-0">
+                                                                    {{ $file['original_name'] ?? 'Unknown' }}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <!-- Sağ taraf: Açıklama -->
+                                                        <div class="lg:col-span-2">
+                                                            <div>
+                                                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                                    <i class="fas fa-edit mr-1"></i>
+                                                                    Resim Açıklaması
+                                                                </label>
+                                                                <div wire:ignore>
+                                                                    <textarea
+                                                                        id="gallery-description-existing-{{ $fileId }}"
+                                                                        class="trumbowyg block w-full text-sm border border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                                                                        data-editor="trumbowyg"
+                                                                        data-file-id="{{ $fileId }}"
+                                                                        data-field="description"
+                                                                        rows="3"
+                                                                        placeholder="Bu resim için açıklama yazın...">{!! $description !!}</textarea>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        @endif
+                                        {{-- Yeni Yüklenen Dosyalar (uploadedFiles) --}}
                                          @foreach($uploadedFiles as $fileId => $fileData)
                                              @php
                                                  $description = $fileData['description'] ?? '';
                                                  $altText = $fileData['alt_text'] ?? '';
-                                                 $index = array_search($fileId, array_keys($uploadedFiles));
+                                                 $uploadedIndex = array_search($fileId, array_keys($uploadedFiles));
+                                                 // Index should be after existingFiles count
+                                                 $index = count($existingFiles ?? []) + $uploadedIndex;
                                              @endphp
                                                 <div wire:key="file-{{ $fileId }}" class="gallery-item bg-gray-50 rounded-xl p-4 border border-gray-200 relative" data-index="{{ $index }}" id="gallery-item-{{ $fileId }}">
                                                     <!-- Sortable Handle -->
@@ -508,7 +653,7 @@
                             <button type="submit"
                                     class="inline-flex items-center px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transition-all duration-200">
                                 <i class="fas fa-save mr-2"></i>
-                                Galeriyi Kaydet
+                                Galeriyi Güncelle
                             </button>
                         </div>
                     </form>

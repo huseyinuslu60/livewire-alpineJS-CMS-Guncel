@@ -3,7 +3,7 @@
  * Combines all modules into a single Alpine.js component
  */
 
-import { createInitialState, registerImage, setCurrentImage, updateImageSpotData, getImageConfig, parseImageKey } from './state.js';
+import { createInitialState, registerImage, setCurrentImage, updateImageSpotData, getImageConfig, parseImageKey, unregisterImage, unregisterImageByIndex } from './state.js';
 import { createCanvasMethods } from './canvas.js';
 import { createImageLoaderMethods } from './image-loader.js';
 import { createSpotDataMethods } from './spot-data.js';
@@ -133,6 +133,22 @@ export function registerImageEditor() {
         detail: { imageKey, config: imageConfig }
       }));
     };
+
+    window.imageEditorUnregister = function(imageKey) {
+      try {
+        unregisterImage(imageKey);
+      } catch (e) {
+        console.warn('Image Editor - Failed to unregister image:', imageKey, e);
+      }
+    };
+
+    window.imageEditorUnregisterByIndex = function(index) {
+      try {
+        unregisterImageByIndex(index);
+      } catch (e) {
+        console.warn('Image Editor - Failed to unregister image by index:', index, e);
+      }
+    };
   }
 
   // Create Alpine.js component by combining all modules
@@ -175,20 +191,107 @@ export function registerImageEditor() {
           return;
         }
 
+        // IMPORTANT: Check if imageKey exists in state
+        // If not, this means the image was removed and we should reset state
+        const imageConfigFromState = getImageConfig(imageKey);
+        if (!imageConfigFromState) {
+          console.warn('Image Editor - openEditorWithImageKey: Image not found in state, resetting state for:', imageKey);
+          // Image was removed, reset state completely - more aggressive reset
+          this.resetSpotData(imageConfig.url || '');
+          this.resetFilters();
+          this.textObjects = [];
+          this.savedTextObjects = [];
+          this.desktopCrop = [];
+          this.mobileCrop = [];
+          this.originalImageWidth = 0;
+          this.originalImageHeight = 0;
+          this.originalImagePath = null;
+          this.image = null;
+          this.layers = [];
+          this.history = [];
+          this.historyIndex = -1;
+          this.zoom = 1;
+          this.panX = 0;
+          this.panY = 0;
+        }
+
+        // IMPORTANT: If imageKey changed, reset state completely
+        // This prevents showing old image data when switching between images
+        if (this.currentImageKey && this.currentImageKey !== imageKey) {
+          // Reset state for new image - more aggressive reset
+          this.resetSpotData(imageConfig.url || '');
+          this.resetFilters();
+          this.textObjects = [];
+          this.savedTextObjects = [];
+          this.desktopCrop = [];
+          this.mobileCrop = [];
+          this.originalImageWidth = 0;
+          this.originalImageHeight = 0;
+          this.originalImagePath = null;
+          this.image = null;
+          this.layers = [];
+          this.history = [];
+          this.historyIndex = -1;
+          this.zoom = 1;
+          this.panX = 0;
+          this.panY = 0;
+        }
+
         // Set current image key
         this.currentImageKey = imageKey;
         setCurrentImage(imageKey);
 
         // Extract data from config
         const url = imageConfig.url || '';
-        let spotData = imageConfig.spotData || null;
+        // Try to get spotData from config (spotData or initialSpotData)
+        let spotData = imageConfig.spotData || imageConfig.initialSpotData || null;
         const fileId = imageConfig.fileId;
         const index = imageConfig.index;
 
+        // IMPORTANT: Validate and normalize spotData format
+        if (spotData) {
+          // Handle nested structure: if spotData has 'image.image', unwrap it
+          if (spotData.image && spotData.image.image && typeof spotData.image.image === 'object') {
+            spotData = { image: spotData.image.image };
+          }
+          // If spotData is just the image object (not wrapped), wrap it
+          if (spotData.original || spotData.variants || spotData.effects || spotData.textObjects) {
+            spotData = { image: spotData };
+          }
+          // Validate that spotData has the expected structure
+          if (!spotData.image || typeof spotData.image !== 'object') {
+            console.warn('Image Editor - openEditorWithImageKey: Invalid spotData format, resetting to null', {
+              imageKey: imageKey,
+              spotData: spotData
+            });
+            spotData = null;
+          }
+        }
+
+        // IMPORTANT: Check if the image URL has changed (new file uploaded at same index)
+        // If URL changed, don't use old spot_data - it belongs to the old image
+        const img = document.querySelector(`img[data-image-key="${imageKey}"]`);
+        let imageUrlChanged = false;
+        if (img && url) {
+          const imgSrc = img.src || img.getAttribute('src') || '';
+          const imgDataUrl = img.getAttribute('data-image-url') || '';
+          // Compare URLs (normalize for comparison)
+          const normalizeUrl = (u) => u ? u.split('?')[0].replace(/\/$/, '') : '';
+          const normalizedImgSrc = normalizeUrl(imgSrc);
+          const normalizedImgDataUrl = normalizeUrl(imgDataUrl);
+          const normalizedUrl = normalizeUrl(url);
+
+          // If img src or data-image-url doesn't match the provided url, image was replaced
+          if (normalizedImgSrc && normalizedImgSrc !== normalizedUrl &&
+              normalizedImgDataUrl && normalizedImgDataUrl !== normalizedUrl) {
+            imageUrlChanged = true;
+          }
+        }
+
         // IMPORTANT: If spotData is null, try to get it from img element's data-spot-data attribute
         // This handles cases where initialSpotData wasn't passed or failed to parse
-        if (!spotData) {
-          const img = document.querySelector(`img[data-image-key="${imageKey}"]`);
+        // BUT: Only if imageKey exists in state (not removed) AND image URL hasn't changed
+        if (!spotData && imageConfigFromState && !imageUrlChanged) {
           if (img) {
             const spotJson = img.getAttribute('data-spot-data');
             if (spotJson && spotJson.length > 20) {
@@ -200,19 +303,49 @@ export function registerImageEditor() {
                   tempDiv.innerHTML = spotJson;
                   parsedJson = tempDiv.textContent || tempDiv.innerText || spotJson;
                 }
-                spotData = JSON.parse(parsedJson);
+                const parsedSpotData = JSON.parse(parsedJson);
+                // Validate and normalize parsed spotData
+                if (parsedSpotData && typeof parsedSpotData === 'object') {
+                  // Handle nested structure
+                  if (parsedSpotData.image && parsedSpotData.image.image && typeof parsedSpotData.image.image === 'object') {
+                    spotData = { image: parsedSpotData.image.image };
+                  } else if (parsedSpotData.image && typeof parsedSpotData.image === 'object') {
+                    spotData = parsedSpotData;
+                  } else if (parsedSpotData.original || parsedSpotData.variants || parsedSpotData.effects || parsedSpotData.textObjects) {
+                    spotData = { image: parsedSpotData };
+                  } else {
+                    spotData = parsedSpotData;
+                  }
+                }
               } catch (e) {
                 console.warn('Image Editor - openEditorWithImageKey: Failed to parse spotData from img element:', e);
               }
             }
           }
+        } else if (!imageConfigFromState || imageUrlChanged) {
+          // Image was removed or replaced, force spotData to null
+          spotData = null;
+          if (imageUrlChanged) {
+            // Reset state for new image
+            this.resetSpotData(url || '');
+            this.resetFilters();
+            this.textObjects = [];
+            this.savedTextObjects = [];
+            this.desktopCrop = [];
+            this.mobileCrop = [];
+            this.originalImageWidth = 0;
+            this.originalImageHeight = 0;
+            this.originalImagePath = null;
+          }
         }
 
-        // Handle nested structure: if spotData has 'image.image', unwrap it
-        // This prevents issues with double-nested spot_data structure
-        if (spotData && spotData.image && spotData.image.image && typeof spotData.image.image === 'object') {
-          // Unwrap: use spotData.image.image instead
-          spotData = { image: spotData.image.image };
+        // Final validation: ensure spotData has correct structure
+        if (spotData && (!spotData.image || typeof spotData.image !== 'object')) {
+          console.warn('Image Editor - openEditorWithImageKey: Invalid spotData structure after normalization, resetting to null', {
+            imageKey: imageKey,
+            spotData: spotData
+          });
+          spotData = null;
         }
 
         // Set legacy identifiers for backward compatibility
@@ -286,7 +419,6 @@ export function registerImageEditor() {
         // This prevents issues with double-nested spot_data structure
         let normalizedSpotData = spotData;
         if (spotData && spotData.image && spotData.image.image && typeof spotData.image.image === 'object') {
-          console.log('Image Editor - openEditor: Unwrapping nested image structure');
           // Unwrap: use spotData.image.image instead
           normalizedSpotData = { image: spotData.image.image };
         }

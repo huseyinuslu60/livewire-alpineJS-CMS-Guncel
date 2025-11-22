@@ -85,6 +85,36 @@ export function getCurrentImageConfig() {
 }
 
 /**
+ * Unregister an image from the state
+ * @param {string} imageKey - Image key to unregister
+ */
+export function unregisterImage(imageKey) {
+  if (!imageKey) {
+    return;
+  }
+
+  // Remove from images object
+  if (imageState.images[imageKey]) {
+    delete imageState.images[imageKey];
+    console.log('Image State - Unregistered image:', imageKey);
+  }
+
+  // If it was the current image, clear current
+  if (imageState.currentImageKey === imageKey) {
+    imageState.currentImageKey = null;
+  }
+}
+
+/**
+ * Unregister all images with a specific index (for temp images)
+ * @param {number} index - Index to unregister
+ */
+export function unregisterImageByIndex(index) {
+  const imageKey = `temp:${index}`;
+  unregisterImage(imageKey);
+}
+
+/**
  * Parse imageKey to extract type, fileId, or index
  * @param {string} imageKey - Image key
  * @returns {object} Parsed image key data
